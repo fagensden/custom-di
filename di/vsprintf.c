@@ -15,6 +15,19 @@
 #include "global.h"
 #include "string.h"
 
+#define LOG_DEBUG	1
+
+#ifdef LOG_DEBUG	
+#include "fs.h"
+#include "ff.h"
+static char Path[32];
+static u32 buflen ALIGNED(32);
+#endif
+//static u32 seektype ALIGNED(32);
+
+
+
+
 static inline int isdigit(int c)
 {
 	return c >= '0' && c <= '9';
@@ -330,22 +343,76 @@ void hexdump(void *d, int len)
 }
 
 
-static char buffer[1024] ALIGNED(32);
+//static char buffer[1024] ALIGNED(0x40);
 int dbgprintf( const char *fmt, ...)
 {
+
 	if ( (*(vu32*)(HW_EXICTRL) & 1) == 0)
 		return 0;
 
 	va_list args;
 	int i;
 
+	char *buffer = (char*)halloca( 0x400, 0x40 );
+
 	va_start(args, fmt);
 	i = vsprintf(buffer, fmt, args);
 	va_end(args);
 
+
+#ifdef LOG_DEBUG	
+
+	sprintf(Path,"/sneek/cdilog.txt");
+	s32 fd = IOS_Open( Path, 2 );
+	if( fd < 0 )
+	{
+		sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
+		OSReport(buffer);
+		hfree(buffer);
+		return i;
+	}
+
+	s32 r = IOS_Seek(fd,0,2);
+	
+	if( r < 0 )
+	{
+		sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
+		OSReport(buffer);
+		IOS_Close(fd);
+		hfree(buffer);
+		return i;
+	}
+	
+//	sprintf(buffer,"CDI:Made it after seek\r\n");
+//	OSReport(buffer);
+//	IOS_Close(fd);
+	
+	
+	//dbgprintf("ES:NANDLoadFile->Size:%d\n", *Size );
+	buflen = strlen(buffer);
+	r = IOS_Write( fd, buffer,buflen);
+	if( r < 0 )
+	{
+		sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
+		OSReport(buffer);
+//		hfree( status );
+		IOS_Close(fd);
+//		*Size = r;
+		hfree(buffer);
+		return i;
+	}
+	
+//	sprintf(buffer,"CDI:Made it after write len = %d \r\n",buflen);
+//	OSReport(buffer);
+	
+	IOS_Close(fd);
+
+
+#else
 	//GeckoSendBuffer( buffer );
 	OSReport( buffer );
-
+#endif
+	hfree(buffer);
 	return i;
 }
 
