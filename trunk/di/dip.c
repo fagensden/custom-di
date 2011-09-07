@@ -181,6 +181,7 @@ u32 GetSystemMenuRegion( void )
 
 	return Region;
 }
+
 u32 DVDGetInstalledGamesCount( void )
 {
 	u32 GameCount = 0;
@@ -219,9 +220,24 @@ u32 DVDGetInstalledGamesCount( void )
 	if( DVDOpenDir( Path ) == FR_OK )
 	{
 		while( DVDReadDir() == FR_OK )
-		{
-			if( DVDDirIsFile() )
+		{	
+			if( strlen( DVDDirGetEntryName() ) > 31 ) continue;
+			if( strlen( DVDDirGetEntryName() ) == 11 && strncmp(DVDDirGetEntryName()+7, "wbfs", 4 ) == 0)
+			{
+				sprintf( WBFSPath, "/wbfs/%.11s", DVDDirGetEntryName() );				
+				WBFS_Read( 0x240000, 4, buf1 );
+					
+				if(*(vu32*)buf1 == 0x00000001) // For now skip games with update partition
+				{				
+					s32 fd = DVDOpen( WBFSPath, FA_READ );
+					if( fd >= 0 )
+					{					
+						GameCount++;
+						DVDClose(fd);
+					}
+				}
 				continue;
+			}
 				
 			if( strlen(DVDDirGetEntryName()) == 6 ) {
 				strcpy ( WBFSFile, DVDDirGetEntryName() );
@@ -237,15 +253,15 @@ u32 DVDGetInstalledGamesCount( void )
 				}
 			}
 			
-			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );				
-			
-			s32 fd = DVDOpen( WBFSPath, FA_READ );
-			if( fd >= 0 )
-			{
-				WBFS_Read( 0x240000, 4, buf1 );
+			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
+
+			WBFS_Read( 0x240000, 4, buf1 );
 					
-				if(*(vu32*)buf1 == 0x00000001) // For now skip games with update partition
-				{
+			if(*(vu32*)buf1 == 0x00000001) // For now skip games with update partition
+			{			
+				s32 fd = DVDOpen( WBFSPath, FA_READ );
+				if( fd >= 0 )
+				{				
 					GameCount++;
 					DVDClose(fd);
 				}
@@ -255,6 +271,8 @@ u32 DVDGetInstalledGamesCount( void )
 
 	free( Path );
 	hfree( buf1 );
+	
+	dbgprintf("CDI:Found: %d games\n", GameCount);
 
 	return GameCount;	
 }
@@ -292,7 +310,7 @@ u32 DVDVerifyGames( void )
 			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
 			s32 fd = DVDOpen( WBFSPath, DREAD );
 			if( fd < 0 )
-			{		
+			{	
 				//If not WBFS aswell check SD (DML)
 				if( FSMode == SNEEK )
 				{
@@ -506,44 +524,72 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
 				while( DVDReadDir() == FR_OK )
-				{
-					if( DVDDirIsFile() )
+				{					
+					if( strlen( DVDDirGetEntryName() ) > 31 )
+					{
+						dbgprintf( "CDI:Skipping to long folder entry: %s\n", DVDDirGetEntryName() );
 						continue;
+					}					
+					
+					if( strlen( DVDDirGetEntryName() ) == 11 && strncmp(DVDDirGetEntryName()+7, "wbfs", 4 ) == 0 )
+					{
+						sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
+						dbgprintf( "CDI:Set gamepath to: %s\n", WBFSPath );
+						WBFS_Read( 0x240000, 4, buf1 );						
+						if( *(vu32*)buf1 == 0x00000001 ) // For now skip games with update partition
+						{	
+							s32 r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
+							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) );									
+							DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+							CurrentGame++;
+							if( r == WBFS_OK )
+								dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, DVDDirGetEntryName() );
+							else
+								dbgprintf( "CDI:Failed opening entry: %s\n", DVDDirGetEntryName() );
+								
+							continue;							
+						}
+						else
+						{
+							dbgprintf( "CDI:Skipping game with update partition: %s\n", DVDDirGetEntryName() );
+							continue;
+						}
+					}
 
 					if( strlen(DVDDirGetEntryName()) == 6 ) {
 						strcpy ( WBFSFile, DVDDirGetEntryName() );
 					}
 					else {
 						mch = strchr(DVDDirGetEntryName(), '_');
-						if( mch-DVDDirGetEntryName() == 6 ) {
+						if( mch-DVDDirGetEntryName() == 6 ) 						
 							strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
-						}
+						
 						mch = strchr(DVDDirGetEntryName(), ']');
-						if( mch-DVDDirGetEntryName()+1 == strlen(DVDDirGetEntryName()) ) {
+						if( mch-DVDDirGetEntryName()+1 == strlen(DVDDirGetEntryName()) ) 						
 							strncpy( WBFSFile, DVDDirGetEntryName() +  strlen(DVDDirGetEntryName()) - 7, 6 );
-						}
+						
 					}
 
-					sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
-		
-					dbgprintf("CDI:DVDUpdateCache:gamepath=%s\n",WBFSPath);
+					sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );		
+					dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
+					WBFS_Read( 0x240000, 4, buf1 );					
+					if( *(vu32*)buf1 == 0x00000001 ) // For now skip games with update partition
+					{							
+						s32 r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
+						memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) );
+						DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+						CurrentGame++;
+						if( r == WBFS_OK )
+							dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, DVDDirGetEntryName() );
+						else
+							dbgprintf( "CDI:Failed opening entry: %s\n", DVDDirGetEntryName() );
 
-					WBFS_Read( 0x240000, 4, buf1 );
-					
-					if(*(vu32*)buf1 == 0x00000001) // For now skip games with update partition
-					{					
-						s32 gi = DVDOpen( WBFSPath, FA_READ );
-						if( gi >= 0 )
-						{							
-							DVDSeek( gi, 0x200, 0);
-							DVDRead( gi, GameInfo, DVD_GAMEINFO_SIZE );							
-							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) );
-
-							DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
-							
-							DVDClose( gi );
-							CurrentGame++;
-						}
+						continue;
+					}
+					else
+					{
+						dbgprintf( "CDI:Skipping game with update partition: %s\n", DVDDirGetEntryName() );
+						continue;
 					}
 				}
 			}
@@ -621,7 +667,13 @@ s32 DVDSelectGame( int SlotID )
 		KeyIDT = 0;
 		
 		sprintf( WBFSFile, "%s", DICfg->GameInfo[SlotID] );
-		sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
+		
+		//if(strcmp( (char*)&DICfg->GameInfo[SlotID][0x60], "wbfs" ) == 0 )
+		if( strncmp( (char*)&DICfg->GameInfo[SlotID][0x60]+7, "wbfs", 4 ) == 0 )
+			sprintf( WBFSPath, "/wbfs/%s.wbfs",  WBFSFile );			
+		else			
+			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
+		
 		
 		dbgprintf("CDI:DVDSelectGame:gamepath=%s\n",WBFSPath);
 		
@@ -1700,7 +1752,7 @@ s32 WBFS_Read( u64 offset, u64 length, void *ptr )
 		Cachefd = IOS_Open( WBFSPath, 1 );
 		if(Cachefd < 0)		
 		{	
-			dbgprintf("CDI:WBFS_Read failure(1)\n");
+			dbgprintf("CDI:WBFS_Read failure(1) for %s\n", WBFSPath);
 			return WBFS_FATAL;
 		}	
 		sprintf( CacheFile, "%s", WBFSPath );
@@ -1720,7 +1772,7 @@ s32 WBFS_Read( u64 offset, u64 length, void *ptr )
 			Cachefdb = IOS_Open( str, 1 );
 			if(Cachefdb < 0)		
 			{
-				dbgprintf("CDI:WBFS_Read failure(2)\n");
+				dbgprintf("CDI:WBFS_Read failure(2) for %s\n", str);
 				return WBFS_FATAL;
 			}			
 			sprintf( CacheFileb, "%s", str );
@@ -2025,4 +2077,3 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 	else
 	 return DI_FATAL;
 }
-

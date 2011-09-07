@@ -37,6 +37,20 @@ s32 switchtimer;
 int QueueID;
 int requested_game;
 
+
+s32 FS_Running( void )
+{
+	s32 fd = IOS_Open("/dev/fs", 0 );
+	if( fd < 0 )
+		return fd;
+
+	s32 r = IOS_Ioctl( fd, ISFS_IS_USB, NULL, 0, NULL, 0);
+	
+	IOS_Close( fd );
+
+	return r;
+}
+
 void udelay(int us)
 {
 	u8 heap[0x10];
@@ -93,10 +107,29 @@ void _main(void)
 	
 	//a 2 seconds delay to avoid racing
 	//udelay(2000000);
-	
+	s32 tries = 0;
+	s32 runresult;
+	runresult = FS_Running();
+	while((runresult!=FS_SUCCESS)&&(tries < 20)) 
+	{
+		dbgprintf("CDI:Init FS runresult = %d\n",runresult);
+		udelay(1000000);
+		tries++;
+		runresult = FS_Running();
+	}
+	if (tries == 20)
+	{
+		dbgprintf("CDI:FS-USB init failure...?\n");
+	}
+	else
+	{
+		dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
+	}
+
+
 	DVDInit();
 
-	//a 2 seconds delay to avoid racing
+	//a 0.5 seconds delay to avoid racing
 	//as es is waiting for the harddisk to become ready
 	//this needs to be after the DVDInit();
 	//which sets the flag for harddisk ready
