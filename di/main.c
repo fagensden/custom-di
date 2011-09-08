@@ -37,7 +37,6 @@ s32 switchtimer;
 int QueueID;
 int requested_game;
 
-
 s32 FS_Running( void )
 {
 	s32 fd = IOS_Open("/dev/fs", 0 );

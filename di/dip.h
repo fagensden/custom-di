@@ -185,7 +185,7 @@ typedef struct
 	u32 bl_num;
 } BlockCache;
 
-#define BLOCKCACHE_MAX	3
+#define BLOCKCACHE_MAX	5
 
 typedef struct
 {
