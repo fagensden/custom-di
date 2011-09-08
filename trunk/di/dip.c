@@ -608,6 +608,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		free( buf1 );
 	}
 	
+	DICfg->Config	= (0<<7);
+	DVDSeek( fd, 0, 0 );
+	DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
+	
 	DVDClose( fd );
 
 //Read new config

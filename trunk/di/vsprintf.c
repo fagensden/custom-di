@@ -16,12 +16,14 @@
 #include "string.h"
 
 #define LOG_DEBUG	1
+#define AUTO_CREATE_LOGFILE 1
 
 #ifdef LOG_DEBUG	
 #include "fs.h"
 #include "ff.h"
 static char Path[32];
 static u32 buflen ALIGNED(32);
+static u32 ignore_logfile = 0;
 #endif
 //static u32 seektype ALIGNED(32);
 
@@ -362,50 +364,74 @@ int dbgprintf( const char *fmt, ...)
 
 #ifdef LOG_DEBUG	
 
-	sprintf(Path,"/sneek/cdilog.txt");
-	s32 fd = IOS_Open( Path, 2 );
-	if( fd < 0 )
+	if (ignore_logfile == 0)
 	{
-		sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
-		OSReport(buffer);
-		hfree(buffer);
-		return i;
-	}
+		sprintf(Path,"/sneek/cdilog.txt");
+		s32 fd = IOS_Open( Path, 2 );
+		if( fd < 0 )
+		{
+			if(fd == FS_ENOENT2)
+			{
+#ifdef	AUTO_CREATE_LOGFILE		
+				ISFS_CreateFile(Path,0,0,0,0);
+				fd = IOS_Open( Path, 2 );
+				if( fd < 0 )
+				{
+					sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
+					OSReport(buffer);
+					hfree(buffer);
+					return i;
+				}
+#else
+				ignore_logfile = 1;
+#endif			
+			}
+			else
+			{
+				sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
+				OSReport(buffer);
+				hfree(buffer);
+				return i;
+			}
+		}
 
-	s32 r = IOS_Seek(fd,0,2);
+		s32 r = IOS_Seek(fd,0,2);
 	
-	if( r < 0 )
-	{
-		sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
-		OSReport(buffer);
-		IOS_Close(fd);
-		hfree(buffer);
-		return i;
-	}
+		if( r < 0 )
+		{
+			sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
+			OSReport(buffer);
+			IOS_Close(fd);
+			hfree(buffer);
+			return i;
+		}
 	
-//	sprintf(buffer,"CDI:Made it after seek\r\n");
-//	OSReport(buffer);
-//	IOS_Close(fd);
+//		sprintf(buffer,"CDI:Made it after seek\r\n");
+//		OSReport(buffer);
+//		IOS_Close(fd);
 	
 	
 	//dbgprintf("ES:NANDLoadFile->Size:%d\n", *Size );
-	buflen = strlen(buffer);
-	r = IOS_Write( fd, buffer,buflen);
-	if( r < 0 )
-	{
-		sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
-		OSReport(buffer);
-//		hfree( status );
+		buflen = strlen(buffer);
+		r = IOS_Write( fd, buffer,buflen);
+		if( r < 0 )
+		{
+			sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
+			OSReport(buffer);
+//			hfree( status );
+			IOS_Close(fd);
+//			*Size = r;
+			hfree(buffer);
+			return i;
+		}
+	
+//		sprintf(buffer,"CDI:Made it after write len = %d \r\n",buflen);
 		IOS_Close(fd);
-//		*Size = r;
-		hfree(buffer);
-		return i;
 	}
 	
-//	sprintf(buffer,"CDI:Made it after write len = %d \r\n",buflen);
-//	OSReport(buffer);
+// to see if things work as expected	
+	OSReport(buffer);
 	
-	IOS_Close(fd);
 
 
 #else
