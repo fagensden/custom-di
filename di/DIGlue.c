@@ -141,7 +141,6 @@ s32 DVDOpen( char *Filename, u32 Mode )
 				break;
 			}
 		}
-
 		if( handle == 0xdeadbeef )			
 			return FR_DISK_ERR;
 		
@@ -163,7 +162,9 @@ s32 DVDOpen( char *Filename, u32 Mode )
 		
 		return handle;
 
-	} else {
+	} 
+	else 
+	{
 		
 		u32 handle = 0xdeadbeef;
 
@@ -176,6 +177,8 @@ s32 DVDOpen( char *Filename, u32 Mode )
 				break;
 			}
 		}
+//resource leak detection.
+//		dbgprintf("CDI:DVDOpen handle = %d\n",handle);
 
 		if( handle == 0xdeadbeef )
 			return DVD_FATAL;
@@ -203,8 +206,9 @@ s32 DVDOpen( char *Filename, u32 Mode )
 
 		if( Nhandle[handle] < 0 )
 		{
-			handle = Nhandle[handle];
+			s32 temp = Nhandle[handle];
 			Nhandle[handle]  =0xdeadbeef;
+			handle = temp;
 		}
 		
 		return handle;
@@ -474,8 +478,11 @@ void DVDClose( s32 handle )
 		f_close( &(FHandle[handle]) );
 		FHandle[handle].fs = (FATFS*)NULL;
 
-	} else {
-
+	} 
+	else 
+	{
+// resource leak detection.
+//		dbgprintf("CDI:DVDClose -> handle = %d\n",handle);
 		if( handle >= MAX_HANDLES )
 			return;
 		if( Nhandle[handle] == 0xdeadbeef )
