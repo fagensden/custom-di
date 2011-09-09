@@ -43,7 +43,7 @@ s32 FS_Running( void )
 	if( fd < 0 )
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, ISFS_IS_USB, NULL, 0, NULL, 0);
+	s32 r = IOS_Ioctl( fd, ISFS_SUPPORT_SD_DI, NULL, 0, NULL, 0);
 	
 	IOS_Close( fd );
 

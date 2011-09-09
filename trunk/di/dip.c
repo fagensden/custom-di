@@ -781,7 +781,9 @@ s32 DVDSelectGame( int SlotID )
 		DVDUpdateCache(1);
 
 		free( str );
-		return DVDSelectGame(0);
+		ChangeDisc = 0;
+		DICover |= 1;
+		return DI_FATAL;
 	}
 	else {
 		DMLite = 0;
