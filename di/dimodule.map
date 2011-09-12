@@ -1,0 +1,655 @@
+Archive member included because of file (symbol)
+
+c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_thumb1_case_uqi.o)
+                              main.o (__gnu_thumb1_case_uqi)
+c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o)
+                              ff.o (__aeabi_uidiv)
+c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_divsi3.o)
+                              ff.o (__aeabi_idiv)
+c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_dvmd_tls.o)
+                              c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o) (__aeabi_idiv0)
+c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
+                              tiny_ehci_glue.o (__bswapsi2)
+
+Allocating common symbols
+Common symbol       size              file
+
+__aeabi_unwind_cpp_pr0
+                    0x0               main.o
+FInfo               0x11c             DIGlue.o
+FHandle             0x4               DIGlue.o
+CEntry              0x4               DIGlue.o
+ipcmessage          0x20              diskio.o
+HeapID              0x4               alloc.o
+DICfg               0x4               dip.o
+iv                  0x10              dip.o
+BC                  0x26c14           dip.o
+FirstEntry          0x4               DIGlue.o
+FSMode              0x4               DIGlue.o
+switchtimer         0x4               main.o
+FSHandle            0x4               DIGlue.o
+requested_game      0x4               main.o
+d                   0x24              DIGlue.o
+Nhandle             0x4               DIGlue.o
+FC                  0x3c              dip.o
+QueueID             0x4               main.o
+wbfs_key            0x10              dip.o
+__usbfd             0xa4              tiny_ehci_glue.o
+FS                  0x5a0             dip.o
+ehci                0x4               tiny_ehci_glue.o
+Entries             0x4               DIGlue.o
+EntryCount          0x4               DIGlue.o
+_ehci               0xfc              tiny_ehci_glue.o
+HardDriveConnected  0x1               diskio.o
+fatfs               0x230             DIGlue.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+code             0x20200000         0x00007f00
+ram              0x20209000         0x0002bdc4
+stk              0x2022cdc4         0x00008000
+table            0x00000100         0x00004000
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+                0x00008000                __stack_size = 0x8000
+
+.ios_info_table
+                0x00000100       0x34
+ *(.ios_info_table)
+ .ios_info_table
+                0x00000100       0x34 start.o
+                0x00000100                ios_info_table
+
+.init           0x20200000        0x0
+ *(.init)
+                0x20200000                . = ALIGN (0x4)
+
+.text           0x20200000     0x7774
+ *(.text*)
+ .text          0x20200000       0x1c start.o
+                0x20200000                _start
+ .text          0x2020001c       0x9c diskio.o
+                0x2020001c                disk_initialize
+                0x20200048                disk_status
+                0x2020004c                disk_read
+                0x20200082                disk_write
+ .text          0x202000b8     0x1e58 ff.o
+                0x20200bc8                toupper
+                0x20200bde                ff_wtoupper
+                0x20200d38                gen_numname
+                0x20200fac                f_mount
+                0x20200fd4                f_read
+                0x20201102                f_write
+                0x20201296                f_sync
+                0x20201302                f_close
+                0x20201312                f_lseek
+                0x2020144c                get_fattime
+                0x20201450                ff_convert
+                0x2020177c                f_rename
+                0x20201898                f_utime
+                0x202018f4                f_mkdir
+                0x20201ab0                f_unlink
+                0x20201b6c                f_opendir
+                0x20201be8                f_open
+                0x20201e64                f_stat
+                0x20201eb0                f_readdir
+ .text          0x20201f10       0x98 alloc.o
+                0x20201f10                HeapInit
+                0x20201f28                halloc
+                0x20201f40                halloca
+                0x20201f5c                hfree
+                0x20201f70                malloc
+                0x20201f82                malloca
+                0x20201f98                free
+ .text          0x20201fa8     0x2578 dip.o
+                0x20201fa8                Asciify
+                0x20201fce                InitCache
+                0x20202030                GetSystemMenuRegion
+                0x202020a8                DVDVerifyGames
+                0x2020218c                DIP_Fatal
+                0x20202190                WBFS_Read
+                0x20202418                DIP_Ioctlv
+                0x2020278c                DVDGetInstalledGamesCount
+                0x2020297c                DVDUpdateCache
+                0x20202ea0                WBFS_Read_Block
+                0x20203084                WBFS_Encrypted_Read
+                0x202030ec                DVDLowReadDiscID
+                0x20203174                DVDLowReadUnencrypted
+                0x20203264                DVDSelectGame
+                0x20203794                WBFS_Decrypted_Write
+                0x20203838                WBFS_To_FST
+                0x2020383e                Search_FST
+                0x20203b74                DVDLowRead
+                0x20203fa0                DIP_Ioctl
+ .text          0x20204520      0x1f8 FS.o
+                0x20204520                ISFS_CreateFile
+                0x202045a0                ISFS_CreateDir
+                0x20204620                ISFS_ReadDir
+                0x20204694                ISFS_GetFileStats
+                0x202046ac                ISFS_Delete
+                0x202046cc                ISFS_Rename
+ .text          0x20204718      0x64c DIGlue.o
+                0x20204718                ISFS_IsUSB
+                0x20204748                DVDInit
+                0x20204870                DVDOpen
+                0x202049a8                DVDOpenDir
+                0x20204a44                DVDReadDir
+                0x20204aa4                DVDDirIsFile
+                0x20204ac8                DVDDirGetEntryName
+                0x20204af8                DVDRead
+                0x20204b58                DVDWrite
+                0x20204bb8                DVDSeek
+                0x20204c40                DVDGetSize
+                0x20204cb0                DVDDelete
+                0x20204ce0                DVDCreateDir
+                0x20204d10                DVDClose
+ .text          0x20204d64      0x21c main.o
+                0x20204d64                FS_Running
+                0x20204d98                udelay
+                0x20204de0                RegisterDevices
+                0x20204e00                _main
+ .text          0x20204f80      0x420 syscalls.o
+                0x20204f80                ThreadCreate
+                0x20204f88                ThreadJoin
+                0x20204f90                ThreadCancel
+                0x20204f98                GetProcessID
+                0x20204fa0                GetThreadID
+                0x20204fa8                ThreadContinue
+                0x20204fb0                ThreadStop
+                0x20204fb8                ThreadYield
+                0x20204fc0                ThreadGetPriority
+                0x20204fc8                ThreadSetPriority
+                0x20204fd0                MessageQueueCreate
+                0x20204fd8                MessageQueueDestroy
+                0x20204fe0                MessageQueueSend
+                0x20204fe8                MessageQueueSendNow
+                0x20204ff0                MessageQueueReceive
+                0x20204ff8                RegisterEventHandler
+                0x20205000                UnregisterEventHandler
+                0x20205008                TimerCreate
+                0x20205010                TimerRestart
+                0x20205018                TimerStop
+                0x20205020                TimerDestroy
+                0x20205028                TimerNow
+                0x20205030                HeapCreate
+                0x20205038                HeapDestroy
+                0x20205040                HeapAlloc
+                0x20205048                HeapAllocAligned
+                0x20205050                HeapFree
+                0x20205058                IOS_Register
+                0x20205060                IOS_Open
+                0x20205068                IOS_Close
+                0x20205070                IOS_Read
+                0x20205078                IOS_Write
+                0x20205080                IOS_Seek
+                0x20205088                IOS_Ioctl
+                0x20205090                IOS_Ioctlv
+                0x20205098                IOS_OpenAsync
+                0x202050a0                IOS_CloseAsync
+                0x202050a8                IOS_ReadAsync
+                0x202050b0                IOS_WriteAsync
+                0x202050b8                IOS_SeekAsync
+                0x202050c0                IOS_IoctlAsync
+                0x202050c8                IOS_IoctlvAsync
+                0x202050d0                MessageQueueAck
+                0x202050d8                SetUID
+                0x202050e0                HMACGetQueueForPID
+                0x202050e8                GetGID
+                0x202050f0                syscall_2e
+                0x202050f8                cc_ahbMemFlush
+                0x20205100                _ahbMemFlush
+                0x20205108                syscall_31
+                0x20205110                IRQ_Enable_18
+                0x20205118                syscall_33
+                0x20205120                syscall_34
+                0x20205128                syscall_35
+                0x20205130                syscall_36
+                0x20205138                syscall_37
+                0x20205140                syscall_38
+                0x20205148                syscall_39
+                0x20205150                syscall_3a
+                0x20205158                syscall_3b
+                0x20205160                syscall_3c
+                0x20205168                syscall_3d
+                0x20205170                syscall_3e
+                0x20205178                sync_before_read
+                0x20205180                sync_after_write
+                0x20205188                syscall_41
+                0x20205190                syscall_42
+                0x20205198                syscall_43
+                0x202051a0                DIResetAssert
+                0x202051a8                DIResetDeAssert
+                0x202051b0                DIResetCheck
+                0x202051b8                syscall_47
+                0x202051c0                syscall_48
+                0x202051c8                syscall_49
+                0x202051d0                syscall_4a
+                0x202051d8                syscall_4b
+                0x202051e0                syscall_4c
+                0x202051e8                syscall_4d
+                0x202051f0                syscall_4e
+                0x202051f8                VirtualToPhysical
+                0x20205200                EnableVideo
+                0x20205208                syscall_51
+                0x20205210                EXICtrl
+                0x20205218                syscall_53
+                0x20205220                syscall_54
+                0x20205228                syscall_55
+                0x20205230                syscall_56
+                0x20205238                syscall_57
+                0x20205240                syscall_58
+                0x20205248                syscall_59
+                0x20205250                syscall_5a
+                0x20205258                CreateKey
+                0x20205260                DestroyKey
+                0x20205268                syscall_5c
+                0x20205270                InitializeKey
+                0x20205278                syscall_5e
+                0x20205280                syscall_5f
+                0x20205288                syscall_60
+                0x20205290                syscall_61
+                0x20205298                syscall_62
+                0x202052a0                GetKey
+                0x202052a8                syscall_64
+                0x202052b0                syscall_65
+                0x202052b8                syscall_66
+                0x202052c0                AESEncrypt
+                0x202052c8                syscall_68
+                0x202052d0                syscall_69
+                0x202052d8                syscall_6a
+                0x202052e0                syscall_6b
+                0x202052e8                syscall_6c
+                0x202052f0                syscall_6d
+                0x202052f8                syscall_6e
+                0x20205300                syscall_6f
+                0x20205308                syscall_70
+                0x20205310                SetKeyPermissions
+                0x20205318                syscall_72
+                0x20205320                syscall_73
+                0x20205328                syscall_74
+                0x20205330                syscall_75
+                0x20205338                syscall_76
+                0x20205340                syscall_77
+                0x20205348                syscall_78
+                0x20205350                syscall_79
+                0x20205358                syscall_7a
+                0x20205360                syscall_7b
+                0x20205368                syscall_7c
+                0x20205370                syscall_7d
+                0x20205378                syscall_7e
+                0x20205380                syscall_7f
+                0x20205388                OSReport
+ .text          0x202053a0      0x124 utils_asm.o
+                0x202053a0                memcpy
+                0x2020547c                memset32
+                0x20205494                memset16
+                0x202054ac                memset8
+ .text          0x202054c4        0x0 gecko.o
+ .text          0x202054c4      0x58c vsprintf.o
+                0x20205630                vsprintf
+                0x20205880                sprintf
+                0x20205898                dbgprintf
+                0x20205988                hexdump
+                0x20205a20                fatal
+ .text          0x20205a50      0x1cc string.o
+                0x20205a50                strnlen
+                0x20205a68                strlen
+                0x20205a7a                strstr
+                0x20205ab0                strncpy
+                0x20205ad8                strcpy
+                0x20205ae8                strcmp
+                0x20205afe                strcmpi
+                0x20205b38                strncmp
+                0x20205b5a                strncmpi
+                0x20205ba0                memset
+                0x20205bb2                memcmp
+                0x20205bd6                strchr
+                0x20205bea                skipPastArticles
+ .text          0x20205c1c     0x1864 tiny_ehci_glue.o
+                0x20205c1c                BUG
+                0x20205c20                msleep
+                0x20205c38                print_hex_dump_bytes
+                0x20205c3a                dump_qh
+                0x20205c5a                handshake
+                0x20205c9c                ehci_qtd_init
+                0x20205cc0                ehci_qtd_alloc
+                0x20205ce8                ehci_mem_init
+                0x20205d94                ehci_init
+                0x20205e20                qtd_fill
+                0x20205ec2                qh_end_transfer
+                0x20205efc                qh_urb_transaction
+                0x20206028                ehci_do_urb
+                0x20206298                ehci_control_message
+                0x20206348                ehci_bulk_message
+                0x2020636c                ehci_reset_port
+                0x20206458                ehci_reset_device
+                0x20206462                ehci_discover
+                0x20206494                ehci_release_ports
+                0x202064f4                ehci_open_device
+                0x20206558                ehci_close_device
+                0x20206566                ehci_fd_to_dev
+                0x202065a0                ehci_get_device_list
+                0x20206604                __usb_getdesc
+                0x20206626                USB_FreeDescriptors
+                0x202066f2                USB_GetDescriptors
+                0x202069be                USB_SuspendDevice
+                0x202069c0                USB_ResumeDevice
+                0x202069c2                USB_WriteBlkMsg
+                0x202069ca                USB_WriteCtrlMsg
+                0x202069e8                USB_GetConfiguration
+                0x20206a2a                USB_SetConfiguration
+                0x20206a44                USB_SetAlternativeInterface
+                0x20206a66                USB_ClearHalt
+                0x20206a7e                __USB_BlkMsgTimeout
+                0x20206a8a                __USB_CtrlMsgTimeout
+                0x20206aac                __send_cbw
+                0x20206b50                __read_csw
+                0x20206be0                __usbstorage_reset
+                0x20206c40                __cycle
+                0x20206d8c                __usbstorage_clearerrors
+                0x20206e30                USBStorage_Open
+                0x20207034                USBStorage_Close
+                0x20207054                USBStorage_Reset
+                0x2020705c                USBStorage_GetMaxLUN
+                0x20207060                USBStorage_Inquiry
+                0x202070ac                USBStorage_ReadCapacity
+                0x2020711a                USBStorage_MountLUN
+                0x20207154                USBStorage_Read
+                0x202071c4                USBStorage_Write
+                0x20207234                USBStorage_Suspend
+                0x20207246                USBStorage_Read_Stress
+                0x202072a4                USBStorage_Try_Device
+                0x20207310                USBStorage_Init
+                0x20207354                USBStorage_Get_Capacity
+                0x20207388                USBStorage_Read_Sectors
+                0x202073cc                USBStorage_Write_Sectors
+                0x20207410                tiny_ehci_init
+ .text          0x20207480       0x6c usb_os.o
+                0x20207480                usb_os_init
+                0x20207484                ehci_maligned
+                0x2020748c                ehci_virt_to_dma
+                0x20207494                ehci_dma_map_to
+                0x202074a4                ehci_dma_map_from
+                0x202074b4                ehci_dma_map_bidir
+                0x202074c4                ehci_dma_unmap_to
+                0x202074cc                ehci_dma_unmap_from
+                0x202074d4                ehci_dma_unmap_bidir
+                0x202074dc                USB_Alloc
+                0x202074e4                USB_Free
+ .text          0x202074ec       0x14 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_thumb1_case_uqi.o)
+                0x202074ec                __gnu_thumb1_case_uqi
+ .text          0x20207500      0x114 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o)
+                0x20207500                __aeabi_uidiv
+                0x20207500                __udivsi3
+                0x202075f4                __aeabi_uidivmod
+ .text          0x20207614      0x148 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_divsi3.o)
+                0x20207614                __divsi3
+                0x20207614                __aeabi_idiv
+                0x2020773c                __aeabi_idivmod
+ .text          0x2020775c        0x4 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_dvmd_tls.o)
+                0x2020775c                __aeabi_idiv0
+                0x2020775c                __aeabi_ldiv0
+ .text          0x20207760       0x14 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
+                0x20207760                __bswapsi2
+ *(.text.*)
+ *(.gnu.warning)
+ *(.gnu.linkonce.t*)
+ *(.glue_7)
+ .glue_7        0x00000000        0x0 linker stubs
+ *(.glue_7t)
+ .glue_7t       0x00000000        0x0 linker stubs
+                0x20207774                . = ALIGN (0x4)
+
+.vfp11_veneer   0x00000000        0x0
+ .vfp11_veneer  0x00000000        0x0 linker stubs
+
+.v4_bx          0x00000000        0x0
+ .v4_bx         0x00000000        0x0 linker stubs
+
+.rodata         0x20207774      0x6b0
+ *(.rodata)
+ .rodata        0x20207774      0x110 ff.o
+ .rodata        0x20207884       0x18 DIGlue.o
+ *all.rodata*(*)
+ *(.roda)
+ *(.rodata.*)
+ .rodata.str1.1
+                0x2020789c       0x1a ff.o
+ .rodata.str1.1
+                0x202078b6      0x3b2 dip.o
+                                0x3b7 (size before relaxing)
+ .rodata.str1.1
+                0x20207c68       0x42 DIGlue.o
+ .rodata.str1.1
+                0x20207caa       0x91 main.o
+                                 0x99 (size before relaxing)
+ .rodata.str1.1
+                0x20207d3b       0xe0 vsprintf.o
+                                 0xe4 (size before relaxing)
+ .rodata.str1.1
+                0x20207e1b        0x8 string.o
+ *(.gnu.linkonce.r*)
+                0x20207e24                . = ALIGN (0x4)
+ *fill*         0x20207e23        0x1 00
+
+.data           0x20207e24       0xc8
+ *(.data)
+ .data          0x20207e24        0x0 start.o
+ .data          0x20207e24        0x0 diskio.o
+ .data          0x20207e24        0x0 ff.o
+ .data          0x20207e24        0x0 alloc.o
+ .data          0x20207e24       0xc8 dip.o
+                0x20207e24                sig_fwrite
+                0x20207e44                patch_fwrite
+                0x20207ed4                sig_iplmovie
+                0x20207ee0                patch_iplmovie
+ .data          0x20207eec        0x0 FS.o
+ .data          0x20207eec        0x0 DIGlue.o
+ .data          0x20207eec        0x0 main.o
+ .data          0x20207eec        0x0 syscalls.o
+ .data          0x20207eec        0x0 utils_asm.o
+ .data          0x20207eec        0x0 gecko.o
+ .data          0x20207eec        0x0 vsprintf.o
+ .data          0x20207eec        0x0 string.o
+ .data          0x20207eec        0x0 tiny_ehci_glue.o
+ .data          0x20207eec        0x0 usb_os.o
+ .data          0x20207eec        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_thumb1_case_uqi.o)
+ .data          0x20207eec        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o)
+ .data          0x20207eec        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_divsi3.o)
+ .data          0x20207eec        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_dvmd_tls.o)
+ .data          0x20207eec        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
+ *(.data.*)
+ *(.gnu.linkonce.d*)
+                0x20207eec                . = ALIGN (0x4)
+
+.bss            0x20209000    0x27bd0
+                0x20209000                __bss_start = .
+ *(.dynbss)
+ *(.gnu.linkonce.b*)
+ *(.bss*)
+ .bss           0x20209000        0x0 start.o
+ .bss           0x20209000        0x0 diskio.o
+ .bss           0x20209000      0x208 ff.o
+ .bss           0x20209208        0x0 alloc.o
+ *fill*         0x20209208       0x18 00
+ .bss           0x20209220      0x1e0 dip.o
+                0x20209268                splitcount
+                0x20209284                FCEntry
+                0x20209288                Partition
+                0x20209290                PartitionOffset
+                0x20209298                FMode
+                0x2020929c                game_part_offset
+                0x202092e0                tmd_size
+                0x202092e4                tmd_offset
+                0x20209304                cert_offset
+                0x20209344                maxblock
+                0x20209348                lastblock
+                0x2020934c                data_offset
+                0x20209350                DiscType
+                0x20209354                wbfstofst
+                0x20209358                GameHook
+                0x202093a8                wbfs_len
+                0x202093b0                data_size
+                0x202093b4                cert_size
+                0x202093b8                dol_offset
+                0x202093bc                fst_offset
+                0x202093c0                fst_size
+                0x202093c4                DMLite
+                0x202093c8                ApploaderSize
+                0x202093cc                DolOffset
+                0x202093d0                FSTableOffset
+                0x202093d4                FSTableSize
+                0x202093d8                DolSize
+                0x202093e4                BCRead
+                0x202093e8                BCEntry
+                0x202093ec                Motor
+                0x202093f0                verbose
+                0x202093f4                Disc
+ .bss           0x20209400        0x0 FS.o
+ .bss           0x20209400        0x0 DIGlue.o
+ .bss           0x20209400        0x0 main.o
+ .bss           0x20209400        0x0 syscalls.o
+ .bss           0x20209400        0x0 utils_asm.o
+ .bss           0x20209400        0x0 gecko.o
+ .bss           0x20209400       0x40 vsprintf.o
+ .bss           0x20209440        0x0 string.o
+ .bss           0x20209440        0xc tiny_ehci_glue.o
+                0x20209440                __mounted
+                0x20209441                __lun
+                0x20209442                __vid
+                0x20209444                __pid
+                0x20209448                ums_init_done
+ .bss           0x2020944c        0x0 usb_os.o
+ .bss           0x2020944c        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_thumb1_case_uqi.o)
+ .bss           0x2020944c        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o)
+ .bss           0x2020944c        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_divsi3.o)
+ .bss           0x2020944c        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_dvmd_tls.o)
+ .bss           0x2020944c        0x0 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
+ *(COMMON)
+ COMMON         0x2020944c       0x21 diskio.o
+                0x2020944c                ipcmessage
+                0x2020946c                HardDriveConnected
+ *fill*         0x2020946d        0x3 00
+ COMMON         0x20209470        0x4 alloc.o
+                0x20209470                HeapID
+ *fill*         0x20209474        0x4 00
+ COMMON         0x20209478    0x27218 dip.o
+                0x20209478                DICfg
+                0x2020947c                iv
+                0x2020948c                BC
+                0x202300a0                FC
+                0x202300dc                wbfs_key
+                0x202300f0                FS
+ COMMON         0x20230690      0x390 DIGlue.o
+                0x20230690                FInfo
+                0x202307ac                FHandle
+                0x202307b0                CEntry
+                0x202307b4                FirstEntry
+                0x202307b8                FSMode
+                0x202307bc                FSHandle
+                0x202307c0                d
+                0x202307e4                Nhandle
+                0x202307e8                Entries
+                0x202307ec                EntryCount
+                0x202307f0                fatfs
+ COMMON         0x20230a20        0xc main.o
+                0x20230a20                switchtimer
+                0x20230a20                __aeabi_unwind_cpp_pr0
+                0x20230a24                requested_game
+                0x20230a28                QueueID
+ COMMON         0x20230a2c      0x1a4 tiny_ehci_glue.o
+                0x20230a2c                __usbfd
+                0x20230ad0                ehci
+                0x20230ad4                _ehci
+                0x20230bd0                . = ALIGN (0x4)
+                0x20230bd0                __bss_end = .
+
+.stack          0x2022cdc4     0x8000
+                0x2022cdc4                __stack_end = .
+                0x20234dc4                . = (. + __stack_size)
+ *fill*         0x2022cdc4     0x8000 00
+                0x20234dc4                . = ALIGN (0x4)
+                0x20234dc4                __stack_addr = .
+
+/DISCARD/
+ *(.ARM.exidx*)
+ *(.ARM.extab*)
+LOAD start.o
+LOAD diskio.o
+LOAD ff.o
+LOAD alloc.o
+LOAD dip.o
+LOAD FS.o
+LOAD DIGlue.o
+LOAD main.o
+LOAD syscalls.o
+LOAD utils_asm.o
+LOAD gecko.o
+LOAD vsprintf.o
+LOAD string.o
+LOAD tiny_ehci_glue.o
+LOAD usb_os.o
+LOAD c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a
+OUTPUT(dimodule.elf elf32-bigarm)
+
+.ARM.attributes
+                0x00000000       0x2e
+ .ARM.attributes
+                0x00000000       0x22 start.o
+ .ARM.attributes
+                0x00000022       0x32 diskio.o
+ .ARM.attributes
+                0x00000054       0x32 ff.o
+ .ARM.attributes
+                0x00000086       0x32 alloc.o
+ .ARM.attributes
+                0x000000b8       0x32 dip.o
+ .ARM.attributes
+                0x000000ea       0x32 FS.o
+ .ARM.attributes
+                0x0000011c       0x32 DIGlue.o
+ .ARM.attributes
+                0x0000014e       0x32 main.o
+ .ARM.attributes
+                0x00000180       0x22 syscalls.o
+ .ARM.attributes
+                0x000001a2       0x22 utils_asm.o
+ .ARM.attributes
+                0x000001c4       0x32 gecko.o
+ .ARM.attributes
+                0x000001f6       0x32 vsprintf.o
+ .ARM.attributes
+                0x00000228       0x32 string.o
+ .ARM.attributes
+                0x0000025a       0x32 tiny_ehci_glue.o
+ .ARM.attributes
+                0x0000028c       0x32 usb_os.o
+ .ARM.attributes
+                0x000002be       0x22 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_thumb1_case_uqi.o)
+ .ARM.attributes
+                0x000002e0       0x22 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_udivsi3.o)
+ .ARM.attributes
+                0x00000302       0x22 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_divsi3.o)
+ .ARM.attributes
+                0x00000324       0x22 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_dvmd_tls.o)
+ .ARM.attributes
+                0x00000346       0x30 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
+
+.comment        0x00000000       0x22
+ .comment       0x00000000       0x22 diskio.o
+                                 0x23 (size before relaxing)
+ .comment       0x00000000       0x23 ff.o
+ .comment       0x00000000       0x23 alloc.o
+ .comment       0x00000000       0x23 dip.o
+ .comment       0x00000000       0x23 FS.o
+ .comment       0x00000000       0x23 DIGlue.o
+ .comment       0x00000000       0x23 main.o
+ .comment       0x00000000       0x23 gecko.o
+ .comment       0x00000000       0x23 vsprintf.o
+ .comment       0x00000000       0x23 string.o
+ .comment       0x00000000       0x23 tiny_ehci_glue.o
+ .comment       0x00000000       0x23 usb_os.o
+ .comment       0x00000000       0x23 c:/devkitpro/devkitarm/bin/../lib/gcc/arm-eabi/4.5.1/be\libgcc.a(_bswapsi2.o)
