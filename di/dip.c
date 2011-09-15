@@ -175,7 +175,8 @@ u32 GetSystemMenuRegion( void )
 	char *Path = (char*)malloca( 128, 32 );
 	u32 Region = EUR;
 
-	sprintf( Path, "/title/00000001/00000002/content/title.tmd" );
+	//sprintf( Path, "/title/00000001/00000002/content/title.tmd" );
+	strcpy(Path,"/title/00000001/00000002/content/title.tmd" );
 	s32 fd = IOS_Open( Path, DREAD );
 	if( fd < 0 )
 	{
@@ -214,7 +215,8 @@ u32 DVDGetInstalledGamesCount( void )
 	char *Path = (char*)malloca( 128, 32 );
 	splitcount = 0;
 
-	sprintf( Path, "/games" );
+	//sprintf( Path, "/games" );
+	strcpy( Path, "/games" );
 	if( DVDOpenDir( Path ) == FR_OK )
 	{
 		while( DVDReadDir() == FR_OK )
@@ -223,7 +225,8 @@ u32 DVDGetInstalledGamesCount( void )
 		}
 	}
 	
-	sprintf( Path, "/wbfs" );
+	//sprintf( Path, "/wbfs" );
+	strcpy( Path, "/wbfs" );
 	if( DVDOpenDir( Path ) == FR_OK )
 	{
 		while( DVDReadDir() == FR_OK )
@@ -388,7 +391,7 @@ u32 DVDVerifyGames( void )
 				//so maybe it's wbfs?
 				sprintf( WBFSFile, "%s", DICfg->GameInfo[i] );
 		
-				if( strncmp( (char*)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+7, "wbfs", 4 ) == 0 )
+				if( strncmp( (char*)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+6, ".wbfs", 5 ) == 0 )
 					sprintf( WBFSPath, "/wbfs/%s.wbfs",  WBFSFile );			
 				else			
 					sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
@@ -510,11 +513,13 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	u32 i;
 	u32 DMLite		= 0;
 	s32 fres		= 0;
+
 	char *Path = (char*)malloca( 128, 32 );
 
 //First check if file exists and create a new one if needed
 	dbgprintf("CDI:Timer1 %x \n",read32(HW_TIMER));
-	sprintf( Path, "/sneek/diconfig.bin" );
+	//sprintf( Path, "/sneek/diconfig.bin" );
+	strcpy( Path, "/sneek/diconfig.bin" );
 	s32 fd = DVDOpen( Path, FA_READ | FA_WRITE );
 	if( fd < 0 )
 	{
@@ -525,10 +530,13 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			case DVD_NO_FILE:
 			{
 				//In this case there is probably no /sneek folder
-				sprintf( Path, "/sneek" );
+				//sprintf( Path, "/sneek" );
+				strcpy( Path, "/sneek" );
+				
 				DVDCreateDir( Path );
 				
-				sprintf( Path, "/sneek/diconfig.bin" );
+				//sprintf( Path, "/sneek/diconfig.bin" );
+				strcpy( Path, "/sneek/diconfig.bin" );
 				fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 				if( fd < 0 )
 				{
@@ -576,8 +584,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	fres = DVDRead( fd, DICfg, DVD_CONFIG_SIZE );
 	if( fres != DVD_CONFIG_SIZE )
 	{
-		sprintf( Path, "/sneek/diconfig.bin" );
+		//sprintf( Path, "/sneek/diconfig.bin" );
+		strcpy( Path,"/sneek/diconfig.bin" );
 		DVDDelete(Path);
+		free( Path );
 
 		return DVDUpdateCache(1);
 	}
@@ -614,8 +624,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	else
 	{
 		RawGameCount =(u32*)malloca(sizeof(u32),32);
-		fres = DVDRead( fd, RawGameCount, 4 );
-		if (fres != 4)
+		fres = DVDRead( fd, RawGameCount, sizeof(u32) );
+		if (fres != sizeof(u32))
 		{
 			*RawGameCount = 0;
 			UpdateCache = 1;
@@ -648,12 +658,14 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	{
 		DVDClose(fd);
 		
-		sprintf( Path, "/sneek/diconfig.bin" );
+		//sprintf( Path, "/sneek/diconfig.bin" );
+		strcpy( Path, "/sneek/diconfig.bin" );
+		
 		DVDDelete( Path );
 
 		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 
-		DICfg->Gamecount = GameCount;
+		//DICfg->Gamecount = GameCount;
 
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 
@@ -666,38 +678,45 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		//Check on USB and on SD(DML)
 		for( i=0; i < 2; i++ )
 		{
-			sprintf( Path, "/games" );
+			//sprintf( Path, "/games" );
+			strcpy( Path, "/games" );
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
 				while( DVDReadDir() == FR_OK )
 				{
 					if( DVDDirIsFile() )
 						continue;					
-					
+					if( strlen( DVDDirGetEntryName() ) > 31 )
+					{
+						dbgprintf( "CDI:Skipping to long folder entry: %s\n", DVDDirGetEntryName() );
+						continue;
+					}
 					sprintf( Path, "/games/%.31s/sys/boot.bin", DVDDirGetEntryName() );
 					s32 gi = DVDOpen( Path, FA_READ );
 					if( gi >= 0 )
 					{
 						if( DVDRead( gi, GameInfo, DVD_GAMEINFO_SIZE ) == DVD_GAMEINFO_SIZE )
 						{
-							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) );
+							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) + 1 );
 
 							if( DMLite )
 								FSMode = SNEEK;
 
 							DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+							CurrentGame++;
 
 							if( DMLite )
 								FSMode = UNEEK;
 						}
 
 						DVDClose( gi );
-						CurrentGame++;
+//						CurrentGame++;
 					}
 				}
 			}
 			
-			sprintf( Path, "/wbfs" );
+			//sprintf( Path, "/wbfs" );
+			strcpy( Path, "/wbfs" ); 
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
 				while( DVDReadDir() == FR_OK )
@@ -708,7 +727,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						continue;
 					}
 
-					if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+7, "wbfs", 4 ) == 0 )
+					if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+6, ".wbfs", 5 ) == 0 )
 					{
 						sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
 					}
@@ -721,12 +740,17 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						else 
 						{					
 							mch = strchr(DVDDirGetEntryName(), '_');
-							if( mch-DVDDirGetEntryName() == 6 ) 						
+							if( mch-DVDDirGetEntryName() == 6 )
+							{ 						
 								strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
-						
+								WBFSFile[6] = 0;
+							}
 							mch = strchr(DVDDirGetEntryName(), ']');
 							if( mch-DVDDirGetEntryName()+1 == strlen(DVDDirGetEntryName()) ) 						
-								strncpy( WBFSFile, DVDDirGetEntryName() +  strlen(DVDDirGetEntryName()) - 7, 6 );						
+							{	
+								strncpy( WBFSFile, DVDDirGetEntryName() +  strlen(DVDDirGetEntryName()) - 7, 6 );
+								WBFSFile[6] = 0;
+							}						
 						}
 						sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
@@ -743,7 +767,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 								r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
 								if( r == WBFS_OK )
 								{
-									memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) );
+									memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
 									DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
 									CurrentGame++;
 									dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, WBFSPath );
@@ -784,23 +808,32 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		free( GameInfo );
 		free( buf1 );
 	
-		DVDSeek( fd, GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 0);
+		DVDSeek( fd, CurrentGame * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 0);
 		DVDWrite(fd, RawGameCount,4);	
+		/*	
+			DICfg->Config	= (0<<7);
+		*/
+		DICfg->Gamecount = CurrentGame;
+		DVDSeek( fd, 0, 0 );
+		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 	}
 
 /*	
 	DICfg->Config	= (0<<7);
+
+	DICfg->GameCount = CurrentGame;
 	DVDSeek( fd, 0, 0 );
 	DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 */
-
 	DVDClose( fd );
 
 //Read new config
 	free( RawGameCount);
 	free( DICfg );
 
-	sprintf( Path, "/sneek/diconfig.bin" );
+	//sprintf( Path, "/sneek/diconfig.bin" );
+	strcpy( Path, "/sneek/diconfig.bin" );
+	
 	fd = DVDOpen( Path, DREAD );
 
 	DICfg = (DIConfig*)malloca( DVDGetSize(fd), 32 );
@@ -1231,7 +1264,8 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			{
 				GameHook = 0xdeadbeef;
 
-				sprintf( Path, "/sneek/kenobiwii.bin" );
+				//sprintf( Path, "/sneek/kenobiwii.bin" );
+				strcpy(	Path, "/sneek/kenobiwii.bin" );
 				s32 fd = IOS_Open( Path, 1 );
 				if( fd < 0 )
 					return DI_SUCCESS;
