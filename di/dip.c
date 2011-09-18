@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 static u32 error ALIGNED(32);
 static u32 PartitionSize ALIGNED(32);
 static u32 DIStatus ALIGNED(32);
-//this being 1 forces an eject disk
+/*** this being 1 forces an eject disk ***/
 static u32 DICover ALIGNED(32);
 static u32 ChangeDisc ALIGNED(32);
 DIConfig *DICfg;
@@ -88,10 +88,18 @@ extern s32 switchtimer;
 extern int QueueID;
 extern int requested_game;
 
-/*** Loging: ***/
+/*** Debug loging: ***/
 //#define DEBUG_CACHE
 #define DEBUG_GAMES
 //#define DEBUG_PRINT_FILES
+//#define DEBUG_KEY
+#define DEBUG_DVDSelectGameA
+//#define DEBUG_DVDSelectGameB
+//#define DEBUG_APPLOADER_STUFF
+//#define DEBUG_WBFSREAD
+
+/*** Code parts: ***/
+#define USE_HARDCODED_HACKS
 
 static void Set_key2(void)
 {
@@ -100,10 +108,12 @@ static void Set_key2(void)
 	u8 *EncTitleKey = (u8*)malloca( 0x10, 0x20 );
 	u8 *KeyIDT2 = (u8*)malloca( 0x10, 0x20 );
 
-	s32 r = WBFS_Read( game_part_offset, 0x2a4, TIK ); // Read the ticket
+	s32 r = WBFS_Read( game_part_offset, 0x2a4, TIK ); /*** Read the ticket ***/
 	if(r < 0) 
 	{
-    	//dbgprintf("CDI:Couldn't read ticket: %d\n", r);
+#ifdef DEBUG_KEY
+    	dbgprintf("CDI:Couldn't read ticket: %d\n", r);
+#endif
 		free ( KeyIDT2);
     	free ( EncTitleKey);
     	free ( TitleID);
@@ -118,9 +128,11 @@ static void Set_key2(void)
 	memcpy( TitleID, TIK+0x1DC, 8 );
 	memcpy( EncTitleKey, TIK+0x1BF, 16 );
 
-	//dbgprintf( " CDI:Key setting parameters \n");
-	//hexdump (TitleID,0x10);
-	//hexdump ( EncTitleKey,0x10 ); 
+#ifdef DEBUG_KEY
+	dbgprintf( " CDI:Key setting parameters \n");
+	hexdump (TitleID,0x10);
+	hexdump ( EncTitleKey,0x10 ); 
+#endif
 	
 	vector *v = (vector*)halloca( sizeof(vector)*3, 32 );
 	
@@ -134,10 +146,12 @@ static void Set_key2(void)
 	s32 ESHandle = IOS_Open("/dev/es", 0 );
 
 	r = IOS_Ioctlv( ESHandle, 0x50, 2, 1, v );
-	//if( r < 0)
-	//	dbgprintf("CDI:ioctlv_es_setkey :%d\n", r );
+#ifdef DEBUG_KEY
+	if( r < 0)
+		dbgprintf("CDI:ioctlv_es_setkey :%d\n", r );
    
-	//dbgprintf("CDI:KeyIDT = %d\n",*(u32*)(KeyIDT2));
+	dbgprintf("CDI:KeyIDT = %d\n",*(u32*)(KeyIDT2));
+#endif
 
     KeyIDT = *(u32*)(KeyIDT2);
 	
@@ -181,7 +195,6 @@ u32 GetSystemMenuRegion( void )
 	char *Path = (char*)malloca( 128, 32 );
 	u32 Region = EUR;
 
-	//sprintf( Path, "/title/00000001/00000002/content/title.tmd" );
 	strcpy(Path,"/title/00000001/00000002/content/title.tmd" );
 	s32 fd = IOS_Open( Path, DREAD );
 	if( fd < 0 )
@@ -210,7 +223,7 @@ u32 DVDGetInstalledGamesCount( void )
 {
 	u32 GameCount = 0;
 
-	//Check SD card for installed games (DML)
+	/*** Check SD card for installed games (DML) ***/
 	if( FSMode == SNEEK )
 	{
 		FSMode = UNEEK;
@@ -221,7 +234,6 @@ u32 DVDGetInstalledGamesCount( void )
 	char *Path = (char*)malloca( 128, 32 );
 	splitcount = 0;
 
-	//sprintf( Path, "/games" );
 	strcpy( Path, "/games" );
 	if( DVDOpenDir( Path ) == FR_OK )
 	{
@@ -231,7 +243,6 @@ u32 DVDGetInstalledGamesCount( void )
 		}
 	}
 	
-	//sprintf( Path, "/wbfs" );
 	strcpy( Path, "/wbfs" );
 	if( DVDOpenDir( Path ) == FR_OK )
 	{
@@ -260,92 +271,6 @@ u32 DVDGetInstalledGamesCount( void )
 	return GameCount;	
 }
 
-/*
-u32 DVDGetInstalledGamesCount2( void )
-{
-	u32 GameCount = 0;
-	u8 *buf1 = (u8 *)halloca(0x04, 32);
-
-	//Check SD card for installed games (DML)
-	if( FSMode == SNEEK )
-	{
-		FSMode = UNEEK;
-		GameCount = DVDGetInstalledGamesCount();
-		FSMode = SNEEK;
-	}
-
-	char *Path = (char*)malloca( 128, 32 );
-	char *mch;
-	splitcount = 0;
-
-	sprintf( Path, "/games" );
-	if( DVDOpenDir( Path ) == FR_OK )
-	{
-		while( DVDReadDir() == FR_OK )
-		{
-			if( DVDDirIsFile() )
-				continue;
-
-			sprintf( Path, "/games/%.31s/sys/boot.bin", DVDDirGetEntryName() );
-			s32 fd = DVDOpen( Path, FA_READ );
-			if( fd >= 0 )
-			{
-				GameCount++;
-				DVDClose(fd);
-			}
-		}
-	}
-	
-	sprintf( Path, "/wbfs" );
-	if( DVDOpenDir( Path ) == FR_OK )
-	{
-		while( DVDReadDir() == FR_OK )
-		{	
-			if( strlen( DVDDirGetEntryName() ) > 31 )
-				continue;
-				
-			if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+7, "wbfs", 4 ) == 0)
-			{
-				sprintf( WBFSPath, "/wbfs/%.11s", DVDDirGetEntryName() );				
-			}
-			else {	
-				if( strlen( DVDDirGetEntryName() ) == 6 ) 
-				{
-					strcpy ( WBFSFile, DVDDirGetEntryName() );
-				}
-				else {
-					mch = strchr( DVDDirGetEntryName(), '_' );
-					if( mch-DVDDirGetEntryName() == 6 ) 
-						strncpy ( WBFSFile, DVDDirGetEntryName(), 6 );
-					
-					mch = strchr( DVDDirGetEntryName(), ']' );
-					if( mch-DVDDirGetEntryName()+1 == strlen( DVDDirGetEntryName() ) ) 
-					strncpy ( WBFSFile, DVDDirGetEntryName() + strlen( DVDDirGetEntryName() ) - 7, 6 );				
-				}
-			
-				sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
-			}
-
-			WBFS_Read( 0x240000, 4, buf1 );					
-			if( *(vu32*)buf1 == 0x00000001 ) // For now skip games with update partition
-			{	
-				WBFS_Read( 0x218, 4, buf1 );				
-				if( *(vu32*)buf1 == 0x5d1c9ea3 )
-				{
-					GameCount++;
-				}
-			}
-		}
-	}
-
-	free( Path );
-	hfree( buf1 );
-	
-	dbgprintf( "CDI:Found: %d games\n", GameCount );
-
-	return GameCount;	
-}
-*/
 u32 DVDVerifyGames( void )
 {
 	u32 UpdateGameCache = 0;
@@ -354,36 +279,36 @@ u32 DVDVerifyGames( void )
 	
 	char *Path = (char*)malloca( 128, 32 );
 
-	while ((i < DICfg->Gamecount) &&(UpdateGameCache == 0))
+	while ( i < DICfg->Gamecount &&  UpdateGameCache == 0 )
 	{
-		//type = 0 assumes we are checking the fst games in the games folder
-		//type = 1 assumes we are checking the wbfs games in the wbfs folder or it's subfolders.
-		//type = 2 assumes we are checking the fst games in the games folder again, but on the SD card for DML.
-		//type will only change upon failure.		
-		
+		/***	type = 0 assumes we are checking the fst games in the games folder
+				type = 1 assumes we are checking the wbfs games in the wbfs folder or it's subfolders.
+				type = 2 assumes we are checking the fst games in the games folder again, but on the SD card for DML.
+				type will only change upon failure. ***/		
 		
 		switch (type)
 		{	
 			case 0:
 			case 2:	
 				sprintf( Path, "/games/%.31s/sys/boot.bin", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF );
-				if (type == 2)
+				if ( type == 2 )
 					FSMode = UNEEK;
+					
 				s32 fd = DVDOpen( Path, DREAD );
 				if( fd >= 0 )
 				{
 					DVDClose ( fd );
 					i++;
-					if (type == 2)
+					if ( type == 2 )
 						FSMode = SNEEK;
 					break;
 				}
 				else
 				{
-					//so either, it's an invalid entry in the games (shouldn't happen often)
-					//or it's the first wbfs game.
-					//if we were checking the games folder in SD
-					//it was an invalid entry for sure
+					/***	so either, it's an invalid entry in the games (shouldn't happen often)
+							or it's the first wbfs game.
+							if we were checking the games folder in SD
+							it was an invalid entry for sure ***/
 					if (type == 2)
 					{	
 						FSMode = SNEEK;
@@ -396,10 +321,10 @@ u32 DVDVerifyGames( void )
 					}
 				}
 			case 1:
-				//so maybe it's wbfs?
+				/*** so maybe it's wbfs? ***/
 				sprintf( WBFSFile, "%s", DICfg->GameInfo[i] );
 		
-				if( strncmp( (char*)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+6, ".wbfs", 5 ) == 0 )
+				if( strncmp( (char *)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+6, ".wbfs", 5 ) == 0 )
 					sprintf( WBFSPath, "/wbfs/%s.wbfs",  WBFSFile );			
 				else			
 					sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
@@ -412,105 +337,30 @@ u32 DVDVerifyGames( void )
 				}
 				else
 				{
-					// so it's not wbfs
-					// than it could be dml on sd card
-					//If not WBFS aswell check SD (DML)
+					/*** 	so it's not wbfs
+							than it could be dml on sd card
+							If not WBFS aswell check SD (DML) ***/
 					if( FSMode == SNEEK )
 					{
 						type = 2;
 					}
 					else
 					{
-						//we had it, in uneek it's an invalid entry
+						/*** we had it, in uneek it's an invalid entry ***/
 						UpdateGameCache = 1;
 					}
 					 
 				}
 				break;
 			default:
-				//how the hell did we got here?
+				/*** how the hell did we got here? I don't know ***/
 				UpdateGameCache = 1;
 				break;
 		}
 	}
-
 	free( Path );
-
 	return UpdateGameCache;		
 }
-
-
-/*
-u32 DVDVerifyGames2( void )
-{
-	u32 UpdateGameCache = 0;
-	u32 i;
-	
-	char *Path = (char*)malloca( 128, 32 );
-
-	for( i=0; i < DICfg->Gamecount; ++i )
-	{
-		//hexdump( DICfg->GameInfo[i], DVD_GAMEINFO_SIZE );
-
-		sprintf( Path, "/games/%.31s/sys/boot.bin", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF );
-		s32 fd = DVDOpen( Path, DREAD );
-		if( fd < 0 )
-		{
-			//If not FST extr. check for WBFS
-			sprintf( WBFSFile, "%s", DICfg->GameInfo[i] );
-		
-			if( strncmp( (char*)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+7, "wbfs", 4 ) == 0 )
-				sprintf( WBFSPath, "/wbfs/%s.wbfs",  WBFSFile );			
-			else			
-				sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
-				
-			fd = DVDOpen( WBFSPath, DREAD );
-			if( fd < 0 )
-			{
-				
-				//If not WBFS aswell check SD (DML)
-				if( FSMode == SNEEK )
-				{
-					FSMode = UNEEK;
-
-					fd = DVDOpen( Path, DREAD );
-					if( fd < 0 )
-					{
-						UpdateGameCache = 1;
-						FSMode = SNEEK;
-						break;
-					} 
-					else 
-					{
-						DVDClose( fd );
-					}
-					FSMode = SNEEK;
-				} 
-				else 
-				{
-					//dbgprintf( "DVDVerifyGames: DICONFIG Entry %.31s not found! Performing a cache update\n", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF );
-					UpdateGameCache = 1;
-					break;
-				}
-			}
-			else
-			{
-				//dbgprintf( "DVDVerifyGames: Found WBFS game: %s\n", WBFSPath );
-				DVDClose( fd );
-			}				
-		} 
-		else 
-		{
-			//dbgprintf( "DVDVerifyGames: Found FST game: %s\n", Path );
-			DVDClose( fd );
-		}
-	}
-
-	free( Path );
-
-	return UpdateGameCache;		
-}
-*/
 
 s32 DVDUpdateCache( u32 ForceUpdate )
 {
@@ -524,31 +374,25 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 
 	char *Path = (char*)malloca( 128, 32 );
 
-//First check if file exists and create a new one if needed
+/*** First check if file exists and create a new one if needed ***/
 #ifdef DEBUG_CACHE
 	dbgprintf("CDI:Timer1 %x \n",read32(HW_TIMER));
 #endif
-	if( DVDOpenDir( "/sneek/gamecfg" ) != FR_OK )
-		DVDCreateDir( "/sneek/gamecfg" );
-
-	//sprintf( Path, "/sneek/diconfig.bin" );
 	strcpy( Path, "/sneek/diconfig.bin" );
 	s32 fd = DVDOpen( Path, FA_READ | FA_WRITE );
 	if( fd < 0 )
 	{
-		//No diconfig.bin found, create a new one
+		/*** No diconfig.bin found, create a new one ***/
 		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 		switch(fd)
 		{
 			case DVD_NO_FILE:
 			{
-				//In this case there is probably no /sneek folder
-				//sprintf( Path, "/sneek" );
+				/*** In this case there is probably no /sneek folder ***/
 				strcpy( Path, "/sneek" );
 				
 				DVDCreateDir( Path );
 				
-				//sprintf( Path, "/sneek/diconfig.bin" );
 				strcpy( Path, "/sneek/diconfig.bin" );
 				fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 				if( fd < 0 )
@@ -567,7 +411,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			} break;
 		}
 		
-		//Create default config
+		/*** Create default config ***/
 		DICfg->Gamecount= 0;
 		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
@@ -579,7 +423,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 
 	} else if( DVDGetSize( fd ) < DVD_CONFIG_SIZE ) {
 		
-		//Create default config
+		/*** Create default config ***/
 		DICfg->Gamecount= 0;
 		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
@@ -593,11 +437,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 
 	DVDSeek( fd, 0, 0 );
 
-//Read current config and verify the diconfig.bin content
+/*** Read current config and verify the diconfig.bin content ***/
 	fres = DVDRead( fd, DICfg, DVD_CONFIG_SIZE );
 	if( fres != DVD_CONFIG_SIZE )
 	{
-		//sprintf( Path, "/sneek/diconfig.bin" );
 		strcpy( Path,"/sneek/diconfig.bin" );
 		DVDDelete(Path);
 		free( Path );
@@ -605,10 +448,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		return DVDUpdateCache(1);
 	}
 
-//Sanity Check config
+/*** Sanity Check config ***/
 	if( DICfg->Gamecount > 9000 || DICfg->SlotID > 9000 || DICfg->Region > LTN )
 	{
-		//Create default config
+		/*** Create default config ***/
 		DICfg->Gamecount= 0;
 		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
@@ -620,9 +463,9 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		UpdateCache = 1;
 	}
 
-//Read rest of config
+/*** Read rest of config ***/
 
-	//Cache count for size calc
+	/*** Cache count for size calc ***/
 	GameCount = DICfg->Gamecount;
 	free( DICfg );
 
@@ -659,10 +502,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	else
 		GameCount = DICfg->Gamecount;
 
-//	if( GameCount != DICfg->Gamecount )
-//		UpdateCache = 1;
-
-//No need to check if we are going to rebuild anyway
+/*** No need to check if we are going to rebuild anyway ***/
 	if( UpdateCache == 0 )
 	if( DICfg->Config & CONFIG_AUTO_UPDATE_LIST )
 	{	
@@ -674,16 +514,9 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	if( UpdateCache )
 	{
 		DVDClose(fd);
-		
-		//sprintf( Path, "/sneek/diconfig.bin" );
 		strcpy( Path, "/sneek/diconfig.bin" );
-		
 		DVDDelete( Path );
-
 		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
-
-		//DICfg->Gamecount = GameCount;
-
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 
 		char *GameInfo = (char*)malloca( DVD_GAMEINFO_SIZE, 32 );
@@ -692,17 +525,17 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		InitCache();
 		splitcount = 0;
 		
-		//Check on USB and on SD(DML)
+		/*** Check on USB and on SD(DML) ***/
 		for( i=0; i < 2; i++ )
 		{
-			//sprintf( Path, "/games" );
 			strcpy( Path, "/games" );
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
 				while( DVDReadDir() == FR_OK )
 				{
 					if( DVDDirIsFile() )
-						continue;					
+						continue;
+					
 					if( strlen( DVDDirGetEntryName() ) > 31 )
 					{
 #ifdef DEBUG_CACHE
@@ -729,12 +562,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						}
 
 						DVDClose( gi );
-//						CurrentGame++;
 					}
 				}
 			}
 			
-			//sprintf( Path, "/wbfs" );
 			strcpy( Path, "/wbfs" ); 
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
@@ -775,12 +606,13 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						}
 						sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
-						
-					//dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
+#ifdef DEBUG_CACHE						
+					dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
+#endif
 					s32 r = WBFS_Read( 0x240000, 4, buf1 );
 					if( r == WBFS_OK )
 					{
-						if( *(vu32*)buf1 == 0x00000001  ) // For now skip games with update partition
+						if( *(vu32*)buf1 == 0x00000001  ) /*** For now skip games with update partition ***/
 						{
 							WBFS_Read( 0x218, 4, buf1 );				
 							if( *(vu32*)buf1 == 0x5d1c9ea3 )
@@ -840,74 +672,49 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	
 		DVDSeek( fd, CurrentGame * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 0 );
 		DVDWrite( fd, RawGameCount, 4 );	
-		/*	
-			DICfg->Config	= (0<<7);
-		*/
+
 		DICfg->Gamecount = CurrentGame;
 		DVDSeek( fd, 0, 0 );
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 	}
 
-/*	
-	DICfg->Config	= (0<<7);
-
-	DICfg->GameCount = CurrentGame;
-	DVDSeek( fd, 0, 0 );
-	DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
-*/
 	DVDClose( fd );
 
-//Read new config
+/*** Read new config ***/
 	free( RawGameCount);
 	free( DICfg );
-
-	//sprintf( Path, "/sneek/diconfig.bin" );
-	strcpy( Path, "/sneek/diconfig.bin" );
-	
+	strcpy( Path, "/sneek/diconfig.bin" );	
 	fd = DVDOpen( Path, DREAD );
-
 	DICfg = (DIConfig*)malloca( DVDGetSize(fd), 32 );
-
 	DVDRead( fd, DICfg, DVDGetSize(fd) );
 	DVDClose(fd);
-
-	free( Path );
-	
+	free( Path );	
 	return DI_SUCCESS;
 }
 
 u32 DMLite = 0;
 s32 DVDSelectGame( int SlotID )
 {
-	//dbgprintf("DVDSelectGame 0.5sec timer expired at %x \n",read32(HW_TIMER));
-	//if( SlotID >= 2000 )
-	//{
-	//	SlotID -= 2000;
-	//	wbfstofst = 1;
-	//}
+#ifdef DEBUG_DVDSelectGameB	
+	dbgprintf("DVDSelectGame 0.5sec timer expired at %x \n",read32(HW_TIMER));
+#endif
 
-	GameHook = 0;
-	
-	FMode = IS_FST;
-	
+	GameHook = 0;	
+	FMode = IS_FST;	
 	InitCache();
-
 	if( SlotID < 0 )
 		SlotID = 0;
 
 	if( SlotID >= DICfg->Gamecount )
 		SlotID = 0;
 
-	char *str = (char *)malloca( 256, 32 );
-	
-	//build path
+	char *str = (char *)malloca( 256, 32 );	
 	sprintf( GamePath, "/games/%.31s/", &DICfg->GameInfo[SlotID][0x60] );
 	
 	FSTable = (u8*)NULL;
 	ChangeDisc = 1;
 	DICover |= 1;
 		
-	//Get Apploader size
 	sprintf( str, "%ssys/apploader.img", GamePath );
 	s32 fd = DVDOpen( str, DREAD );
 
@@ -930,11 +737,12 @@ s32 DVDSelectGame( int SlotID )
 		{
 			sprintf( GamePath, "/wbfs/%.31s/", &DICfg->GameInfo[SlotID][0x60] );
 			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
-		}
-		
-		
-		//dbgprintf( "DVDSelectGame:Path = %s\n", WBFSPath );
-		//dbgprintf( "DVDSelectGame: GamePath set to:%s\n", GamePath );
+		}		
+
+#ifdef DEBUG_DVDSelectGameB			
+		dbgprintf( "DVDSelectGame:Path = %s\n", WBFSPath );
+		dbgprintf( "DVDSelectGame: GamePath set to:%s\n", GamePath );
+#endif
 		
 		fd = DVDOpen( WBFSPath, FA_READ);
 		if( fd < 0 )
@@ -966,12 +774,14 @@ s32 DVDSelectGame( int SlotID )
 				}
 				else
 				{
+#ifdef DEBUG_DVDSelectGameA	
 					if( splitcount > 1 && splitcount <= FILESPLITS_MAX )
 						dbgprintf( "CDI:Game is splitted in %d wbfs files\n", splitcount );
 					else if( splitcount > FILESPLITS_MAX )
 						dbgprintf( "CDI:WARNING: Game is splitted in %d files. Max %d files are supported!\n", splitcount, FILESPLITS_MAX );
 					else
 						dbgprintf( "CDI:Game isn't splitted\n" );
+#endif
 					break;
 				}
 				
@@ -988,7 +798,7 @@ s32 DVDSelectGame( int SlotID )
 			
 			WBFS_Read( 0x240000, 4, buf2 );
 			
-			if(*(vu32*)buf2 == 0x00000001) { // Should be true for now		
+			if(*(vu32*)buf2 == 0x00000001) { /*** Should be true for now ***/		
 				game_part_offset = 0x400000;
 			}
 			else {
@@ -999,8 +809,10 @@ s32 DVDSelectGame( int SlotID )
 				else
 					game_part_offset = 0xc400000;
 			}
-			
-			//dbgprintf("CDI:game_partition_offset=0x%08x\n",game_part_offset);
+
+#ifdef DEBUG_DVDSelectGameB				
+			dbgprintf("CDI:game_partition_offset=0x%08x\n",game_part_offset);
+#endif
 			
 			s32 ret = WBFS_Read( game_part_offset, 0x480, buf2 );
 			if( ret != WBFS_OK ){
@@ -1020,6 +832,7 @@ s32 DVDSelectGame( int SlotID )
 		
 			maxblock=(((((data_size) / 0x2000) / 0x10) * 0x10) + 0x10);
 			
+#ifdef USE_HARDCODED_HACKS
 			if ( strncmp( WBFSFile, "SZBxxx", 3 ) == 0 )
 				maxblock=0x20c80;
 			
@@ -1028,6 +841,7 @@ s32 DVDSelectGame( int SlotID )
 			
 			if ( strncmp( WBFSFile, "RSBxxx", 3 ) == 0 )
 				maxblock=0;
+#endif
 			
 			sprintf( str, "/sneek/gamecfg/%s.bin", WBFSFile );
 			s32 fd_cfg = DVDOpen( str, FA_READ );
@@ -1037,6 +851,20 @@ s32 DVDSelectGame( int SlotID )
 				maxblock -= GameCFG->Calcup;
 				maxblock += GameCFG->Calcdown;
 				DVDClose(fd_cfg);
+				bnr=1;
+			}
+			else
+			{
+				sprintf( str, "/tmp/%s.bin", WBFSFile );
+				s32 fd_cfg = DVDOpen( str, FA_READ );
+				if( fd_cfg >= 0 )
+				{
+					DVDRead( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
+					maxblock -= GameCFG->Calcup;
+					maxblock += GameCFG->Calcdown;
+					DVDClose(fd_cfg);
+					bnr=1;
+				}
 			}
 	
 			data_offset <<= 2;			
@@ -1049,9 +877,11 @@ s32 DVDSelectGame( int SlotID )
 				free( str );
 				return DI_FATAL;
 			}
-   			
-   			//dbgprintf( "CDI:Decrypted game buffer\n" );
-   			//hexdump( buf2, 0x20);
+ 
+#ifdef DEBUG_DVDSelectGameB	  			
+   			dbgprintf( "CDI:Decrypted game buffer\n" );
+   			hexdump( buf2, 0x20);
+#endif
 		
 			dol_offset 	= *(vu32*)(buf2+0x420);
 			fst_offset  = *(vu32*)(buf2+0x424);
@@ -1070,11 +900,11 @@ s32 DVDSelectGame( int SlotID )
 	{
 		FSMode = UNEEK;
 		DMLite = 1;
-		//Write boot info for DML
+		/*** Write boot info for DML ***/
 		s32 bi = DVDOpen( "/games/boot.bin", FA_CREATE_ALWAYS|FA_WRITE );
 		if( bi >= 0 )
 		{
-			DVDWrite( bi, &DICfg->GameInfo[SlotID][0x60], strlen((char*)(&DICfg->GameInfo[SlotID][0x60])) );
+			DVDWrite( bi, &DICfg->GameInfo[SlotID][0x60], strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) );
 			DVDClose( bi );
 		}
 		fd = DVDOpen( str, DREAD );
@@ -1104,7 +934,7 @@ s32 DVDSelectGame( int SlotID )
 
 	free( str );
 
-	//update di-config
+	/*** update di-config ***/
 	fd = DVDOpen( "/sneek/diconfig.bin", DWRITE );
 	if( fd >= 0 )
 	{
@@ -1159,7 +989,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 	u32 DebuggerHook=0;
 	char Path[256];
 
-	if( Offset < 0x110 )	// 0x440
+	if( Offset < 0x110 )	/*** 0x440 ***/
 	{
 		sprintf( Path, "%ssys/boot.bin", GamePath );
 		fd = DVDOpen( Path, DREAD );
@@ -1169,11 +999,11 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 		} else {
 			u32 *rbuf = (u32*)halloca( sizeof(u32), 32 );
 
-			//read requested data
+			/*** read requested data ***/
 			DVDSeek( fd, Offset<<2, 0 );
 			DVDRead( fd, ptr, Length );
 
-			//Read DOL/FST offset/sizes for later usage
+			/*** Read DOL/FST offset/sizes for later usage ***/
 			DVDSeek( fd, 0x0420, 0 );
 			DVDRead( fd, rbuf, 4 );
 			DolOffset = *rbuf;
@@ -1195,7 +1025,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			return DI_SUCCESS;
 		}
 
-	} else if( Offset < 0x910 )	// 0x2440
+	} else if( Offset < 0x910 )	/*** 0x2440 ***/
 	{
 		Offset -= 0x110;
 
@@ -1209,7 +1039,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			DVDRead( fd, ptr, Length );
 			DVDClose( fd );
 
-			//GC region patch
+			/*** GC region patch ***/
 			if( DiscType == DISC_DOL )
 				*(vu32*)(ptr+0x18) = DICfg->Region;
 			
@@ -1217,7 +1047,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 		}
 
 
-	} else if( Offset < 0x910+ApploaderSize )	// 0x2440
+	} else if( Offset < 0x910+ApploaderSize )	/*** 0x2440 ***/
 	{
 		Offset -= 0x910;
 
@@ -1249,7 +1079,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			int i;
 			for( i=0; i < Length; i+=4 )
 			{
-				//Remote debugging and USBgecko debug printf doesn't work well at the same time!
+				/*** Remote debugging and USBgecko debug printf doesn't work well at the same time! ***/
 				if( DICfg->Config & CONFIG_DEBUG_GAME )
 				{
 					switch( DICfg->Config&HOOK_TYPE_MASK )
@@ -1306,7 +1136,6 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			{
 				GameHook = 0xdeadbeef;
 
-				//sprintf( Path, "/sneek/kenobiwii.bin" );
 				strcpy(	Path, "/sneek/kenobiwii.bin" );
 				s32 fd = IOS_Open( Path, 1 );
 				if( fd < 0 )
@@ -1315,7 +1144,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 				u32 Size = IOS_Seek( fd, 0, 2 );
 				IOS_Seek( fd, 0, 0 );
 
-				//Read file to memory
+				/*** Read file to memory ***/
 				s32 ret = IOS_Read( fd, (void*)0x1800, Size );
 				if( ret != Size )
 					return DI_SUCCESS;
@@ -1364,7 +1193,7 @@ s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr )
 	switch( Offset )
 	{
 		case 0x00:
-		case 0x08:		// 0x20
+		case 0x08:		/*** 0x20 ***/
 		{
 			if( FMode == IS_WBFS )
 			{
@@ -1393,25 +1222,25 @@ s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr )
 			}
 			
 		} break;
-		case 0x10000:		// 0x40000
+		case 0x10000:		/*** 0x40000 ***/
 		{
 			memset( ptr, 0, Length );
 
-			*(u32*)(ptr)	= 1;				// one partition
-			*(u32*)(ptr+4)	= 0x40020>>2;		// partition table info
+			*(u32*)(ptr)	= 1;				/*** one partition ***/
+			*(u32*)(ptr+4)	= 0x40020>>2;		/*** partition table info ***/
 
 			return DI_SUCCESS;
 		} break;
-		case 0x10008:		// 0x40020
+		case 0x10008:		/*** 0x40020 ***/
 		{
 			memset( ptr, 0, Length );
 
-			*(u32*)(ptr)	= 0x03E00000;		// partition offset
-			*(u32*)(ptr+4)	= 0x00000000;		// partition type
+			*(u32*)(ptr)	= 0x03E00000;		/*** partition offset ***/
+			*(u32*)(ptr+4)	= 0x00000000;		/*** partition type ***/
 
 			return DI_SUCCESS;
 		} break;
-		case 0x00013800:		// 0x4E000
+		case 0x00013800:		/*** 0x4E000 ***/
 		{
 			memset( ptr, 0, Length );
 
@@ -1445,7 +1274,10 @@ s32 DVDLowReadDiscID( u32 Offset, u32 Length, void *ptr )
 		free( str );
 	}
 
-	// hexdump( ptr, Length );
+#ifdef DEBUG_APPLOADER_STUFF
+	hexdump( ptr, Length );
+#endif
+	
 
 	if( *(vu32*)(ptr+0x1C) == 0xc2339f3d )
 	{
@@ -1476,7 +1308,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 	//dbgprintf("CDI:Ioctl -> command = %d\n",msg->ioctl.command);
 	switch(msg->ioctl.command)
 	{
-		//Added for slow harddrives
+		/*** Added for slow harddrives ***/
 		case DVD_CONNECTED:
 		{
 			if( HardDriveConnected )
@@ -1537,17 +1369,17 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			DICover |= 1;
 			ret = DI_SUCCESS;
 		} break;
-		case DVD_GET_GAMECOUNT:	//Get Game count
+		case DVD_GET_GAMECOUNT:	/*** Get Game count ***/
 		{
 			*(u32*)bufout = DICfg->Gamecount;
 			ret = DI_SUCCESS;
 		} break;
 		case DVD_SELECT_GAME:
 		{
-			//ret = DVDSelectGame( *(u32*)(bufin) );
 			requested_game = *(u32*)(bufin);
-	
-			//dbgprintf("Game select before 0.5 sec timer %x \n",read32(HW_TIMER));
+#ifdef DEBUG_DVDSelectGameB	
+			dbgprintf("Game select before 0.5 sec timer %x \n",read32(HW_TIMER));
+#endif
 			switchtimer = TimerCreate( 500000, 0, QueueID, 0xDEADDEAE );
 			ret = DI_SUCCESS;
 
@@ -1569,7 +1401,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 
 				write32( 0x0D806000, 0x3A );
 	
-				write32( 0x0D80601C, 3 );		// send cmd
+				write32( 0x0D80601C, 3 );
 				while( (read32( 0x0D806000 ) & 0x14) == 0 );
 
 				write32( 0x0D806004, read32( 0x0D806004 ) );
@@ -1591,16 +1423,16 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			ret = DI_ERROR;
 			error = 0x00052000;
 		} break;
-		case 0xDD:			// 0 out
+		case 0xDD:			/*** 0 ou***/
 		{
 			ret = DI_SUCCESS;
 		} break;
-		case 0x95:			// 0x20 out
+		case 0x95:			/*** 0x20 out ***/
 		{
 			*(u32*)bufout = DIStatus;
 			ret = DI_SUCCESS;
 		} break;
-		case 0x7A:			// 0x20 out
+		case 0x7A:			/*** 0x20 out ***/
 		{
 			*(u32*)bufout = DICover;
 
@@ -1612,11 +1444,11 @@ int DIP_Ioctl( struct ipcmessage *msg )
 
 			ret = DI_SUCCESS;
 		} break;
-		case 0x86:			// 0 out
+		case 0x86:			/*** 0 out ***/
 		{
 			ret = DI_SUCCESS;
 		} break;
-		case DVD_GETCOVER:	// 0x88
+		case DVD_GETCOVER:	/*** 0x88 ***/
 		{
 			*(u32*)bufout = DICover;
 			ret = DI_SUCCESS;
@@ -1637,7 +1469,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 
 			ret = DI_SUCCESS;
 		} break;
-		case DVD_GET_ERROR:	// 0xE0
+		case DVD_GET_ERROR:	/*** 0xE0 ***/
 		{
 			*(u32*)bufout = error; 
 			ret = DI_SUCCESS;
@@ -1651,7 +1483,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 
 			ret = DI_SUCCESS;
 		} break;
-		case DVD_LOW_READ:	// 0x71, GC never calls this
+		case DVD_LOW_READ:	/*** 0x71, GC never calls this ***/
 		{
 			if( Partition )
 			{
@@ -1673,19 +1505,24 @@ int DIP_Ioctl( struct ipcmessage *msg )
 #endif
 							while( length ) 
 							{
-							
 								if( !bnr )
 								{
+									GameCFG = (GameConfig *)malloca( DVD_CONFIG_SIZE, 32 );										
+									GameCFG->Calcup		= 0;
+									GameCFG->Calcdown	= 0;
+									GameCFG->Padding1	= 0;
+									GameCFG->Padding2	= 0;
+									
+									char *CFGPath = (char *)halloca( 128, 32 );
+									
 									u32 i;
-									u32 tmpoffset = offset;
-									bl_offset = tmpoffset % (0x7c00 >> 2);
-			
+									u32 tempup = offset;
+									u32 tempdown = offset;
+									bl_offset = offset % ( 0x7c00 >> 2 );
+									
 									for( i=0; i<MAX_BNR_BLOCK_RANGE; ++i )
-									{		
-										if (bl_length > length) 
-										bl_length = length;
-		
-										WBFS_Read_Block( tmpoffset / (0x7c00 >> 2), BC[0].bl_buf, FST_READ);
+									{
+										WBFS_Read_Block( tempup / (0x7c00 >> 2), BC[0].bl_buf, FST_READ);
 										if ( strncmp( (char *)BC[0].bl_buf + (bl_offset << 2) + 64, "IMET", 4 ) == 0 )
 										{
 											highcalc = i;
@@ -1695,36 +1532,13 @@ int DIP_Ioctl( struct ipcmessage *msg )
 #ifdef DEBUG_GAMES
 												dbgprintf( "DEBUG:opening.bnr for: %s found dif = + %d blocks\n", WBFSFile, i );
 #endif
-												GameCFG = (GameConfig *)malloca( DVD_CONFIG_SIZE, 32 );										
-												GameCFG->Calcup		= i;
-												GameCFG->Calcdown	= 0;
-												GameCFG->Padding1	= 0;
-												GameCFG->Padding2	= 0;
-												char *CFGPath = (char *)halloca( 128, 32 );
-												sprintf( CFGPath, "/sneek/gamecfg/%s.bin", WBFSFile );
-												s32 fd_cfg = DVDOpen( CFGPath, FA_WRITE|FA_CREATE_ALWAYS );
-												DVDWrite( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
-												DVDClose( fd_cfg );											
-												hfree( CFGPath );
-												free( GameCFG );
+												GameCFG->Calcup	= i;
+												bnr = 2;
 											}
-											break;					
+											break;
 										}
-										tmpoffset += 0x7c00 >> 2;
-									}
-								}
-								
-								if( !bnr )
-								{			
-									u32 tmpoffset = offset;
-									bl_offset = tmpoffset % (0x7c00 >> 2);
-			
-									for( i=0; i<MAX_BNR_BLOCK_RANGE; ++i )
-									{		
-										if (bl_length > length) 
-											bl_length = length;
-		
-										WBFS_Read_Block( tmpoffset / (0x7c00 >> 2), BC[0].bl_buf, FST_READ);
+										
+										WBFS_Read_Block( tempdown / (0x7c00 >> 2), BC[0].bl_buf, FST_READ);
 										if ( strncmp( (char *)BC[0].bl_buf + (bl_offset << 2) + 64, "IMET", 4 ) == 0 )
 										{
 											lowcalc = i;
@@ -1732,32 +1546,40 @@ int DIP_Ioctl( struct ipcmessage *msg )
 											if( i > 0 )
 											{
 #ifdef DEBUG_GAMES
-												dbgprintf( "DEBUG:opening.bnr for: %s found dif = - %d blocks\n", WBFSFile, i );
+												dbgprintf( "DEBUG:opening.bnr for: %s found dif = - %d blocks\n", WBFSFile, i );												
 #endif
-												GameCFG = (GameConfig *)malloca( DVD_CONFIG_SIZE, 32 );												
-												GameCFG->Calcup		= 0;
-												GameCFG->Calcdown	= i;
-												GameCFG->Padding1	= 0;
-												GameCFG->Padding2	= 0;
-												char *CFGPath = (char *)halloca( 128, 32 );
-												sprintf( CFGPath, "/sneek/gamecfg/%s.bin", WBFSFile );
-												s32 fd_cfg = DVDOpen( CFGPath, FA_WRITE|FA_CREATE_ALWAYS );
-												DVDWrite( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
-												DVDClose( fd_cfg );												
-												hfree( CFGPath );
-												free( GameCFG );
+												GameCFG->Calcdown = i;
+												bnr = 2;
 											}
-											break;					
+											break;
 										}
-										tmpoffset -= 0x7c00 >> 2;
+										tempup += 0x7c00 >> 2;
+										tempdown -= 0x7c00 >> 2;										
 									}
-									if( !bnr )
+									if( bnr == 1 )
+									{
+										sprintf( CFGPath, "/tmp/%s.bin", WBFSFile );
+									}									
+									else if( bnr == 2 )	
+									{
+										if( DVDOpenDir( "/sneek/gamecfg" ) != FR_OK )
+											DVDCreateDir( "/sneek/gamecfg" );
+											
+										sprintf( CFGPath, "/sneek/gamecfg/%s.bin", WBFSFile );
+									}
+									else
 									{
 #ifdef DEBUG_GAMES
 										dbgprintf( "DEBUG:opening.bnr not found!\n" );
-#endif
+#endif	
+										sprintf( CFGPath, "/tmp/%s.bin", WBFSFile );
 										bnr = 1;
-									}
+									}																										
+									s32 fd_cfg = DVDOpen( CFGPath, FA_WRITE|FA_CREATE_ALWAYS );
+									DVDWrite( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
+									DVDClose( fd_cfg );									
+									hfree( CFGPath );
+									free( GameCFG );
 								}
 
 								bl_offset = offset % ( 0x7c00 >> 2 );
@@ -1831,7 +1653,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 					ret = DVDLowReadUnencrypted( *(u32*)(bufin+8), *(u32*)(bufin+4), bufout );
 				}
 			} else {
-				//Invalid disc type!
+				/*** Invalid disc type! ***/
 				ret = DI_FATAL;
 			}
 
@@ -1885,7 +1707,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 		break;
 	}
 
-	//Reset errror after a successful command
+	/*** Reset error after a successful command ***/
 	if( msg->command != 0xE0 && ret == DI_SUCCESS )
 		error = 0;
 
@@ -1968,8 +1790,8 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 			
 			if( ret != DI_FATAL )
 			{
-				((u32*)buffer)[0x04] = (u32)TIK;			//0x10
-				((u32*)buffer)[0x05] = 0x2a4;				//0x14
+				((u32*)buffer)[0x04] = (u32)TIK;
+				((u32*)buffer)[0x05] = 0x2a4;
 				sync_before_read(TIK, 0x2a4);
 			}
 			
@@ -1983,8 +1805,8 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 					ret = DI_FATAL;
 					break;
 				} else {				
-					((u32*)buffer)[0x06] = (u32)TMD;		//0x18
-					((u32*)buffer)[0x07] = tmd_size;		//0x1C
+					((u32*)buffer)[0x06] = (u32)TMD;
+					((u32*)buffer)[0x07] = tmd_size;
 					sync_before_read(TMD, (tmd_size+31)&(~31));
 
 					PartitionSize = (u32)((*(u64*)(TMD+0x1EC)) >> 2 );
@@ -2016,8 +1838,8 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 						break;
 					} 
 
-					((u32*)buffer)[0x06] = (u32)TMD;		//0x18
-					((u32*)buffer)[0x07] = DVDGetSize(fd);		//0x1C
+					((u32*)buffer)[0x06] = (u32)TMD;
+					((u32*)buffer)[0x07] = DVDGetSize(fd);
 					sync_before_read(TMD, asize);
 
 					PartitionSize = (u32)((*(u64*)(TMD+0x1EC)) >> 2 );
@@ -2058,8 +1880,8 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 
 			if( ret != DI_FATAL )
 			{
-				((u32*)buffer)[0x00] = (u32)CRT;		//0x00
-				((u32*)buffer)[0x01] = 0xA00;			//0x04
+				((u32*)buffer)[0x00] = (u32)CRT;
+				((u32*)buffer)[0x01] = 0xA00;
 				sync_before_read(CRT, 0xA00);
 			}			
 
@@ -2068,14 +1890,13 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 			KeyID = (u32*)malloca( sizeof( u32 ), 32 );
 
 
-			((u32*)buffer)[0x02] = (u32)NULL;			//0x08
-			((u32*)buffer)[0x03] = 0;					//0x0C
+			((u32*)buffer)[0x02] = (u32)NULL;
+			((u32*)buffer)[0x03] = 0;
 
-			//out
-			((u32*)buffer)[0x08] = (u32)KeyID;			//0x20
-			((u32*)buffer)[0x09] = 4;					//0x24
-			((u32*)buffer)[0x0A] = (u32)hashes;			//0x28
-			((u32*)buffer)[0x0B] = 20;					//0x2C
+			((u32*)buffer)[0x08] = (u32)KeyID;
+			((u32*)buffer)[0x09] = 4;
+			((u32*)buffer)[0x0A] = (u32)hashes;
+			((u32*)buffer)[0x0B] = 20;
 
 			sync_before_read(buffer, 0x40);
 
@@ -2111,7 +1932,7 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 		break;
 	}
 
-	//Reset errror after a successful command
+	/*** Reset error after a successful command ***/
 	if( ret == DI_SUCCESS )
 		error = 0;
 
@@ -2164,12 +1985,14 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 	{
 		for( i=0; i<FILESPLITS_MAX; ++i )
 		{
-			if( FS[i].Offset == 0xdeadbeef ) //Should never happen
+			if( FS[i].Offset == 0xdeadbeef )
 				continue;
 				
 			if( offset < FS[i].Offset && offset > ( FS[i].Offset - FS[i].Size ) )
 			{
-				//dbgprintf( "CDI:Found start offset in splitfile: %d\n", i );
+#ifdef DEBUG_WBFSREAD
+				dbgprintf( "CDI:Found start offset in splitfile: %d\n", i );
+#endif
 				u32 doread = 0;
 				for( j=0; j<FILECACHE_MAX; ++j )
 				{
@@ -2178,7 +2001,9 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 					
 					if( offset >= FC[j].Offset && offset < ( FC[j].Offset + FC[j].Size ) )
 					{
-						//dbgprintf( "CDI:Found splitfile in cache: %d\n", j );
+#ifdef DEBUG_WBFSREAD
+						dbgprintf( "CDI:Found splitfile in cache: %d\n", j );
+#endif
 						u32 readsize = length;
 						u32 nOffset = offset-FC[j].Offset;
 						if( nOffset + readsize > FS[i].Offset )
@@ -2191,7 +2016,9 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 						ptr += readsize;
 						length -= readsize;	
 						doread = 1;
-						//dbgprintf( "CDI:Read: 0x%08x - Todo: 0x%08x\n", readsize, length );
+#ifdef DEBUG_WBFSREAD
+						dbgprintf( "CDI:Read: 0x%08x - Todo: 0x%08x\n", readsize, length );
+#endif
 						if( length <= 0 )
 							return WBFS_OK;
 							
@@ -2202,8 +2029,9 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 				{
 					if( FCEntry >= FILECACHE_MAX )
 						FCEntry = 0;
-						
-					//dbgprintf( "CDI:Splitfile not found in cache adding it to cache: %d\n", FCEntry );
+#ifdef DEBUG_WBFSREAD						
+					dbgprintf( "CDI:Splitfile not found in cache adding it to cache: %d\n", FCEntry );
+#endif
 
 					if( FC[FCEntry].File != 0xdeadbeef )
 					{
@@ -2237,9 +2065,9 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 						offset += readsize;
 						ptr += readsize;
 						length -= readsize;
-
-						//dbgprintf( "CDI:Read: 0x%08x - Todo: 0x%08x\n", readsize, length );
-							
+#ifdef DEBUG_WBFSREAD
+						dbgprintf( "CDI:Read: 0x%08x - Todo: 0x%08x\n", readsize, length );
+#endif							
 						FCEntry++;
 						
 						if( length <= 0 )
@@ -2326,53 +2154,6 @@ s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length, u3
 	free(bufrw);
 	free(str);
 	return WBFS_OK;
-}
-
-s32 WBFS_To_FST( void )
-{
-	/*u8 *buffer = (u8*)halloca( 0xA00, 32 );
-	char *str = (char*)halloca( 0x40,32 );
-	
-	sprintf( str, "/games/%s", WBFSFile );
-	DVDCreateDir( str );
-
-	s32 ret = WBFS_Read( game_part_offset, 0x2a4, buffer );
-	sprintf( str, "/games/%s/ticket.bin", WBFSFile );
-	s32 writefd = DVDOpen( str, FA_WRITE|FA_READ|FA_CREATE_ALWAYS );
-	DVDWrite( writefd, buffer, 0x2a4);
-	DVDClose(writefd);	
-
-	ret = WBFS_Read( game_part_offset + (tmd_offset << 2), tmd_size, buffer );
-	sprintf( str, "/games/%s/tmd.bin", WBFSFile );
-	writefd = DVDOpen( str, FA_WRITE|FA_READ|FA_CREATE_ALWAYS );
-	DVDWrite( writefd, buffer, tmd_size);
-	DVDClose(writefd);	
-	
-	ret = WBFS_Read( game_part_offset + (cert_offset << 2), 0xA00, buffer );	
-	sprintf( str, "/games/%s/cert.bin", WBFSFile );
-	writefd = DVDOpen( str, FA_WRITE|FA_READ|FA_CREATE_ALWAYS );
-	DVDWrite( writefd, buffer, 0xA00);
-	DVDClose(writefd);	
-	
-	u32 appldr_offset = 0x2440 >> 2;
-	
-	ret = WBFS_Encrypted_Read(appldr_offset, 0x20, buffer);
-	
-	u32 appldr_size = 0x20 + *(vu32*)(buffer + 0x14) + *(vu32*)(buffer + 0x18);
-	u32 dol_size = (fst_offset - dol_offset);
-	
-	sprintf( str, "/games/%s/sys", WBFSFile );
-	ret = WBFS_Decrypted_Write( str, "apploader.img", appldr_offset, appldr_size, PAR_READ);
-	ret = WBFS_Decrypted_Write( str, "fst.bin", fst_offset, fst_size, PAR_READ);
-	ret = WBFS_Decrypted_Write( str, "main.dol", dol_offset, dol_size, PAR_READ);
-
-	hfree( str );
-	hfree( buffer );
-
-	Search_FST( 0, 0, NULL, WBFS_CONF );
-	
-	return ret;*/
-	return -1;
 }
 
 s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
