@@ -43,9 +43,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define FST_EXTR		2
 #define WBFS_CONF		3
 #define DEBUG_READ		4
-#define BUILD_UTABLE 	5
 
 #define MAX_BNR_BLOCK_RANGE 100
+#define MAX_PART_BLOCK_RANGE 100
 
 enum disctypes
 {
@@ -232,7 +232,6 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr );
 s32 WBFS_Read_Block( u64 block, void *ptr, u32 read);
 s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr);
 s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length, u32 fst);
-s32 WBFS_To_FST( void );
 s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode );
 void DIP_Fatal( char *name, u32 line, char *file, s32 error, char *msg );
 
