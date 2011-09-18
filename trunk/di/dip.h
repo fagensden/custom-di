@@ -31,17 +31,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DIGlue.h"
 #include "utils.h"
 
-#define DI_SUCCESS	1
-#define DI_ERROR	2
-#define DI_FATAL	64
-#define WBFS_FATAL	0
-#define WBFS_OK		1
-#define IS_FST		0
-#define IS_WBFS		1
-#define PAR_READ	0
-#define FST_READ	1
-#define FST_EXTR	2
-#define WBFS_CONF	3
+#define DI_SUCCESS		1
+#define DI_ERROR		2
+#define DI_FATAL		64
+#define WBFS_FATAL		0
+#define WBFS_OK			1
+#define IS_FST			0
+#define IS_WBFS			1
+#define PAR_READ		0
+#define FST_READ		1
+#define FST_EXTR		2
+#define WBFS_CONF		3
+#define DEBUG_READ		4
+#define BUILD_UTABLE 	5
+
+#define MAX_BNR_BLOCK_RANGE 100
 
 enum disctypes
 {
@@ -195,6 +199,14 @@ typedef struct
 } BlockCache;
 
 #define BLOCKCACHE_MAX	5
+
+typedef struct
+{
+	u32 Calcup;
+	u32 Calcdown;
+	u32 Padding1;
+	u32 Padding2;
+} GameConfig;
 
 typedef struct
 {

@@ -111,14 +111,14 @@ void _main(void)
 	runresult = FS_Running();
 	while((runresult!=FS_SUCCESS)&&(tries < 20)) 
 	{
-		dbgprintf("CDI:Init FS runresult = %d\n",runresult);
+		//dbgprintf("CDI:Init FS runresult = %d\n",runresult);
 		udelay(1000000);
 		tries++;
 		runresult = FS_Running();
 	}
 	if (tries == 20)
 	{
-		dbgprintf("CDI:FS-USB init failure...?\n");
+		//dbgprintf("CDI:FS-USB init failure...?\n");
 	}
 	else
 	{
@@ -139,34 +139,18 @@ void _main(void)
 
 
 	DVDUpdateCache(0);
-	s32 fres = DVDSelectGame( DICfg->SlotID );
-
-//	s32 Timer = TimerCreate( 4000000, 0, QueueID, 0xDEADDEAD );
-//	dbgprintf("CDI:Timer:%d\n", Timer );
-	//TimerRestart( Timer, 0, 2000000 );
+	DVDSelectGame( DICfg->SlotID );
 
 	while (1)
 	{
 		ret = MessageQueueReceive( QueueID, &IPCMessage, 0 );
 
-/*
-		if( (u32)IPCMessage == 0xDEADDEAD )
-		{
-			TimerStop( Timer );
-			TimerDestroy( Timer );
-			dbgprintf( "CDI:Delay Timer expired\n"); 
-			DVDUpdateCache(0);
-			dbgprintf("CDI:DI-Config: Region:%d Slot:%02d Games:%02d\n", DICfg->Region, DICfg->SlotID, DICfg->Gamecount );
-			s32 fres = DVDSelectGame( DICfg->SlotID );
-			continue;
-		}
-*/
 		if( (u32)IPCMessage == 0xDEADDEAE )
 		{
 			TimerStop( switchtimer );
 			TimerDestroy(switchtimer);
-			dbgprintf( "CDI:switchtimer expired -> requested_game = %d\n",requested_game); 
-			s32 fres = DVDSelectGame( requested_game );
+			dbgprintf( "CDI:switchtimer expired -> requested_game = %d\n", requested_game ); 
+			DVDSelectGame( requested_game );
 			continue;
 		}
 
