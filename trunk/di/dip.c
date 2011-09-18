@@ -93,8 +93,10 @@ extern int requested_game;
 #define DEBUG_GAMES
 //#define DEBUG_PRINT_FILES
 //#define DEBUG_KEY
-#define DEBUG_DVDSelectGameA
+//#define DEBUG_DVDSelectGameA
 //#define DEBUG_DVDSelectGameB
+#define DEBUG_DVDSelectGameC
+//#define DEBUG_DVDSelectGameD
 //#define DEBUG_APPLOADER_STUFF
 //#define DEBUG_WBFSREAD
 
@@ -609,44 +611,34 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 #ifdef DEBUG_CACHE						
 					dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
 #endif
-					s32 r = WBFS_Read( 0x240000, 4, buf1 );
+					s32 r = WBFS_Read( 0x218, 4, buf1 );
 					if( r == WBFS_OK )
-					{
-						if( *(vu32*)buf1 == 0x00000001  ) /*** For now skip games with update partition ***/
+					{				
+						if( *(vu32*)buf1 == 0x5d1c9ea3 )
 						{
-							WBFS_Read( 0x218, 4, buf1 );				
-							if( *(vu32*)buf1 == 0x5d1c9ea3 )
+							r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
+							if( r == WBFS_OK )
 							{
-								r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
-								if( r == WBFS_OK )
-								{
-									memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
-									DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
-									CurrentGame++;
+								memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
+								DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+								CurrentGame++;
 #ifdef DEBUG_CACHE
-									dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, WBFSPath );
-#endif
-								}
-#ifdef DEBUG_CACHE
-								else
-								{
-									dbgprintf( "CDI:Skipping invalid Wiigame: %s\n", WBFSPath );
-								}
+								dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, WBFSPath );
 #endif
 							}
 #ifdef DEBUG_CACHE
 							else
 							{
-								dbgprintf( "CDI:Magic doesn't match! This isn't a Wii game: %s\n", WBFSPath );
+								dbgprintf( "CDI:Skipping invalid Wiigame: %s\n", WBFSPath );
 							}
-#endif						
+#endif
 						}
 #ifdef DEBUG_CACHE
 						else
 						{
-							dbgprintf( "CDI:Skipping game with update partition: %s\n", WBFSPath );
+							dbgprintf( "CDI:Magic doesn't match! This isn't a Wii game: %s\n", WBFSPath );
 						}
-#endif
+#endif	
 					}
 #ifdef DEBUG_CACHE
 					else
@@ -798,20 +790,39 @@ s32 DVDSelectGame( int SlotID )
 			
 			WBFS_Read( 0x240000, 4, buf2 );
 			
-			if(*(vu32*)buf2 == 0x00000001) { /*** Should be true for now ***/		
+			if( *(vu32 *)buf2 == 0x00000001 ) 
+			{ 		
 				game_part_offset = 0x400000;
 			}
-			else {
+			else 
+			{
+				game_part_offset = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
 				WBFS_Read( 0x2502bc, 4, buf2 );
 				data_size = *(vu32*)(buf2);
-				if(data_size != 0x2fe8000)
-					game_part_offset = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
-				else
-					game_part_offset = 0xc400000;
+				u32 part_offset_up = game_part_offset;
+				u32 part_offset_dn = game_part_offset;
+				u32 i;
+				for( i=0; i<MAX_PART_BLOCK_RANGE; ++i )
+				{
+					WBFS_Read( part_offset_up+0x400, 4, buf2 );
+					if( *(vu32 *)buf2 == 0x526f6f74 )
+					{
+						game_part_offset = part_offset_up;
+						break;
+					}
+					WBFS_Read( part_offset_dn+0x400, 4, buf2 );
+					if( *(vu32 *)buf2 == 0x526f6f74 )
+					{
+						game_part_offset = part_offset_dn;
+						break;
+					}
+					part_offset_up += 0x8000;
+					part_offset_dn -= 0x8000;
+				}				
 			}
 
-#ifdef DEBUG_DVDSelectGameB				
-			dbgprintf("CDI:game_partition_offset=0x%08x\n",game_part_offset);
+#ifdef DEBUG_DVDSelectGameC				
+			dbgprintf( "CDI:game_partition_offset=0x%08x\n", game_part_offset );
 #endif
 			
 			s32 ret = WBFS_Read( game_part_offset, 0x480, buf2 );
@@ -855,14 +866,12 @@ s32 DVDSelectGame( int SlotID )
 			}
 			else
 			{
-				sprintf( str, "/tmp/%s.bin", WBFSFile );
-				s32 fd_cfg = DVDOpen( str, FA_READ );
+				sprintf( str, "/sneek/gamecfg/tmp/%s.bin", WBFSFile );
+				fd_cfg = DVDOpen( str, FA_READ );
 				if( fd_cfg >= 0 )
 				{
-					DVDRead( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
-					maxblock -= GameCFG->Calcup;
-					maxblock += GameCFG->Calcdown;
 					DVDClose(fd_cfg);
+					DVDDelete( str );
 					bnr=1;
 				}
 			}
@@ -1558,13 +1567,10 @@ int DIP_Ioctl( struct ipcmessage *msg )
 									}
 									if( bnr == 1 )
 									{
-										sprintf( CFGPath, "/tmp/%s.bin", WBFSFile );
+										sprintf( CFGPath, "/sneek/gamecfg/tmp/%s.bin", WBFSFile );
 									}									
 									else if( bnr == 2 )	
 									{
-										if( DVDOpenDir( "/sneek/gamecfg" ) != FR_OK )
-											DVDCreateDir( "/sneek/gamecfg" );
-											
 										sprintf( CFGPath, "/sneek/gamecfg/%s.bin", WBFSFile );
 									}
 									else
@@ -1572,15 +1578,24 @@ int DIP_Ioctl( struct ipcmessage *msg )
 #ifdef DEBUG_GAMES
 										dbgprintf( "DEBUG:opening.bnr not found!\n" );
 #endif	
-										sprintf( CFGPath, "/tmp/%s.bin", WBFSFile );
+										sprintf( CFGPath, "/sneek/gamecfg/tmp/%s.bin", WBFSFile );
 										bnr = 1;
-									}																										
+									}
+									if( DVDOpenDir( "/sneek/gamecfg" ) != FR_OK )
+											DVDCreateDir( "/sneek/gamecfg" );
+									
+									if( bnr == 1 )
+									{
+										if( DVDOpenDir( "/sneek/gamecfg/tmp" ) != FR_OK )
+											DVDCreateDir( "/sneek/gamecfg/tmp" );
+									}
+		
 									s32 fd_cfg = DVDOpen( CFGPath, FA_WRITE|FA_CREATE_ALWAYS );
 									DVDWrite( fd_cfg, GameCFG, DVD_CONFIG_SIZE );
 									DVDClose( fd_cfg );									
 									hfree( CFGPath );
 									free( GameCFG );
-								}
+								}								
 
 								bl_offset = offset % ( 0x7c00 >> 2 );
 								bl_length = 0x7c00 - ( bl_offset << 2 );
