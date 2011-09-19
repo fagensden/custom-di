@@ -796,11 +796,11 @@ s32 DVDSelectGame( int SlotID )
 			}
 			else 
 			{
-				game_part_offset = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
+				game_part_offset = 0;
 				WBFS_Read( 0x2502bc, 4, buf2 );
 				data_size = *(vu32*)(buf2);
-				u32 part_offset_up = game_part_offset;
-				u32 part_offset_dn = game_part_offset;
+				u32 part_offset_up = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
+				u32 part_offset_dn = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
 				u32 i;
 				for( i=0; i<MAX_PART_BLOCK_RANGE; ++i )
 				{
@@ -818,7 +818,18 @@ s32 DVDSelectGame( int SlotID )
 					}
 					part_offset_up += 0x8000;
 					part_offset_dn -= 0x8000;
-				}				
+				}
+				if( game_part_offset == 0 )
+				{
+#ifdef DEBUG_DVDSelectGameC				
+					dbgprintf( "CDI:game_partition_offset not found!\n" );
+#endif
+					ChangeDisc = 0;
+					DICover |= 1;
+					hfree( buf2 );
+					free( str );
+					return DI_FATAL;
+				}
 			}
 
 #ifdef DEBUG_DVDSelectGameC				
