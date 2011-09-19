@@ -1586,7 +1586,6 @@ int DIP_Ioctl( struct ipcmessage *msg )
 									
 									if( bnr == 1 )
 									{
-										if( DVDOpenDir( "/sneek/gamecfg/tmp" ) != FR_OK )
 											DVDCreateDir( "/sneek/gamecfg/tmp" );
 									}
 		
