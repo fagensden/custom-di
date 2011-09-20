@@ -44,8 +44,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define WBFS_CONF		3
 #define DEBUG_READ		4
 
-#define MAX_BNR_BLOCK_RANGE 100
-#define MAX_PART_BLOCK_RANGE 100
+#define MAX_BNR_BLOCK_RANGE 150
+#define MAX_PART_BLOCK_RANGE 150
 
 enum disctypes
 {

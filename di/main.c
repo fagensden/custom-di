@@ -120,10 +120,10 @@ void _main(void)
 	{
 		//dbgprintf("CDI:FS-USB init failure...?\n");
 	}
-	else
-	{
-		dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
-	}
+	//else
+	//{
+	//	dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
+	//}
 
 
 	DVDInit();
@@ -149,7 +149,7 @@ void _main(void)
 		{
 			TimerStop( switchtimer );
 			TimerDestroy(switchtimer);
-			dbgprintf( "CDI:switchtimer expired -> requested_game = %d\n", requested_game ); 
+			//dbgprintf( "CDI:switchtimer expired -> requested_game = %d\n", requested_game ); 
 			DVDSelectGame( requested_game );
 			continue;
 		}
