@@ -129,8 +129,9 @@ enum HookTypes
 };
 
 #define DVD_CONFIG_SIZE		0x10
-#define DVD_GAMEINFO_SIZE	0x80
+#define DVD_GAMEINFO_SIZE	0x100
 #define DVD_GAME_NAME_OFF	0x60
+#define DI_MAGIC_OFF		0x1c
 
 typedef struct
 {
