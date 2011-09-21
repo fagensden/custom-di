@@ -29,9 +29,9 @@ static u32 ChangeDisc ALIGNED(32);
 DIConfig *DICfg;
 GameConfig *GameCFG;
 
-static char GamePath[64];
+static char GamePath[128];
 static char WBFSFile[8];
-static char WBFSPath[64];
+static char WBFSPath[128];
 //static char SuvolutionPath[128];
 
 static u32 *KeyID ALIGNED(32);
@@ -292,7 +292,7 @@ u32 DVDVerifyGames( void )
 		{	
 			case 0:
 			case 2:	
-				sprintf( Path, "/games/%.31s/sys/boot.bin", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF );
+				sprintf( Path, "/games/%.63s/sys/boot.bin", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF );
 				if ( type == 2 )
 					FSMode = UNEEK;
 					
@@ -329,7 +329,7 @@ u32 DVDVerifyGames( void )
 				if( strncmp( (char *)DICfg->GameInfo[i]+DVD_GAME_NAME_OFF+6, ".wbfs", 5 ) == 0 )
 					sprintf( WBFSPath, "/wbfs/%s.wbfs",  WBFSFile );			
 				else			
-					sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
+					sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", DICfg->GameInfo[i]+DVD_GAME_NAME_OFF, WBFSFile );
 				
 				fd = DVDOpen( WBFSPath, DREAD );
 				if (fd>=0)
@@ -415,7 +415,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
-		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
+		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
 		DICfg->Region	= GetSystemMenuRegion();
 
@@ -427,7 +427,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
-		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
+		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
 		DICfg->Region	= GetSystemMenuRegion();
 		
@@ -455,7 +455,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	{
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
-		DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
+		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
 		DICfg->SlotID	= 0;
 		DICfg->Region	= GetSystemMenuRegion();
 		
@@ -538,19 +538,20 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 					if( DVDDirIsFile() )
 						continue;
 					
-					if( strlen( DVDDirGetEntryName() ) > 31 )
+					if( strlen( DVDDirGetEntryName() ) > 63 )
 					{
 #ifdef DEBUG_CACHE
 						dbgprintf( "CDI:Skipping to long folder entry: %s\n", DVDDirGetEntryName() );
 #endif
 						continue;
 					}
-					sprintf( Path, "/games/%.31s/sys/boot.bin", DVDDirGetEntryName() );
+					sprintf( Path, "/games/%.63s/sys/boot.bin", DVDDirGetEntryName() );
 					s32 gi = DVDOpen( Path, FA_READ );
 					if( gi >= 0 )
 					{
 						if( DVDRead( gi, GameInfo, DVD_GAMEINFO_SIZE ) == DVD_GAMEINFO_SIZE )
 						{
+							strncpy( GameInfo+DI_MAGIC_OFF, "DSCX", 4 );
 							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) + 1 );
 
 							if( DMLite )
@@ -573,7 +574,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			{
 				while( DVDReadDir() == FR_OK )
 				{					
-					if( strlen( DVDDirGetEntryName() ) > 31 )
+					if( strlen( DVDDirGetEntryName() ) > 63 )
 					{
 #ifdef DEBUG_CACHE
 						dbgprintf( "CDI:Skipping to long folder entry: %s\n", DVDDirGetEntryName() );
@@ -606,7 +607,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 								WBFSFile[6] = 0;
 							}						
 						}
-						sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
+						sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
 #ifdef DEBUG_CACHE						
 					dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
@@ -619,6 +620,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 							r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
 							if( r == WBFS_OK )
 							{
+								strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
 								memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
 								DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
 								CurrentGame++;
@@ -700,8 +702,8 @@ s32 DVDSelectGame( int SlotID )
 	if( SlotID >= DICfg->Gamecount )
 		SlotID = 0;
 
-	char *str = (char *)malloca( 256, 32 );	
-	sprintf( GamePath, "/games/%.31s/", &DICfg->GameInfo[SlotID][0x60] );
+	char *str = (char *)malloca( 128, 32 );	
+	sprintf( GamePath, "/games/%.63s/", &DICfg->GameInfo[SlotID][0x60] );
 	
 	FSTable = (u8*)NULL;
 	ChangeDisc = 1;
@@ -731,8 +733,8 @@ s32 DVDSelectGame( int SlotID )
 		}
 		else
 		{
-			sprintf( GamePath, "/wbfs/%.31s/", &DICfg->GameInfo[SlotID][0x60] );
-			sprintf( WBFSPath, "/wbfs/%.31s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
+			sprintf( GamePath, "/wbfs/%.63s/", &DICfg->GameInfo[SlotID][0x60] );
+			sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
 		}		
 
 #ifdef DEBUG_DVDSelectGameB			
@@ -836,11 +838,7 @@ s32 DVDSelectGame( int SlotID )
 			}
 			
 			wbfs_len -= game_part_offset - 0x400000;
-			
-#ifdef DEBUG_DVDSelectGameC				
-			dbgprintf( "CDI:Game partition offset for %s = 0x%08x\n", WBFSFile, game_part_offset );
-#endif
-			
+	
 			s32 ret = WBFS_Read( game_part_offset, 0x480, buf2 );
 			if( ret != WBFS_OK )
 			{
@@ -859,9 +857,7 @@ s32 DVDSelectGame( int SlotID )
 			cert_offset = *(vu32*)(buf2+0x2b0);
 		
 			maxblock=(((((data_size) / 0x2000) / 0x10) * 0x10) + 0x10);
-			
-			dbgprintf( "CDI:Data size = 0x%08x, Filesize = 0x%08x\n", data_size, wbfs_len << 2 );
-			
+
 #ifdef USE_HARDCODED_HACKS
 			if ( strncmp( WBFSFile, "SZBxxx", 3 ) == 0 )
 				maxblock=0x20c80;
@@ -1231,7 +1227,7 @@ s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr )
 				return DI_SUCCESS;
 			}
 			else {
-				char *str = (char *)malloca( 64, 32 );
+				char *str = (char *)malloca( 128, 32 );
 				sprintf( str, "%ssys/boot.bin", GamePath );
 
 				u32 ret = DI_FATAL;
@@ -1289,7 +1285,7 @@ s32 DVDLowReadDiscID( u32 Offset, u32 Length, void *ptr )
 		WBFS_Encrypted_Read(Offset, Length, ptr);
 	}
 	else {
-		char *str = (char *)malloca( 32, 32 );
+		char *str = (char *)malloca( 128, 32 );
 		sprintf( str, "%ssys/boot.bin", GamePath );
 		s32 fd = DVDOpen( str, FA_READ );
 		if( fd < 0 )
@@ -1793,7 +1789,7 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 			u8 *buffer = (u8*)halloca( 0x40, 32 );
 			memset( buffer, 0, 0x40 );
 
-			char *str = (char*)halloca( 0x40,32 );
+			char *str = (char*)halloca( 0x40, 32 );
 			
 			TIK = (u8*)halloca( 0x2a4, 32 );
 			
