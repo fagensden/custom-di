@@ -1,6 +1,10 @@
+
+#define CREATE_SPACE
+
 	.section ".text"
 	.align	4
 	.arm
+
 	.global ThreadCreate
 ThreadCreate:
 	.long 0xe6000010
@@ -246,6 +250,9 @@ _ahbMemFlush:
 	.long 0xe6000610
 	bx lr
 
+
+#ifndef CREATE_SPACE
+
 	.global syscall_31
 syscall_31:
 	.long 0xe6000630
@@ -316,6 +323,8 @@ syscall_3e:
 	.long 0xe60007d0
 	bx lr
 
+#endif
+
 	.global sync_before_read
 sync_before_read:
 	.long 0xe60007f0
@@ -325,6 +334,8 @@ sync_before_read:
 sync_after_write:
 	.long 0xe6000810
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_41
 syscall_41:
@@ -341,6 +352,8 @@ syscall_43:
 	.long 0xe6000870
 	bx lr
 
+#endif
+
 	.global DIResetAssert
 DIResetAssert:
 	.long 0xe6000890
@@ -355,6 +368,8 @@ DIResetDeAssert:
 DIResetCheck:
 	.long 0xe60008d0
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_47
 syscall_47:
@@ -396,6 +411,8 @@ syscall_4e:
 	.long 0xe60009d0
 	bx lr
 
+#endif
+
 	.global VirtualToPhysical
 VirtualToPhysical:
 	.long 0xe60009f0
@@ -405,6 +422,8 @@ VirtualToPhysical:
 EnableVideo:
 	.long 0xe6000a10
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_51
 syscall_51:
@@ -456,6 +475,8 @@ syscall_5a:
 	.long 0xe6000b50
 	bx lr
 
+#endif
+
 	.global CreateKey
 CreateKey:
 	.long 0xe6000b70
@@ -465,6 +486,8 @@ CreateKey:
 DestroyKey:
 	.long 0xe6000b90
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_5c
 syscall_5c:
@@ -521,10 +544,14 @@ syscall_66:
 	.long 0xe6000cd0
 	bx lr
 
+#endif
+
 	.global AESEncrypt
 AESEncrypt:
 	.long 0xe6000cf0
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_68
 syscall_68:
@@ -541,10 +568,14 @@ syscall_6a:
 	.long 0xe6000d50
 	bx lr
 
+#endif
+
 	.global syscall_6b
 syscall_6b:
 	.long 0xe6000d70
 	bx lr
+
+#ifndef CREATE_SPACE
 
 	.global syscall_6c
 syscall_6c:
@@ -645,6 +676,8 @@ syscall_7e:
 syscall_7f:
 	.long 0xe6000ff0
 	bx lr
+
+#endif
 
 	.global OSReport
 OSReport:
