@@ -174,3 +174,19 @@ char* skipPastArticles(char* s){
 		return &s[2];
 	return s;
 }
+
+void Asciify( char *str )
+{
+	int i=0;
+	for( i=0; i<strlen( str ); i++ )
+		if( str[i] < 0x20 || str[i] > 0x7F )
+			str[i] = '_';
+}
+
+void upperCase( char *str )
+{
+	int i;
+	for( i=0; i<strlen( str ); ++i )
+		if( str[i] >= 'a' && str[i] <= 'z' )
+			str[i] -= 0x20;
+}

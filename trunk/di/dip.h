@@ -132,6 +132,7 @@ enum HookTypes
 #define DVD_GAMEINFO_SIZE	0x100
 #define DVD_GAME_NAME_OFF	0x60
 #define DI_MAGIC_OFF		0x1c
+#define DVD_REAL_NAME_OFF	0x20
 
 typedef struct
 {
@@ -211,14 +212,13 @@ typedef struct
 
 typedef struct
 {
-	u32 TMDSize;
-	u32 TMDOffset;
-	u32	CertChainSize;
-	u32 CertChainOffset;
-	u32 H3TableOffset;
-	u32	DataOffset;
-	u32 DataSize;
-} PartitionInfo;
+	u32 EntryCount;
+	u32 Padding1;
+	u32 Padding2;
+	u32 Padding3;
+	char GameTitle[][0x60];
+} GameTitles;
+
 
 u8 HardDriveConnected;//holds status of USB harddrive
 

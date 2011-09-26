@@ -42,6 +42,9 @@ typedef s32 size_t;
 
 typedef u32 u_int32_t;
 
+#define MIN( a, b ) ( ((a) < (b)) ? (a) : (b) )
+#define MAX( a, b ) ( ((a) > (b)) ? (a) : (b) )
+
 #define NULL ((void *)0)
 
 #define ALIGNED(x) __attribute__((aligned(x)))
