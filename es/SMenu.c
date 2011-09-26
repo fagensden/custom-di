@@ -417,7 +417,7 @@ void SMenuDraw( void )
 		{
 			if( FSUSB )
 			{
-				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDI v3b13 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b15 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			} else {
 				PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			}
