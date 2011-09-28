@@ -880,19 +880,35 @@ s32 DVDSelectGame( int SlotID )
 					DVDClose( fd_sf );
 				}
 
-				WBFS_Read( 0x240000, 4, buf2 );
-			
+				
+				game_part_offset = 0;
+				u32 part_offset_dn=0;
+				u32 part_offset_up=0;
+				
+				WBFS_Read( 0x240000, 4, buf2 );			
 				if( *(vu32 *)buf2 == 0x00000001 ) 
-				{ 		
-					game_part_offset = 0x400000;
-				}
-				else 
 				{
-					game_part_offset = 0;
+					WBFS_Read( 0x400140, 4, buf2 );
+					if( *(vu32 *)buf2 == 0x526f6f74 )
+					{
+						game_part_offset = 0x400000;
+					}
+					else
+					{
+						part_offset_dn = 0x400000 + ( 0x8000 * MAX_PART_BLOCK_RANGE );
+						part_offset_up = 0x400000;
+					}
+				}					
+				else 
+				{					
 					WBFS_Read( 0x2502bc, 4, buf2 );
 					data_size = *(vu32*)(buf2);
-					u32 part_offset_dn = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
-					u32 part_offset_up = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);				
+					part_offset_dn = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
+					part_offset_up = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
+				}
+				
+				if( game_part_offset == 0 )
+				{
 					u32 i;
 					for( i=0; i<MAX_PART_BLOCK_RANGE; ++i )
 					{
