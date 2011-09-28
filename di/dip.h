@@ -172,7 +172,7 @@ typedef struct
 
 typedef struct
 {
-	u32 Offset;
+	u64 Offset;
 	u32 Size;
 	s32 File;
 } FileCache;

@@ -42,17 +42,17 @@ static inline struct ehci_qtd * ehci_qtd_alloc(void)
 int ehci_mem_init (void)
 {
 	int i;
-#if 1
+//#if 1
 	ehci->periodic = ehci_maligned(DEFAULT_I_TDPS * sizeof(__le32),32,4096);
         ehci->periodic_dma = ehci_virt_to_dma(ehci->periodic);
 
 	for (i = 0; i < DEFAULT_I_TDPS; i++)
 		ehci->periodic [i] = EHCI_LIST_END();
 	ehci_writel(ehci->periodic_dma, &ehci->regs->frame_list);
-#else
-        debug_printf("ehci periodic:%x\n",ehci_readl(ehci,  &ehci->regs->frame_list));
-        debug_printf("ehci *periodic:%x\n",*(u32*)ehci_readl(ehci,  &ehci->regs->frame_list));
-#endif
+//#else
+//        debug_printf("ehci periodic:%x\n",ehci_readl(ehci,  &ehci->regs->frame_list));
+//        debug_printf("ehci *periodic:%x\n",*(u32*)ehci_readl(ehci,  &ehci->regs->frame_list));
+//#endif
         for(i=0;i<EHCI_MAX_QTD;i++)
                 ehci->qtds[i] = ehci_maligned(sizeof(struct ehci_qtd),32,4096);
         ehci->qtd_used = 0;

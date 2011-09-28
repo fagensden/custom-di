@@ -377,8 +377,8 @@ int dbgprintf( const char *fmt, ...)
 				fd = IOS_Open( Path, 2 );
 				if( fd < 0 )
 				{
-					sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
-					OSReport(buffer);
+					//sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
+					//OSReport(buffer);
 					hfree(buffer);
 					return i;
 				}
@@ -388,8 +388,8 @@ int dbgprintf( const char *fmt, ...)
 			}
 			else
 			{
-				sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
-				OSReport(buffer);
+				//sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
+				//OSReport(buffer);
 				hfree(buffer);
 				return i;
 			}
@@ -399,8 +399,8 @@ int dbgprintf( const char *fmt, ...)
 	
 		if( r < 0 )
 		{
-			sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
-			OSReport(buffer);
+			//sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
+			//OSReport(buffer);
 			IOS_Close(fd);
 			hfree(buffer);
 			return i;
@@ -416,8 +416,8 @@ int dbgprintf( const char *fmt, ...)
 		r = IOS_Write( fd, buffer,buflen);
 		if( r < 0 )
 		{
-			sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
-			OSReport(buffer);
+			//sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
+			//OSReport(buffer);
 //			hfree( status );
 			IOS_Close(fd);
 //			*Size = r;
