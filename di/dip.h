@@ -44,8 +44,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define WBFS_CONF		3
 #define DEBUG_READ		4
 
-#define MAX_BNR_BLOCK_RANGE 150
-#define MAX_PART_BLOCK_RANGE 150
+#define MAX_BNR_BLOCK_RANGE 500
+#define MAX_PART_BLOCK_RANGE 500
 
 enum disctypes
 {
@@ -82,9 +82,10 @@ enum opcodes
 	DVD_EJECT_DISC			= 0x27,
 	DVD_INSERT_DISC			= 0x28,
 	DVD_UPDATE_GAME_CACHE	= 0x2F,
-	DVD_READ_GAMEINFO		= 0x30,
+	DVD_READ_INFO			= 0x30,
 	DVD_WRITE_CONFIG		= 0x31,
 	DVD_CONNECTED			= 0x32, //Check if the harddrive is connected yet
+	DVD_WRITE_NANDCONFIG	= 0x33,
 
 	DVD_OPEN				= 0x40,
 	DVD_READ				= 0x41,
@@ -142,6 +143,15 @@ typedef struct
 	u32		Config;
 	u8		GameInfo[][DVD_GAMEINFO_SIZE];
 } DIConfig;
+
+typedef struct
+{	
+	u32 NandCnt;
+	u32 NandSel;
+	u32 Padding1;
+	u32 Padding2;
+	u8  NandInfo[][0x80];
+} NandConfig;
 
 typedef struct
 {
