@@ -27,6 +27,7 @@ static u32 DIStatus ALIGNED(32);
 static u32 DICover ALIGNED(32);
 static u32 ChangeDisc ALIGNED(32);
 DIConfig *DICfg;
+NandConfig *NandCfg;
 GameConfig *GameCFG;
 GameTitles *GT;
 
@@ -1459,11 +1460,44 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			ret = DI_SUCCESS;
 			hfree( name );
 		} break;
-		case DVD_READ_GAMEINFO:
+		case DVD_WRITE_NANDCONFIG:
 		{
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
+			char *name = (char*)halloca( 256, 32 );
+			
+			memcpy( NandCfg, (u8*)(vec[0]), DVD_CONFIG_SIZE );
 
-			fd = DVDOpen( "/sneek/diconfig.bin", FA_READ );
+			sprintf( name, "%s", "/sneek/nandcfg.bin" );
+			fd = DVDOpen( name, FA_WRITE|FA_OPEN_EXISTING );
+			if( fd >= 0 )
+			{
+				DVDWrite( fd, NandCfg, DVD_CONFIG_SIZE );
+				DVDClose( fd );	
+				ret = DI_SUCCESS;
+				hfree( name );
+			}
+			else
+			{
+				ret = DI_FATAL;
+				hfree( name );
+			}			
+		} break;
+		case DVD_READ_INFO:
+		{
+			u32 *vec = (u32*)msg->ioctl.buffer_in;
+			
+			if( vec[3] == 0 )
+			{
+				dbgprintf( "CDI:Read gameinfo\n" );
+				fd = DVDOpen( "/sneek/diconfig.bin", FA_READ );
+			}
+			
+			if( vec[3] == 1 )
+			{
+				dbgprintf( "CDI:Read nandinfo\n" );
+				fd = DVDOpen( "/sneek/nandcfg.bin", FA_READ );
+			}
+			
 			if( fd < 0 )
 			{
 				ret = DI_FATAL;
@@ -1476,6 +1510,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 				ret = DI_SUCCESS;
 			}
 		} break;
+		
 		case DVD_INSERT_DISC:
 		{
 			DICover &= ~1;

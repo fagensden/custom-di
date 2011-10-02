@@ -7,6 +7,7 @@ u32 FBEnable	= 0;
 u32	FBSize		= 0;
 u32 *WPad		= NULL;
 u32 *GameCount;
+u32 *NandCount;
 
 u32 ShowMenu=0;
 u32 MenuType=0;
@@ -15,6 +16,7 @@ u32 DVDType = 0;
 u32 DVDError=0;
 u32 SLock=0;
 s32 PosX=0,ScrollX=0;
+u32 fnnd=0;
 
 u32 *FB;
 
@@ -32,6 +34,7 @@ u32 *Offsets;
 GCPadStatus GCPad;
 
 DIConfig *DICfg;
+NandConfig *NandCfg;
 
 ChannelCache* channelCache;
 
@@ -275,6 +278,7 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	DVDError=0;
 	DVDReinsertDisc=false;
 	DICfg	= NULL;
+	NandCfg = NULL;
 	PICBuffer = (char*)NULL;
 
 	Offsets		= (u32*)malloca( sizeof(u32) * MAX_HITS, 32 );
@@ -417,7 +421,7 @@ void SMenuDraw( void )
 		{
 			if( FSUSB )
 			{
-				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b15 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b18 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			} else {
 				PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			}
@@ -554,8 +558,14 @@ void SMenuDraw( void )
 
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*11, "save config" );
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*12, "recreate game cache(restarts!!)" );
+				if( fnnd ) 
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+0x40 );
+				else
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: Root nand" );
+				
 				if( FSUSB )
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Boot NMM" );				
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*14, "Boot NMM" );
+				
 
 				PrintFormat( FB[i], MENU_POS_X+60, 40+64+16*PosX, "-->");
 				sync_after_write( (u32*)(FB[i]), FBSize );
@@ -887,7 +897,21 @@ void SMenuReadPad ( void )
 				DVDGetGameCount( GameCount );
 
                 DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-                DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+                DVDReadInfo( 0, *GameCount * 0x100 + 0x10, DICfg, GAMEINFO );
+			}
+			
+			if( NandCfg == NULL )
+			{
+				
+				s32 r = DVDReadInfo( 0, 0x10, NandCfg, NANDINFO );
+				if(  r == 1 )
+				{				
+					*NandCount = NandCfg->NandCnt;
+				
+					NandCfg = (NandConfig *)malloca( *NandCount * 0x80 + 0x10, 32 );
+					DVDReadInfo( 0, *NandCount * 0x80 + 0x10, NandCfg, NANDINFO );
+					fnnd = 1;
+				}
 			}
 
 			if( MenuType == 0 && (DICfg->Config & CONFIG_SHOW_COVERS) )
@@ -1237,8 +1261,13 @@ void SMenuReadPad ( void )
 					} break;
 					case 13:
 					{
+						LaunchTitle( 0x0000000100000002LL );
+					} break;
+					case 14:			
+					{
 						LaunchTitle( 0x0000000100000100LL );						
 					} break;
+					
 				}
 				SLock = 1;
 			}
@@ -1248,9 +1277,9 @@ void SMenuReadPad ( void )
 					PosX--;
 				else {
 					if( FSUSB )
-						PosX  = 13;
+						PosX  = 14;
 					else
-						PosX = 12;
+						PosX = 13;
 				}
 
 				if( PosX == 10 )
@@ -1261,13 +1290,13 @@ void SMenuReadPad ( void )
 			{
 				if( FSUSB )
 				{
-					if( PosX >= 13 )
+					if( PosX >= 14 )
 					{
 						PosX=0;
 					} else 
 						PosX++;
 				} else {
-					if( PosX >= 12 )
+					if( PosX >= 13 )
 					{
 						PosX=0;
 					} else 
@@ -1341,6 +1370,18 @@ void SMenuReadPad ( void )
 						
 						DVDReinsertDisc=true;
 					} break;
+					case 13:
+					{
+						if( fnnd )
+						{
+							if( NandCfg->NandSel == NandCfg->NandCnt - 1 )
+								NandCfg->NandSel = 0;
+							else
+								NandCfg->NandSel++;
+							
+							DVDWriteNandConfig( NandCfg );
+						}
+					} break;
 				}
 				SLock = 1;
 			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
@@ -1403,6 +1444,18 @@ void SMenuReadPad ( void )
 						}
 						
 						DVDReinsertDisc=true;
+					} break;
+					case 13:
+					{
+						if( fnnd )
+						{
+							if( NandCfg->NandSel == 0 )
+								NandCfg->NandSel = NandCfg->NandCnt - 1;
+							else
+								NandCfg->NandSel--;
+							
+							DVDWriteNandConfig( NandCfg );
+						}
 					} break;
 				}
 				SLock = 1;
