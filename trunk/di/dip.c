@@ -70,7 +70,10 @@ u64 wbfs_len=0;
 u32 bnr=0;
 u32 highcalc=0;
 u32 lowcalc=0;
-u32 dlfix=0;
+u32 patchval1=0;
+u32 patchval2=0;
+u32 patchval3=0;
+u32 patchval4=0;
 u32 debline=0;
 
 /*** WBFS image vars ***/
@@ -83,7 +86,7 @@ u32 data_offset=0;
 u32 data_size=0;
 u32 cert_offset=0;
 u32 cert_size=0;
-u32 dol_offset=0;
+//u32 dol_offset=0;
 
 extern u32 FSMode;
 u32 FMode = IS_FST;
@@ -637,55 +640,38 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 #ifdef DEBUG_CACHE						
 					dbgprintf(" CDI:Set gamepath to: %s\n", WBFSPath );
 #endif
-					s32 r = WBFS_Read( 0x218, 4, buf1 );
-					if( r == WBFS_OK )
-					{				
-						if( *(vu32*)buf1 == 0x5d1c9ea3 )
+					WBFS_Read( 0x218, 4, buf1 );
+					if( *(vu32*)buf1 == 0x5d1c9ea3 )
+					{
+						WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
+						strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
+						
+						if( cTitles )
 						{
-							r = WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
-							if( r == WBFS_OK )
+							char cmp[6];
+							int ct = 0;
+							for( ct=0; ct<cTitles; ++ct )
 							{
-								strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
-								
-								if( cTitles )
+								strncpy( cmp, GT->GameTitle[ct], 6 );
+								if( strcmp( WBFSFile, cmp ) == 0 )
 								{
-									char cmp[6];
-									int ct = 0;
-									for( ct=0; ct<cTitles; ++ct )
-									{
-										strncpy( cmp, GT->GameTitle[ct], 6 );
-										if( strcmp( WBFSFile, cmp ) == 0 )
-										{
-											strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
-											break;
-										}
-									}
+									strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
+									break;
 								}
-								memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
-								DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
-								CurrentGame++;
-#ifdef DEBUG_CACHE
-								dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, WBFSPath );
-#endif
 							}
+						}
+						memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
+						DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+						CurrentGame++;
 #ifdef DEBUG_CACHE
-							else
-							{
-								dbgprintf( "CDI:Skipping invalid Wiigame: %s\n", WBFSPath );
-							}
+						dbgprintf( "CDI:Saved: %d, %s\n", CurrentGame, WBFSPath );
 #endif
-						}
-#ifdef DEBUG_CACHE
-						else
-						{
-							dbgprintf( "CDI:Magic doesn't match! This isn't a Wii game: %s\n", WBFSPath );
-						}
-#endif	
 					}
+			
 #ifdef DEBUG_CACHE
 					else
 					{
-						dbgprintf( "CDI:Skipping invalid entry: %s\n", WBFSPath );
+						dbgprintf( "CDI:Magic doesn't match! This isn't a Wii game: %s\n", WBFSPath );
 					}
 #endif				
 				}
@@ -842,7 +828,6 @@ s32 DVDSelectGame( int SlotID )
 				bnr=0;
 				highcalc=0;
 				lowcalc=0;
-				dlfix=0;
 
 				u64 nOffset=0;			
 				FS[0].Offset = nOffset+DVDGetSize( fd );
@@ -880,7 +865,6 @@ s32 DVDSelectGame( int SlotID )
 				
 					DVDClose( fd_sf );
 				}
-
 				
 				game_part_offset = 0;
 				u32 part_offset_dn=0;
@@ -942,16 +926,30 @@ s32 DVDSelectGame( int SlotID )
 				}
 			
 				wbfs_len -= game_part_offset - 0x400000;
-	
-				s32 ret = WBFS_Read( game_part_offset, 0x480, buf2 );
-				if( ret != WBFS_OK )
+				
+				strcpy( str, "/title/mom.bin" );
+				s32 fd_mom = DVDOpen( str, FA_READ );
+				if( fd_mom < 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 )
 				{
-					ChangeDisc = 0;
-					DICover |= 1;
-					hfree( buf2 );
-					free( str );
-					return DI_FATAL;
+					fd_mom = DVDOpen( str, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
+					DVDWrite( fd_mom, buf2, sizeof(u32) );
+					ISFS_Rename( "/title/00010000", "/title/10010000" );
+					if( DVDOpenDir( "/title/20010000" ) == FR_OK )
+						ISFS_Rename( "/title/20010000", "/title/00010000" );
+					else
+						DVDCreateDir( "/title/00010000" );
+						
+					DVDClose( fd_mom );
 				}
+				else if( fd_mom >= 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) != 0 )
+				{					
+					ISFS_Rename( "/title/00010000", "/title/20010000" );
+					ISFS_Rename( "/title/10010000", "/title/00010000" );
+					DVDClose( fd_mom );
+					DVDDelete( str );
+				}
+	
+				WBFS_Read( game_part_offset, 0x480, buf2 );
 			
 				data_offset = *(vu32*)(buf2+0x2b8);
 				data_size   = *(vu32*)(buf2+0x2bc);
@@ -962,20 +960,16 @@ s32 DVDSelectGame( int SlotID )
 		
 				maxblock=(((((data_size) / 0x2000) / 0x10) * 0x10) + 0x10);
 
-#ifdef USE_HARDCODED_HACKS /*** Looks like we don't need them anymore? ***/
-				if ( strncmp( WBFSFile, "SZBxxx", 3 ) == 0 )
-					maxblock=0x20c80;
-			
-				if ( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 )
-					maxblock=0x3d5c0;
-			
-				if ( strncmp( WBFSFile, "RSBxxx", 3 ) == 0 )
-					maxblock=0;
-#endif
-				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0
-				|| strncmp( WBFSFile, "RM3xxx", 3 ) == 0
-				|| strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 )
-					dlfix = 1;
+/*** Patches dual layer games ***/
+
+				patchval1 = 0;
+				patchval2 = 0;
+				patchval3 = 0xedededed;
+				patchval4 = 0;
+				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 ) { patchval1 = 0x3a0fc; patchval2 = 0x5c0; } /*** Metroid Other M ***/
+				//if( strncmp( WBFSFile, "SX4xxx", 3 ) == 0 ) { patchval3 = 0x2e528; patchval4 = 0x1cb2; } /*** Xenoblade NOT WORKING YET***/
+				//if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x3e7; patchval4 = 0x4; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
+				if( strncmp( WBFSFile, "RM3xxx", 3 ) == 0 ) { patchval3 = 0x4867; patchval4 = 0x80; } /*** Metroid Prime 3 ***/
 			
 				sprintf( str, "/sneek/gamecfg/%s.bin", WBFSFile );
 				s32 fd_cfg = DVDOpen( str, FA_READ );
@@ -994,29 +988,20 @@ s32 DVDSelectGame( int SlotID )
 					if( fd_cfg >= 0 )
 					{
 						DVDClose(fd_cfg);
-						DVDDelete( str );
 						bnr=1;
 					}
 				}
 	
 				data_offset <<= 2;			
 		
-				ret = WBFS_Encrypted_Read( 0, 0x480, buf2 );
-				if( ret != WBFS_OK )
-				{
-					ChangeDisc = 0;
-					DICover |= 1;
-					hfree( buf2 );
-					free( str );
-					return DI_FATAL;
-				}
+				WBFS_Encrypted_Read( 0, 0x480, buf2 );
  
 #ifdef DEBUG_DVDSelectGameB	  			
 				dbgprintf( "CDI:Decrypted game buffer\n" );
 				hexdump( buf2, 0x20);
 #endif
 		
-				dol_offset 	= *(vu32*)(buf2+0x420);
+				//dol_offset 	= *(vu32*)(buf2+0x420);
 				fst_offset  = *(vu32*)(buf2+0x424);
 				fst_size    = *(vu32*)(buf2+0x428);
 		
@@ -1421,7 +1406,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 	u8  *bufout = (u8*)msg->ioctl.buffer_io;
 	u32 lenout  = msg->ioctl.length_io;
 	s32 ret		= DI_FATAL;
-	s32 fd;
+	s32 fd		= 0;
 			
 	//dbgprintf("CDI:Ioctl -> command = %d\n",msg->ioctl.command);
 	switch(msg->ioctl.command)
@@ -1487,26 +1472,20 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
 			
 			if( vec[3] == 0 )
-			{
-				dbgprintf( "CDI:Read gameinfo\n" );
 				fd = DVDOpen( "/sneek/diconfig.bin", FA_READ );
-			}
 			
 			if( vec[3] == 1 )
-			{
-				dbgprintf( "CDI:Read nandinfo\n" );
 				fd = DVDOpen( "/sneek/nandcfg.bin", FA_READ );
-			}
 			
 			if( fd < 0 )
 			{
 				ret = DI_FATAL;
-			} else {
-
+			} 
+			else 
+			{
 				DVDSeek( fd, vec[0], 0 );
 				DVDRead( fd, (u8*)(vec[2]), vec[1] );
 				DVDClose( fd );
-
 				ret = DI_SUCCESS;
 			}
 		} break;
@@ -2154,7 +2133,7 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 			if( offset < FS[i].Offset && offset > ( FS[i].Offset - FS[i].Size ) )
 			{
 #ifdef DEBUG_WBFSREAD
-				dbgprintf( "CDI:Found start offset: 0x%x%08x in splitfile: %d\n", (u32)offset >> 32, (u32)offset, i );
+				dbgprintf( "CDI:Found start offset in splitfile: %d\n", i );
 				
 #endif
 				u32 doread = 0;
@@ -2224,6 +2203,7 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 #ifdef DEBUG_WBFSREAD
 						dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 #endif
+						//dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 						
 						if( nOffset + readsize > FS[i].Offset )
 							readsize = FS[i].Size - nOffset;
@@ -2256,21 +2236,31 @@ s32 WBFS_Read_Block( u64 block, void *ptr, u32 read)
 	u8 *bufrb = (u8 *)malloca(0x8000, 0x40);
 	u8 *iv = (u8 *)malloca(0x10, 0x40);
 	u64 offset;
+	
+	//dbgprintf( "CDI:Block in ISO: %08x\n", (u32)block + ( 0xf800000 / 0x8000 ) );
 
 	if( KeyIDT == 0 )
 		Set_key2();		
 
-	if( read == FST_READ && block > (maxblock - lastblock)) 
-	{
+	if( read == FST_READ && block > (maxblock - lastblock))
 		block -= ( maxblock - ( lastblock - lowcalc + highcalc ) );
-		if( dlfix )
+	
+	if( read == FST_READ )
+	{
+		if( block <= patchval1 )
 		{
-			if( block < 0x3a0fc )
-			{
-				block +=0x5c0;
-			}
+			block += patchval2;
+			//block -= patchval4;
+		}
+			
+		if( block >= patchval3 )
+		{
+			//block += patchval2;
+			block -= patchval4;	
 		}
 	}
+	
+	//dbgprintf( "CDI:Block in WBFS: %08x\n", (u32)block );
 	
 	offset = game_part_offset + data_offset + (0x8000 * block);
 	
@@ -2396,8 +2386,8 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 		
 			switch( mode )
 			{
-				case WBFS_CONF:
-				{
+				//case WBFS_CONF:
+				//{
 					/*memset( Path, 0, 256 );	
 					memset( File, 0, 64 );
 					
@@ -2420,7 +2410,7 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 					if( WBFS_Decrypted_Write( Path, File, fe[i].FileOffset, fe[i].FileLength, FST_READ) )
 						continue;*/
 						
-				} break;
+				//} break;
 					
 				case DEBUG_READ:
 				case FST_READ:
@@ -2510,7 +2500,7 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 							}
 							else
 							{
-#ifdef DEBUG_GAMES
+#ifdef DEBUG_PRINT_FILES
 								dbgprintf( "DEBUG:Reading file: %s\n", Path );
 #endif
 								return DI_SUCCESS;

@@ -35,24 +35,24 @@ static inline int isdigit(int c)
 	return c >= '0' && c <= '9';
 }
 
-static inline int isxdigit(int c)
+/*static inline int isxdigit(int c)
 {
 	return (c >= '0' && c <= '9')
 	    || (c >= 'a' && c <= 'f')
 	    || (c >= 'A' && c <= 'F');
-}
+}*/
 
-static inline int islower(int c)
+/*static inline int islower(int c)
 {
 	return c >= 'a' && c <= 'z';
-}
+}*/
 
-static inline int toupper(int c)
+/*static inline int toupper(int c)
 {
 	if (islower(c))
 		c -= 'a'-'A';
 	return c;
-}
+}*/
 
 static int skip_atoi(const char **s)
 {
@@ -442,7 +442,7 @@ int dbgprintf( const char *fmt, ...)
 	return i;
 }
 
-void fatal(const char *fmt, ...)
+/*void fatal(const char *fmt, ...)
 {
 	va_list args;
 	char buffer[1024];
@@ -453,7 +453,7 @@ void fatal(const char *fmt, ...)
 	va_end(args);
 	OSReport(buffer);
 	for (;;);
-}
+}*/
 
 
 
