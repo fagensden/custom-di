@@ -613,9 +613,11 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 					if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+6, ".wbfs", 5 ) == 0 )
 					{
 						sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
+						strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
+						WBFSFile[6] = 0;
 					}
 					else 
-					{
+					{					
 						if	( strlen(DVDDirGetEntryName()) == 6 ) 
 						{
 							strcpy ( WBFSFile, DVDDirGetEntryName() );
@@ -873,8 +875,8 @@ s32 DVDSelectGame( int SlotID )
 				WBFS_Read( 0x240000, 4, buf2 );			
 				if( *(vu32 *)buf2 == 0x00000001 ) 
 				{
-					WBFS_Read( 0x400140, 4, buf2 );
-					if( *(vu32 *)buf2 == 0x526f6f74 )
+					WBFS_Read( 0x4001e0, 4, buf2 );
+					if( strncmp( WBFSFile, (char *)buf2, 4 ) == 0 )
 					{
 						game_part_offset = 0x400000;
 					}
@@ -887,9 +889,9 @@ s32 DVDSelectGame( int SlotID )
 				else 
 				{					
 					WBFS_Read( 0x2502bc, 4, buf2 );
-					data_size = *(vu32*)(buf2);
-					part_offset_dn = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
-					part_offset_up = ((((data_size * 4) + 0x450000) / 0x100000) * 0x100000);
+					//data_size = *(vu32*)(buf2);
+					part_offset_dn = ((((*(vu32*)(buf2) * 4) + 0x450000) / 0x100000) * 0x100000);
+					part_offset_up = ((((*(vu32*)(buf2) * 4) + 0x450000) / 0x100000) * 0x100000);
 				}
 				
 				if( game_part_offset == 0 )
@@ -959,6 +961,11 @@ s32 DVDSelectGame( int SlotID )
 				cert_offset = *(vu32*)(buf2+0x2b0);
 		
 				maxblock=(((((data_size) / 0x2000) / 0x10) * 0x10) + 0x10);
+				
+				lastblock = wbfs_len / 0x8000;
+		
+				if(  lastblock > maxblock )
+					maxblock=lastblock;	
 
 /*** Patches dual layer games ***/
 
@@ -968,7 +975,7 @@ s32 DVDSelectGame( int SlotID )
 				patchval4 = 0;
 				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 ) { patchval1 = 0x3a0fc; patchval2 = 0x5c0; } /*** Metroid Other M ***/
 				//if( strncmp( WBFSFile, "SX4xxx", 3 ) == 0 ) { patchval3 = 0x2e528; patchval4 = 0x1cb2; } /*** Xenoblade NOT WORKING YET***/
-				//if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x3e7; patchval4 = 0x4; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
+				if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x390; patchval2 = 0x1fec; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
 				if( strncmp( WBFSFile, "RM3xxx", 3 ) == 0 ) { patchval3 = 0x4867; patchval4 = 0x80; } /*** Metroid Prime 3 ***/
 			
 				sprintf( str, "/sneek/gamecfg/%s.bin", WBFSFile );
@@ -1005,10 +1012,7 @@ s32 DVDSelectGame( int SlotID )
 				fst_offset  = *(vu32*)(buf2+0x424);
 				fst_size    = *(vu32*)(buf2+0x428);
 		
-				lastblock = wbfs_len / 0x8000;
-		
-				if(  lastblock > maxblock )
-					maxblock=lastblock;			
+						
 				
 				hfree( buf2 );
 			}
@@ -1100,24 +1104,18 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 		{
 			return DI_FATAL;
 		} else {
-			u32 *rbuf = (u32*)halloca( sizeof(u32), 32 );
+			u8 *rbuf = (u8*)halloca( 0x10, 32 );
 
 			/*** read requested data ***/
 			DVDSeek( fd, Offset<<2, 0 );
 			DVDRead( fd, ptr, Length );
-
+			
 			/*** Read DOL/FST offset/sizes for later usage ***/
 			DVDSeek( fd, 0x0420, 0 );
-			DVDRead( fd, rbuf, 4 );
-			DolOffset = *rbuf;
-
-			DVDSeek( fd, 0x0424, 0 );
-			DVDRead( fd, rbuf, 4 );
-			FSTableOffset = *rbuf;
-
-			DVDSeek( fd, 0x0428, 0 );
-			DVDRead( fd, rbuf, 4 );
-			FSTableSize = *rbuf;
+			DVDRead( fd, rbuf, 0x10 );
+			DolOffset = *(vu32*)(rbuf);
+			FSTableOffset = *(vu32*)(rbuf+0x04);
+			FSTableSize = *(vu32*)(rbuf+0x08);
 
 			hfree( rbuf );
 
@@ -2152,6 +2150,7 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 #ifdef DEBUG_WBFSREAD
 						dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 #endif	
+						//dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 						if( nOffset + readsize > FS[i].Offset )
 							readsize = FS[i].Size - nOffset;
 							
@@ -2203,7 +2202,6 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 #ifdef DEBUG_WBFSREAD
 						dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 #endif
-						//dbgprintf( "CDI:Block offset: 0x%08x\n", (u32)nOffset );
 						
 						if( nOffset + readsize > FS[i].Offset )
 							readsize = FS[i].Size - nOffset;
@@ -2255,7 +2253,7 @@ s32 WBFS_Read_Block( u64 block, void *ptr, u32 read)
 			
 		if( block >= patchval3 )
 		{
-			//block += patchval2;
+			block += patchval2;
 			block -= patchval4;	
 		}
 	}
