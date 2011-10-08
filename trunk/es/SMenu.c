@@ -355,6 +355,36 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 					*(u32*)0x013B030C = 0x60000000;
 
 				} break;
+				case 512:   // JAP 4.3
+				{				
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D234 = 0x4800001C;
+					*(u32*)0x0137DA88 = 0x60000000;
+
+				} break;				
+				case 480:   // JAP 4.2
+				{				
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D09C = 0x4800001C;
+					*(u32*)0x0137D8F0 = 0x60000000;
+
+				} break;
+				case 518:   // KOR 4.3
+				{				
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D114 = 0x4800001C;
+					*(u32*)0x0137D968 = 0x60000000;
+
+				} break;				
+				case 486:   // KOR 4.2
+				{				
+					//Wii-Disc Region free hack
+					*(u32*)0x0137CF7C = 0x4800001C;
+					*(u32*)0x0137D7D0 = 0x60000000;
+
+				} break;
+				
+				
 			}
 		} break;
 	}
@@ -421,7 +451,7 @@ void SMenuDraw( void )
 		{
 			if( FSUSB )
 			{
-				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b18 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b20 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			} else {
 				PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			}
