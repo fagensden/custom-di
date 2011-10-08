@@ -197,22 +197,36 @@ u32 GetSystemMenuRegion( void )
 {
 	char *Path = (char*)malloca( 128, 32 );
 	u32 Region = EUR;
-
-	strcpy(Path,"/title/00000001/00000002/content/title.tmd" );
-	s32 fd = IOS_Open( Path, DREAD );
+	
+	strcpy( Path,"/sneek/nandcfg.bin" );
+	s32 fd = DVDOpen( Path, DREAD );
+	if( fd < 0 )
+	{
+		strcpy( Path, "/title/00000001/00000002/content/title.tmd" );
+	}
+	else
+	{
+		NandCfg = (NandConfig*)malloca( DVDGetSize( fd ), 32 );
+		DVDRead( fd, NandCfg, DVDGetSize( fd ) );
+		sprintf( Path, "/nands/%.63s/title/00000001/00000002/content/title.tmd", NandCfg->NandInfo[NandCfg->NandSel] );
+		DVDClose( fd );
+		free( NandCfg );
+	}
+	
+	fd = DVDOpen( Path, DREAD );
 	if( fd < 0 )
 	{
 		free( Path );
-		return Region;
-	} else {
-		u32 size = IOS_Seek( fd, 0, 2 );
-		char *TMD = (char*)malloca( size, 32 );
+		return Region;		
+	} 
+	else 
+	{
+		char *TMD = (char*)malloca( DVDGetSize( fd ), 32 );
 
-		if( IOS_Read( fd, TMD, size ) == size )
-			Region = *(u16*)(TMD+0x1DC) & 0xF;
+		DVDRead( fd, TMD, DVDGetSize( fd ) );
+		Region = *(u16*)(TMD+0x1DC) & 0xF;
 
-
-		IOS_Close( fd );
+		DVDClose( fd );
 
 		free( TMD );
 	}
@@ -383,28 +397,9 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 				return DI_FATAL;
 			} break;
 		}
-		
-		/*** Create default config ***/
-		DICfg->Gamecount= 0;
-		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
-		DICfg->SlotID	= 0;
-		DICfg->Region	= GetSystemMenuRegion();
-
-		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
-
 		UpdateCache = 1;
 
 	} else if( DVDGetSize( fd ) < DVD_CONFIG_SIZE ) {
-		
-		/*** Create default config ***/
-		DICfg->Gamecount= 0;
-		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
-		DICfg->SlotID	= 0;
-		DICfg->Region	= GetSystemMenuRegion();
-		
-		DVDSeek( fd, 0, 0 );
-		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
-
 		UpdateCache = 1;
 	}
 
@@ -414,7 +409,6 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	fres = DVDRead( fd, DICfg, DVD_CONFIG_SIZE );
 	if( fres != DVD_CONFIG_SIZE )
 	{
-		strcpy( Path,"/sneek/diconfig.bin" );
 		DVDDelete(Path);
 		free( Path );
 
@@ -422,20 +416,22 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	}
 
 /*** Sanity Check config ***/
-	if( DICfg->Gamecount > 9000 || DICfg->SlotID > 9000 || DICfg->Region > LTN )
+	if( DICfg->Gamecount > 9000 || DICfg->SlotID > 9000 )
+	{
+		UpdateCache = 1;
+	}
+	
+	if( UpdateCache )
 	{
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
-		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
-		DICfg->SlotID	= 0;
-		DICfg->Region	= GetSystemMenuRegion();
+		DICfg->SlotID	= 0;		
+	}	
+	
+	DICfg->Region = GetSystemMenuRegion();
 		
-		DVDSeek( fd, 0, 0 );
-		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
-
-		UpdateCache = 1;
-	}
-
+	DVDSeek( fd, 0, 0 );
+	DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 /*** Read rest of config ***/
 
 	/*** Cache count for size calc ***/
@@ -975,7 +971,7 @@ s32 DVDSelectGame( int SlotID )
 				patchval4 = 0;
 				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 ) { patchval1 = 0x3a0fc; patchval2 = 0x5c0; } /*** Metroid Other M ***/
 				//if( strncmp( WBFSFile, "SX4xxx", 3 ) == 0 ) { patchval3 = 0x2e528; patchval4 = 0x1cb2; } /*** Xenoblade NOT WORKING YET***/
-				if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x390; patchval2 = 0x1fec; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
+				//if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x390; patchval2 = 0x1fec; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
 				if( strncmp( WBFSFile, "RM3xxx", 3 ) == 0 ) { patchval3 = 0x4867; patchval4 = 0x80; } /*** Metroid Prime 3 ***/
 			
 				sprintf( str, "/sneek/gamecfg/%s.bin", WBFSFile );
@@ -1306,20 +1302,17 @@ s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr )
 				char *str = (char *)malloca( 128, 32 );
 				sprintf( str, "%ssys/boot.bin", GamePath );
 
-				u32 ret = DI_FATAL;
 				s32 fd = DVDOpen( str, FA_READ );
 				if( fd >= 0 )
-				{
-					if( DVDRead( fd, ptr, Length ) == Length )
-					{
-						free( str );
-						ret = DI_SUCCESS;				
-					}
+				{					
+					DVDRead( fd, ptr, Length );
 					DVDClose( fd );
+					free( str );
+					return DI_SUCCESS;					
 				}
 
 				free( str );
-				return ret;
+				return DI_FATAL;
 			}
 			
 		} break;
