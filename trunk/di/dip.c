@@ -74,7 +74,8 @@ u32 patchval1=0;
 u32 patchval2=0;
 u32 patchval3=0;
 u32 patchval4=0;
-u32 debline=0;
+//u32 patchval5=0;
+//u32 patchval6=0;
 
 /*** WBFS image vars ***/
 u32 game_part_offset=0;
@@ -116,18 +117,7 @@ static void Set_key2(void)
 	u8 *EncTitleKey = (u8*)malloca( 0x10, 0x20 );
 	u8 *KeyIDT2 = (u8*)malloca( 0x10, 0x20 );
 
-	s32 r = WBFS_Read( game_part_offset, 0x2a4, TIK ); /*** Read the ticket ***/
-	if(r < 0) 
-	{
-#ifdef DEBUG_KEY
-    	dbgprintf("CDI:Couldn't read ticket: %d\n", r);
-#endif
-		free ( KeyIDT2);
-    	free ( EncTitleKey);
-    	free ( TitleID);
-    	hfree( TIK );
-    	return;
-	}
+	WBFS_Read( game_part_offset, 0x2a4, TIK ); /*** Read the ticket ***/
 	
 	memset( TitleID, 0, 0x10 );
 	memset( EncTitleKey, 0, 0x10 );
@@ -153,13 +143,7 @@ static void Set_key2(void)
 
 	s32 ESHandle = IOS_Open("/dev/es", 0 );
 
-	r = IOS_Ioctlv( ESHandle, 0x50, 2, 1, v );
-#ifdef DEBUG_KEY
-	if( r < 0)
-		dbgprintf("CDI:ioctlv_es_setkey :%d\n", r );
-   
-	dbgprintf("CDI:KeyIDT = %d\n",*(u32*)(KeyIDT2));
-#endif
+	IOS_Ioctlv( ESHandle, 0x50, 2, 1, v );
 
     KeyIDT = *(u32*)(KeyIDT2);
 	
@@ -960,11 +944,17 @@ s32 DVDSelectGame( int SlotID )
 				patchval2 = 0;
 				patchval3 = 0xedededed;
 				patchval4 = 0;
-				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 ) { patchval1 = 0x3a0fc; patchval2 = 0x5c0; } /*** Metroid Other M ***/
-				if( strncmp( WBFSFile, "RM3xxx", 3 ) == 0 ) { patchval3 = 0x4867; patchval4 = 0x80; } /*** Metroid Prime 3 ***/
-				if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x500; patchval2 = 0x2470; } /*** Metroid Prime Trilogy NOT WORKING YET ***/
-				if( strncmp( WBFSFile, "RSBxxx", 3 ) == 0 ) { maxblock=lastblock;/* patchval3 = 0x1207b; patchval4 = 0xa40;*/ } /*** Super Smash Bros Brawl 0x1d27c ***/ 
-				//if( strncmp( WBFSFile, "SX4xxx", 3 ) == 0 ) { patchval3 = 0x2e528; patchval4 = 0x1cb2; } /*** Xenoblade NOT WORKING YET***/
+				//patchval5 = 0xedededed;
+				//patchval6 = 0;
+				if( strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 ) { patchval1 = 0x3a0fc; patchval2 = 0x5c0; }	/*** Metroid Other M ***/
+				if( strncmp( WBFSFile, "RM3Exx", 4 ) == 0 ) { patchval3 = 0x4867; patchval4 = 0x80; } 	/*** Metroid Prime 3 NTSC ***/
+				if( strncmp( WBFSFile, "RM3Pxx", 4 ) == 0 ) { patchval3 = 0x4375; patchval4 = 0x4bc; } 	/*** Metroid Prime 3 PAL ***/
+				if( strncmp( WBFSFile, "R3Mxxx", 3 ) == 0 ) { patchval3 = 0x500; patchval2 = 0x2470; } 	/*** Metroid Prime Trilogy NOT WORKING YET ***/
+				if( strncmp( WBFSFile, "SR5xxx", 3 ) == 0 ) { lastblock += 0x1bf4; } 						/*** Raving Rabbids Party Collection Patch 1 ***/
+				if( strncmp( WBFSFile, "SR5xxx", 3 ) == 0 ) { patchval3 = 0x1c087; patchval4 = 0x1c00; }	/*** Raving Rabbids Party Collection Patch 2 ***/
+				if( strncmp( WBFSFile, "RSBxxx", 3 ) == 0 ) {  maxblock = lastblock;						/*** Super Smash Bros Brawl ***/
+																patchval3 = 0x1dcc0; patchval4 = 0x2c40; } 
+				if( strncmp( WBFSFile, "SX4Pxx", 4 ) == 0 ) { patchval3 = 0x236d0; patchval4 = 0x10; }	 /*** Xenoblade PAL ***/
 								
 			
 				sprintf( str, "/sneek/gamecfg/%s.bin", WBFSFile );
@@ -1601,6 +1591,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 #ifdef DEBUG_PRINT_FILES							
 							Search_FST( offset, length, NULL, DEBUG_READ );
 #endif
+							//u32 Hexd=0;
 							while( length ) 
 							{
 								if( !bnr )
@@ -1692,7 +1683,10 @@ int DIP_Ioctl( struct ipcmessage *msg )
 										{
 											ret = WBFS_OK;
 											memcpy(bufout, BC[i].bl_buf + ( bl_offset << 2 ), bl_length);
-											//hexdump( BC[i].bl_buf + ( bl_offset << 2 ), 0x20 );
+											
+											//if( !Hexd )
+											//	hexdump( BC[i].bl_buf + ( bl_offset << 2 ), 0x20 );
+											
 											BCRead = 1;
 										}
 									}
@@ -1705,10 +1699,15 @@ int DIP_Ioctl( struct ipcmessage *msg )
 						
 									ret = WBFS_Read_Block( offset / ( 0x7c00 >> 2 ), BC[BCEntry].bl_buf, FST_READ );		
 									memcpy( bufout, BC[BCEntry].bl_buf + ( bl_offset << 2 ), bl_length );
-									//hexdump( BC[BCEntry].bl_buf + ( bl_offset << 2 ), 0x20 );
+									
+									//if( !Hexd )
+									//	hexdump( BC[BCEntry].bl_buf + ( bl_offset << 2 ), 0x20 );
+										
 									BC[BCEntry].bl_num = offset / ( 0x7c00 >> 2 );
 									BCEntry++;						
-								}			
+								}
+
+								//Hexd = 1;
 
 								bufout += bl_length;
 								offset += bl_length >> 2;
@@ -2202,14 +2201,19 @@ s32 WBFS_Read_Block( u64 block, void *ptr, u32 read)
 		if( block <= patchval1 )
 		{
 			block += patchval2;
-			//block -= patchval4;
+			block -= patchval4;
 		}
 			
-		if( block >= patchval3 )
-		{
+		if( block > patchval3 )
+		{				
 			block += patchval2;
-			block -= patchval4;	
+			block -= patchval4;
 		}
+		
+		//else if( block > patchval5 )
+		//{				
+		//	block -= patchval6;
+		//}
 	}
 	
 	//dbgprintf( "CDI:Block in WBFS: %08x\n", (u32)block );
@@ -2305,6 +2309,7 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 				{
 					DVDSeek( FC[i].File, nOffset, 0 );
 					DVDRead( FC[i].File, ptr, ((Length)+31)&(~31) );
+					//hexdump( ptr, 0x20 );
 					return DI_SUCCESS;
 				}
 			}
@@ -2422,6 +2427,8 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 
 									DVDSeek( FC[FCEntry].File, nOffset, 0 );
 									DVDRead( FC[FCEntry].File, ptr, Length );
+									
+									//hexdump( ptr, 0x20 );
 							
 									FCEntry++;
 
