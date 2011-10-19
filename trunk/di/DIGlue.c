@@ -7,7 +7,7 @@
 // it might be able to launch a wii game from sd as well.
 // since it can launch a gc game from there.   
 
-// #define POOR_MAN	1
+//#define POOR_MAN	1
 
 u32 FSMode;
 
@@ -59,22 +59,26 @@ void DVDInit( void )
 		FSMode = SNEEK;
 		
 		HardDriveConnected = 0;
-
 		while(!HardDriveConnected)
 		{
-			while(1)
-			{
-				fres = f_mount(0, &fatfs );
-				if( fres == FR_OK )
-					break;
-				else
-					MountFail++;
+//			while(1)
+//			{
+//				fres = f_mount(0, &fatfs );
+//				dbgprintf("DIP:f_mount():%d\n", fres );
+//				if( fres == FR_OK )
+//					break;
+//				else
+//					MountFail++;
 
-				if( MountFail == 10 )
-					while(1);
+//				if( MountFail == 10 )
+//				{
+//					dbgprintf("DIP:too much fail! looping now!\n");
+//					while(1);
+//				}
+				f_mount(0, &fatfs );
 
-				udelay(500000);
-			}
+//				udelay(500000);
+//			}
 
 			//try to open a file, it doesn't have to exist, just testing if FS works
 			FIL f;
@@ -92,27 +96,34 @@ void DVDInit( void )
 				default:
 				case FR_DISK_ERR:
 				{
+					dbgprintf("DIP: Disk error\n", fres );
 					f_mount(0,0);
+					MountFail++;
+					if( MountFail == 10 )
+					{
+						dbgprintf("DIP:too much fail! looping now!\n");
+						while(1);
+					}
 					udelay(500000);
 				} break;
 			}
 		}
-
+/*
 		if( fres != FR_OK )
 		{
 			DIP_Fatal("main()", __LINE__, __FILE__, 0, "Could not find any USB device!");
 			ThreadCancel( 0, 0x77 );
 		}
-
+*/
 		FHandle = (FIL*)malloc( sizeof(FIL) * MAX_HANDLES );
-		
 		for( i=0; i < MAX_HANDLES; i++ )
 			FHandle[i].fs = (FATFS*)NULL;
-
-	} else {
+	} 
+	else
+	{
 		FSMode = UNEEK;
+		HardDriveConnected = 1;
 	}
-
 	FSHandle = IOS_Open("/dev/fs", 0 );
 
 	Nhandle = (s32*)malloc( sizeof(s32) * MAX_HANDLES );

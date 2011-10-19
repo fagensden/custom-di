@@ -36,7 +36,54 @@ extern char *RegionStr;
 s32 switchtimer;
 int QueueID;
 int requested_game;
+u32 ignore_logfile;
+char* cdiconfigpath ALIGNED(32);
+char* cdiconfig ALIGNED(32);
+size_t slen;
 
+static u8 *dipath ALIGNED(32);
+
+
+s32 FS_Get_Di_Path( void )
+{
+	
+	
+	//dbgprintf("CDI:About to Get_Di_Path \n");
+
+	s32 FFSHandle = IOS_Open("/dev/fs", 0 );
+	if( FFSHandle < 0 )
+		return FFSHandle;
+	//u8 *dipath = (u8 *)HeapAlloc( 0, 0x20 );
+	dipath = (u8 *)malloca( 0x20, 0x20 );
+
+	s32 r = IOS_Ioctl( FFSHandle, ISFS_GET_DI_PATH, NULL, 0, (void*)(dipath), 0x20 );
+	//s32 r = -1;
+	IOS_Close( FFSHandle );
+	
+	if (r == FS_SUCCESS)
+	{
+		memcpy(cdiconfigpath,dipath,0x20);
+		cdiconfigpath[0x1f] = 0;
+	}
+	else
+	{
+		//for compatibility with previous
+		strcpy(cdiconfigpath,"/sneek");
+	}
+	//dbgprintf("CDI:Get_Di_Path = %s\n",cdiconfigpath);
+	//strcpy(cdiconfigpath,"/sneek");
+
+	strcpy(cdiconfig,cdiconfigpath);
+	slen = strlen(cdiconfig);
+	strcpy (cdiconfig+slen ,"/diconfig.bin");
+	//HeapFree  (0,dipath);
+	free  (dipath);
+
+	//dbgprintf("CDI:Get_Di_Path = %s\n",cdiconfig);
+	return r;
+}
+
+/*
 s32 FS_Running( void )
 {
 	s32 fd = IOS_Open("/dev/fs", 0 );
@@ -49,6 +96,7 @@ s32 FS_Running( void )
 
 	return r;
 }
+*/
 
 void udelay(int us)
 {
@@ -89,6 +137,10 @@ void _main(void)
 {
 	struct ipcmessage *IPCMessage = NULL;
 
+	//we can only start logging if FS is running
+	//so we will disable it until so
+	ignore_logfile = 1;
+	//dbgprintf("CDI: main starting...\n");
 	ThreadSetPriority( 0, 0xF4 );
 
 	HeapInit();
@@ -103,10 +155,14 @@ void _main(void)
 	}
 	
 	s32 ret = EnableVideo(1);
+
+	DVDInit();								 
 	
 	//a 2 seconds delay to avoid racing
 	//udelay(2000000);
+/*
 	s32 tries = 0;
+
 	s32 runresult;
 	runresult = FS_Running();
 	while((runresult!=FS_SUCCESS)&&(tries < 20)) 
@@ -118,15 +174,16 @@ void _main(void)
 	}
 	if (tries == 20)
 	{
-		//dbgprintf("CDI:FS-USB init failure...?\n");
+		dbgprintf("CDI:FS-USB init failure...?\n");
 	}
-	//else
-	//{
-	//	dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
-	//}
+*/
+//	else
+//	{
+//		dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
+//	}
 
-
-	DVDInit();
+//  SNEEK problem
+//	DVDInit();
 
 	//a 0.5 seconds delay to avoid racing
 	//as es is waiting for the harddisk to become ready
@@ -135,10 +192,20 @@ void _main(void)
 
 	udelay(500000);
 
+
+	//basically
+	ignore_logfile = 0;
+	cdiconfig = (char*)(malloca( 0x40, 0x20));
+	cdiconfigpath = (char*)(malloca( 0x20, 0x20));
+
+	FS_Get_Di_Path();
+
 	DICfg = (DIConfig*)malloca( DVD_CONFIG_SIZE, 32 );
 
 
 	DVDUpdateCache(0);
+	//dbgprintf("CDI: After DVDUpdateCache...\n");
+
 	DVDSelectGame( DICfg->SlotID );
 
 	while (1)

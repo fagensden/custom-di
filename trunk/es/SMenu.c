@@ -34,6 +34,10 @@ u32 *Offsets;
 GCPadStatus GCPad;
 
 DIConfig *DICfg;
+DIConfigO *DICfgO;
+
+u32 DIConfType; 
+
 NandConfig *NandCfg;
 
 ChannelCache* channelCache;
@@ -57,6 +61,9 @@ ImageStruct* curDVDCover = NULL;
 char *PICBuffer = (char*)NULL;
 u32 PICSize = 0;
 u32 PICNum = 0;
+
+extern char diroot[0x20];
+
 
 char *RegionStr[] = {
 	"JAP",
@@ -130,7 +137,7 @@ void LoadAndRebuildChannelCache()
 		}
 	}
 
-	channelCache = (ChannelCache*)NANDLoadFile("/sneek/channelcache.bin",&i);
+	channelCache = (ChannelCache*)NANDLoadFile("/sneekcache/channelcache.bin",&i);
 	if (channelCache == NULL){
 		channelCache = (ChannelCache*)malloca(sizeof(ChannelCache),32);
 		channelCache->numChannels = 0;
@@ -166,7 +173,7 @@ void LoadAndRebuildChannelCache()
 				} break;
 			}
 		}
-		NANDWriteFileSafe("/sneek/channelcache.bin",channelCache,sizeof(ChannelCache) + sizeof(ChannelInfo) * channelCache->numChannels);
+		NANDWriteFileSafe("/sneekcache/channelcache.bin",channelCache,sizeof(ChannelCache) + sizeof(ChannelInfo) * channelCache->numChannels);
 	}
 	free(uid);
 }
@@ -451,7 +458,7 @@ void SMenuDraw( void )
 		{
 			if( FSUSB )
 			{
-				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDIv3b22 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDI v3b30 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			} else {
 				PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 			}
@@ -503,9 +510,9 @@ void SMenuDraw( void )
 					if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d )
 						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (GC)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x57424653 )
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Wii WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
-					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x44534358 )
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Wii DiscEX)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  ((*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x44534358)||(DIConfType == 0)))
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Wii FST)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else
 						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Invalid)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 
@@ -905,6 +912,8 @@ void LoadChannelCover()
 void SMenuReadPad ( void )
 {
 	s32 EntryCount=0;
+	u32 Gameidx;
+	//size_t slen;
 
 	memcpy( &GCPad, (u32*)0xD806404, sizeof(u32) * 2 );
 
@@ -925,25 +934,57 @@ void SMenuReadPad ( void )
 			if( DICfg == NULL )
 			{
 				DVDGetGameCount( GameCount );
-
+				if ((*GameCount & 0xF0000)==0x10000)
+				{
+					DIConfType = 1;
+                	*GameCount &= ~0x10000;
+                	DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
+                	DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+				}
+				else
+				{
+					DIConfType = 0;
+                	DICfgO = (DIConfigO *)malloca( *GameCount * 0x80 + 0x10, 32 );
+                	DVDReadGameInfo( 0, *GameCount * 0x80 + 0x10, DICfgO );
+                	DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
+					DICfg->SlotID = DICfgO->SlotID;
+					DICfg->Region = DICfgO->Region;
+					DICfg->Gamecount = DICfgO->Gamecount;
+					DICfg->Config = DICfgO->Config;
+					for(Gameidx = 0;Gameidx < (*GameCount);Gameidx++)
+					{
+						memcpy(DICfg->GameInfo[Gameidx],DICfgO->GameInfo[Gameidx],0x80);
+					}	
+					free(DICfgO);
+                }
+/*
                 DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-                DVDReadInfo( 0, *GameCount * 0x100 + 0x10, DICfg, GAMEINFO );
+                DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+*/
 			}
-			
 			if( NandCfg == NULL )
 			{
-				
-				s32 r = DVDReadInfo( 0, 0x10, NandCfg, NANDINFO );
-				if(  r == 1 )
-				{				
+				char *path = malloca( 0x40, 0x40 );
+				strcpy(path, "/sneek/NandCfg.bin");
+				//slen = strlen(path);
+				//strcpy (path+slen,"/NandCfg.bin");
+				u32* fsize = malloca(sizeof(u32),0x20);
+				*fsize = 0x10;
+				NandCfg = (NandConfig*)NANDLoadFile(path,fsize);
+				if (NandCfg != NULL)
+				{
 					*NandCount = NandCfg->NandCnt;
-				
-					NandCfg = (NandConfig *)malloca( *NandCount * 0x80 + 0x10, 32 );
-					DVDReadInfo( 0, *NandCount * 0x80 + 0x10, NandCfg, NANDINFO );
-					fnnd = 1;
+					heap_free( 0, NandCfg );
+					*fsize = *NandCount * 0x80 + 0x10;
+					NandCfg = (NandConfig*)NANDLoadFile(path,fsize);
+					if (NandCfg != NULL)
+					{
+						fnnd = 1;	
+					}
 				}
+				free (fsize);
+				free(path);
 			}
-
 			if( MenuType == 0 && (DICfg->Config & CONFIG_SHOW_COVERS) )
 				LoadDVDCover();
 		}
@@ -1408,8 +1449,8 @@ void SMenuReadPad ( void )
 								NandCfg->NandSel = 0;
 							else
 								NandCfg->NandSel++;
-							
-							DVDWriteNandConfig( NandCfg );
+							Save_Nand_Cfg(NandCfg);
+							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
 				}
@@ -1484,7 +1525,8 @@ void SMenuReadPad ( void )
 							else
 								NandCfg->NandSel--;
 							
-							DVDWriteNandConfig( NandCfg );
+							Save_Nand_Cfg(NandCfg);
+							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
 				}

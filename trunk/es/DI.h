@@ -72,6 +72,17 @@ typedef struct
 	u32		Region;
 	u32		Gamecount;
 	u32		Config;
+	u8		GameInfo[][0x80];
+} DIConfigO;
+
+
+
+typedef struct
+{
+	u32		SlotID;
+	u32		Region;
+	u32		Gamecount;
+	u32		Config;
 	u8		GameInfo[][0x100];
 } DIConfig;
 
@@ -83,6 +94,7 @@ typedef struct
 	u32 Padding2;
 	u8  NandInfo[][0x80];
 } NandConfig;
+
 
 enum DIOpcodes
 {
@@ -112,10 +124,9 @@ enum DIOpcodes
 	DVD_EJECT_DISC			= 0x27,
 	DVD_INSERT_DISC			= 0x28,
 	DVD_UPDATE_GAME_CACHE	= 0x2F,
-	DVD_READ_INFO			= 0x30,
+	DVD_READ_GAMEINFO		= 0x30,
 	DVD_WRITE_CONFIG		= 0x31,
 	DVD_CONNECTED			= 0x32,
-	DVD_WRITE_NANDCONFIG	= 0x33,
 
 	DVD_OPEN				= 0x40,
 	DVD_READ				= 0x41,
@@ -161,15 +172,14 @@ s32 DVDWrite( s32 fd, void *ptr, u32 len );
 s32 DVDClose( s32 fd );
 
 s32 DVDLowEnableVideo( u32 Mode );
-s32 DVDGetGameCount( u32 *Count );
+s32 DVDGetGameCount( u32 *Mode );
 s32 DVDSetRegion( u32 *Region );
 s32 DVDGetRegion( u32 *Region );
 s32 DVDEjectDisc( void );
 s32 DVDInsertDisc( void );
 s32 DVDUpdateGameCache( void );
-s32 DVDReadInfo( u32 Offset, u32 Length, void *Data, u32 Mode );
+s32 DVDReadGameInfo( u32 Offset, u32 Length, void *Data );
 s32 DVDWriteDIConfig( void *DIConfig );
-s32 DVDWriteNandConfig( void *NandConfig );
 s32 DVDSelectGame( u32 SlotID );
 s32 DVDConnected( void );
 

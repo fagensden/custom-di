@@ -89,19 +89,18 @@ s32 DVDInsertDisc( void )
 
 	return r;
 }
-s32 DVDReadInfo( u32 Offset, u32 Length, void *Data, u32 Mode )
+s32 DVDReadGameInfo( u32 Offset, u32 Length, void *Data )
 {
 	s32 fd = IOS_Open("/dev/di", 0 );
 	if( fd < 0 )
 		return fd;
 
-	u32 *vec = (u32 *)malloca( sizeof(u32) * 4, 32 );
+	u32 *vec = (u32 *)malloca( sizeof(u32) * 3, 32 );
 	vec[0] = Offset;
 	vec[1] = Length;
 	vec[2] = (u32)Data;
-	vec[3] = Mode;
 
-	s32 r = IOS_Ioctl( fd, DVD_READ_INFO, vec, sizeof(u32) * 4, NULL, 0 );
+	s32 r = IOS_Ioctl( fd, DVD_READ_GAMEINFO, vec, sizeof(u32) * 3, NULL, 0 );
 
 	IOS_Close( fd );
 
@@ -126,24 +125,6 @@ s32 DVDWriteDIConfig( void *DIConfig )
 
 	return r;
 }
-s32 DVDWriteNandConfig( void *NandConfig )
-{
-	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
-		return fd;
-
-	u32 *vec = (u32 *)malloca( sizeof(u32) * 1, 32 );
-	vec[0] = (u32)NandConfig;
-
-	s32 r = IOS_Ioctl( fd, DVD_WRITE_NANDCONFIG, vec, sizeof(u32) * 1, NULL, 0 );
-
-	IOS_Close( fd );
-
-	free( vec );
-
-	return r;
-}
-
 s32 DVDSelectGame( u32 SlotID )
 {
 	s32 fd = IOS_Open("/dev/di", 0 );
