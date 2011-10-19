@@ -23,7 +23,7 @@
 #include "ff.h"
 static char Path[32];
 static u32 buflen ALIGNED(32);
-static u32 ignore_logfile = 0;
+extern u32 ignore_logfile;
 #endif
 //static u32 seektype ALIGNED(32);
 

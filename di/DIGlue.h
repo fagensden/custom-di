@@ -15,6 +15,10 @@
 #define FS_ENOENT2		-106
 #define ISFS_IS_USB		30
 #define ISFS_SUPPORT_SD_DI		33
+#define ISFS_GET_DI_PATH		34
+
+
+
 enum FSMODE
 {
 	SNEEK = 0,

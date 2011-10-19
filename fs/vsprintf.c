@@ -292,7 +292,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 	*str = '\0';
 	return str-buf;
 }
-int __sprintf( char *buf, const char *fmt, ... )
+int _sprintf( char *buf, const char *fmt, ... )
 {
 	va_list args;
 	int i;
