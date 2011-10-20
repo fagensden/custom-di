@@ -60,6 +60,8 @@ enum FSError
 
 #define IOCTL_IS_USB	   		30
 #define IOCTL_SUPPORT_SD_DI		33
+#define IOCTL_GET_DI_PATH		34
+
 
 #define SEEK_SET	0
 #define SEEK_CUR	1

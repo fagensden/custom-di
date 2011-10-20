@@ -61,6 +61,8 @@ char diroot[0x20] ALIGNED(32);
 TitleMetaData *iTMD = (TitleMetaData *)NULL;			//used for information during title import
 static u8 *iTIK=NULL;									//used for information during title import
 
+u32 ignore_logfile;
+
 extern u16 TitleVersion;
 extern u32 *KeyID;
 extern u8 *CNTMap;
@@ -555,18 +557,18 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				}
 			}
 
-			dbgprintf("ES:AddTicket(%08x-%08x):%d\n", (u32)(ticket->TitleID>>32), (u32)(ticket->TitleID), ret );
+			////dbgprintf("ES:AddTicket(%08x-%08x):%d\n", (u32)(ticket->TitleID>>32), (u32)(ticket->TitleID), ret );
 			free( ticket );
 		} break;
 		case IOCTL_ES_EXPORTTITLEINIT:
 		{
 			ret = ES_SUCCESS;
-			dbgprintf("ES:ExportTitleStart(%08x-%08x):%d\n", (u32)((*(u64*)(v[0].data))>>32), (u32)(*(u64*)(v[0].data)), ret );
+			////dbgprintf("ES:ExportTitleStart(%08x-%08x):%d\n", (u32)((*(u64*)(v[0].data))>>32), (u32)(*(u64*)(v[0].data)), ret );
 		} break;
 		case IOCTL_ES_EXPORTTITLEDONE:
 		{
 			ret = ES_SUCCESS;
-			dbgprintf("ES:ExportTitleDone():%d\n", ret );
+			////dbgprintf("ES:ExportTitleDone():%d\n", ret );
 		} break;
 		case IOCTL_ES_DELETETITLECONTENT:
 		{
@@ -577,7 +579,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			if( ret >= 0 )
 				ISFS_CreateDir( path, 0, 3, 3, 3 );
 
-			dbgprintf("ES:DeleteTitleContent(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
+			////dbgprintf("ES:DeleteTitleContent(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
 		} break;
 		case IOCTL_ES_DELETETICKET:
 		{
@@ -587,7 +589,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			ret = ISFS_Delete( path );
 
-			dbgprintf("ES:DeleteTicket(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
+			////dbgprintf("ES:DeleteTicket(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
 		} break;
 		case IOCTL_ES_DELETETITLE:
 		{
@@ -596,7 +598,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			_sprintf( path, "/title/%08x/%08x", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
 			ret = ISFS_Delete( path );
 
-			dbgprintf("ES:DeleteTitle(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
+			////dbgprintf("ES:DeleteTitle(%08x-%08x):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
 		} break;
 		case IOCTL_ES_GETTITLECONTENTS:
 		{
@@ -637,7 +639,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ret = *size;
 			}
 
-			dbgprintf("ES:GetTitleContentsOnCard( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
+			////dbgprintf("ES:GetTitleContentsOnCard( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
 		} break;
 		case IOCTL_ES_GETTITLECONTENTSCNT:
 		{
@@ -674,7 +676,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ret = *size;
 			}
 
-			dbgprintf("ES:GetTitleContentCount( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
+			////dbgprintf("ES:GetTitleContentCount( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
 		} break;
 		case IOCTL_ES_GETTMDVIEWS:
 		{
@@ -682,7 +684,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			ret = ES_GetTMDView( iTitleID, (u8*)(v[2].data) );
 
-			dbgprintf("ES:GetTMDView( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)*iTitleID, ret );
+			////dbgprintf("ES:GetTMDView( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)*iTitleID, ret );
 		} break;
 		case IOCTL_ES_DIGETTICKETVIEW:
 		{
@@ -1107,6 +1109,8 @@ int _main( int argc, char *argv[] )
 	u8 MessageHeap[0x10];
 	u32 MessageQueue=0xFFFFFFFF;
 
+	ignore_logfile = 1;
+	
 	thread_set_priority( 0, 0x79 );
 	thread_set_priority( 0, 0x50 );
 	thread_set_priority( 0, 0x79 );
@@ -1160,6 +1164,10 @@ int _main( int argc, char *argv[] )
 	} else {
 		dbgprintf("ES:Found FS-USB\n");
 		FSUSB = 1;
+		// if we start logging 2 fast
+		// we will delay the es startup
+		// and di won't be able to grab the harddisk
+		ignore_logfile = 0;
 	}
 	if(ISFS_Get_Di_Path( diroot ) == FS_SUCCESS)
 	{
@@ -1194,6 +1202,7 @@ int _main( int argc, char *argv[] )
 	u32 Prii_Setup = 0;
 
 	SMenuInit( TitleID, TitleVersion );
+	ignore_logfile = 0;
 
 	if( LoadFont( "/sneek/font.bin" ) )	// without a font no point in displaying the menu
 	{
