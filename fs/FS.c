@@ -30,6 +30,7 @@ static u32 obcd_trig[MAX_FILE] ALIGNED(32);
 
 char nandpath[0x60] ALIGNED(32);
 char nandroot[0x20] ALIGNED(32);
+char diroot[0x20] ALIGNED(32);
 
 #undef DEBUG
 //#define EDEBUG
@@ -163,6 +164,16 @@ void FFS_Ioctl(struct IPCMessage *msg)
 
 	switch(msg->ioctl.command)
 	{
+		case IOCTL_GET_DI_PATH:
+		{	
+			if( lenout < 0x20 )
+				ret = -1017;
+			else {
+				memcpy( bufout, (void*)(diroot), 0x20 );
+				ret = FS_SUCCESS;
+			}	
+		 	break;
+		}
 		case IOCTL_SUPPORT_SD_DI:
 		{
 			ret = FS_SUCCESS;
@@ -358,6 +369,8 @@ s32 FS_IsNandFolder(char* whichpath)
 		return true;
 	if (strnccmp(whichpath,"/tmp/",5) == 0)
 		return true;
+	if (strnccmp(whichpath,"/sneekcache/",12) == 0)
+		return true;
 
 //	the argument of FS_CreateDir and probably others doesn't have a trailing slash
 //	it can be a nand subfolder as well. 
@@ -380,6 +393,8 @@ s32 FS_IsNandFolder(char* whichpath)
 	if (strnccmp(whichpath,"/meta\0",6) == 0)
 		return true;
 	if (strnccmp(whichpath,"/tmp\0",5) == 0)
+		return true;
+	if (strnccmp(whichpath,"/sneekcache\0",12) == 0)
 		return true;
 
 	return false;

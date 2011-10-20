@@ -64,6 +64,7 @@ u32 PICNum = 0;
 
 extern char diroot[0x20];
 
+extern u32 LoadDI;
 
 char *RegionStr[] = {
 	"JAP",
@@ -274,7 +275,10 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	value	= 0;
 	Freeze	= 0;
 	ShowMenu= 0;
-	MenuType= 0;
+	if (LoadDI == true)
+		MenuType= 0;
+	else
+		MenuType= 4;
 	SLock	= 0;
 	PosX	= 0;
 	ScrollX	= 0;
@@ -458,9 +462,17 @@ void SMenuDraw( void )
 		{
 			if( FSUSB )
 			{
-				PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDI v3b30 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
-			} else {
-				PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				if(LoadDI == true)
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK+cDI v3b30 %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				else
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK %s",__DATE__);					
+			} 
+			else 
+			{
+				if(LoadDI == true)
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK+DI %s  Games:%d  Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+				else
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK %s",__DATE__);					
 			}
 		}
 
@@ -856,7 +868,10 @@ void SMenuDraw( void )
 			} break;
 			default:
 			{
-				MenuType = 0;
+				if(LoadDI == true)
+					MenuType = 0;
+				else
+					MenuType = 4;
 				ShowMenu = 0;
 			} break;
 		}
@@ -932,32 +947,43 @@ void SMenuReadPad ( void )
 		if(ShowMenu)
 		{
 			if( DICfg == NULL )
-			{
-				DVDGetGameCount( GameCount );
-				if ((*GameCount & 0xF0000)==0x10000)
+			{	
+				if (LoadDI != true)
 				{
-					DIConfType = 1;
-                	*GameCount &= ~0x10000;
-                	DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-                	DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+                	DICfg = (DIConfig *)malloca( 0x110, 32 );
+					DICfg->Gamecount = 0;
+					DICfg->SlotID = 0;
+					DICfg->Region = 0;
+					DICfg->Config = 0;
 				}
 				else
 				{
-					DIConfType = 0;
-                	DICfgO = (DIConfigO *)malloca( *GameCount * 0x80 + 0x10, 32 );
-                	DVDReadGameInfo( 0, *GameCount * 0x80 + 0x10, DICfgO );
-                	DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-					DICfg->SlotID = DICfgO->SlotID;
-					DICfg->Region = DICfgO->Region;
-					DICfg->Gamecount = DICfgO->Gamecount;
-					DICfg->Config = DICfgO->Config;
-					for(Gameidx = 0;Gameidx < (*GameCount);Gameidx++)
+					DVDGetGameCount( GameCount );
+					if ((*GameCount & 0xF0000)==0x10000)
 					{
-						memcpy(DICfg->GameInfo[Gameidx],DICfgO->GameInfo[Gameidx],0x80);
-					}	
-					free(DICfgO);
-                }
-/*
+						DIConfType = 1;
+                		*GameCount &= ~0x10000;
+                		DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
+                		DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+					}
+					else
+					{
+						DIConfType = 0;
+                		DICfgO = (DIConfigO *)malloca( *GameCount * 0x80 + 0x10, 32 );
+                		DVDReadGameInfo( 0, *GameCount * 0x80 + 0x10, DICfgO );
+                		DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
+						DICfg->SlotID = DICfgO->SlotID;
+						DICfg->Region = DICfgO->Region;
+						DICfg->Gamecount = DICfgO->Gamecount;
+						DICfg->Config = DICfgO->Config;
+						for(Gameidx = 0;Gameidx < (*GameCount);Gameidx++)
+						{
+							memcpy(DICfg->GameInfo[Gameidx],DICfgO->GameInfo[Gameidx],0x80);
+						}	
+						free(DICfgO);
+                	}
+				}
+/*                
                 DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
                 DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
 */
@@ -1008,14 +1034,16 @@ void SMenuReadPad ( void )
 			free(curDVDCover);
 
 		curDVDCover = NULL;
-
 		if( MenuType == 0 )
-		{
 			ShowMenu = 0;
+		if(LoadDI == true)
+			MenuType = 0;
+		else
+		{
+			if(MenuType == 4)
+				ShowMenu = 0;
+			MenuType = 4;
 		}
-
-		MenuType = 0;
-
 		PosX	= 0;
 		ScrollX	= 0;
 		SLock	= 1;
@@ -1032,13 +1060,15 @@ void SMenuReadPad ( void )
 		curDVDCover = NULL;
 
 		MenuType = 1;
-
-		PosX	= 0;
+		if (LoadDI == true)
+			PosX = 0;
+		else
+			PosX = 13;
 		ScrollX	= 0;
 		SLock	= 1;
 	}
 
-	if( (GCPad.Y || (*WPad&WPAD_BUTTON_MINUS) ) && SLock == 0 && MenuType != 2 )
+	if( (GCPad.Y || (*WPad&WPAD_BUTTON_MINUS) ) && SLock == 0 && MenuType != 2 && LoadDI == true)
 	{
 		if( curDVDCover != NULL )
 			free(curDVDCover);
@@ -1344,34 +1374,49 @@ void SMenuReadPad ( void )
 			}
 			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
 			{
-				if( PosX )
-					PosX--;
-				else {
-					if( FSUSB )
-						PosX  = 14;
-					else
-						PosX = 13;
+				if(LoadDI == true)
+				{
+					if( PosX )
+					{		
+						PosX--;
+					}
+					else {
+						if( FSUSB )
+							PosX  = 14;
+						else
+							PosX = 13;
+					}
 				}
-
 				if( PosX == 10 )
 					PosX  = 9;
 
 				SLock = 1;
 			} else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
 			{
-				if( FSUSB )
+				if(LoadDI == true)
 				{
-					if( PosX >= 14 )
+					if( FSUSB )
 					{
-						PosX=0;
-					} else 
-						PosX++;
-				} else {
-					if( PosX >= 13 )
+						if( PosX >= 14 )
+						{
+							PosX=0;
+						} 
+						else
+						{ 
+							PosX++;
+						}
+					} 
+					else 
 					{
-						PosX=0;
-					} else 
-						PosX++;
+						if( PosX >= 13 )
+						{
+							PosX=0;
+						} 
+						else 
+						{	
+							PosX++;
+						}
+					}
 				}
 
 				if( PosX == 10 )

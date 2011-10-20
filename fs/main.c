@@ -27,10 +27,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "sdhcvar.h"
 #include "FS.h"
 
-#define PATHFILE "/sneek/nandpath.bin"
+#define NANDPATHFILE "/sneek/nandpath.bin"
+#define DIPATHFILE "/sneek/dipath.bin"
 #define MAXPATHLEN	16
 
 extern char nandroot[0x20] ALIGNED(32);
+extern char diroot[0x20] ALIGNED(32);
+
 
 
 FATFS fatfs;
@@ -122,7 +125,7 @@ int _main( int argc, char *argv[] )
 	char *path = (char*)heap_alloc_aligned( 0, 0x40, 32 );
 	char *rbuf = (char*)heap_alloc_aligned( 0, MAXPATHLEN + 16, 32 );
 
-	strcpy( path,PATHFILE );
+	strcpy( path,NANDPATHFILE );
 
 	nandroot[0] = 0;
 	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
@@ -167,10 +170,69 @@ int _main( int argc, char *argv[] )
 		{
 			nandroot[0] = 0;
 		}
+		else
+		{
+			
+			size_t plen=strlen(path);
+			strcpy(path+plen,"/sneekcache");
+			if (f_opendir(&dir,path) != FR_OK)
+			{
+				FS_CreateDir("/sneekcache");
+			}
+		}
+	}
+	// get the difolder from /sneek/dipath.bin file.
+
+	strcpy( path,DIPATHFILE );
+
+	diroot[0] = 0;
+	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
+	{
+		if (fil.fsize > 0)
+		{
+			if (fil.fsize <= (MAXPATHLEN + 16))
+			{
+				toread = (UINT)(fil.fsize);
+			}
+			else
+			{
+				toread = MAXPATHLEN + 16;
+			}
+			if(f_read(&fil,rbuf,toread,&read_ok) == FR_OK)
+			{
+				diroot[0] = '/';
+				counter = 0;
+				while (counter < read_ok)
+				{
+					//we might terminate with <CR> <LF> <0> or <space>
+					if ((rbuf[counter] != 13)&&(rbuf[counter] != 10)&&(rbuf[counter] != 0)&&(rbuf[counter] != 32))
+					{
+						diroot[counter+1] = rbuf[counter];
+						// just in case counter might reach read_ok
+						diroot[counter+2] = 0;
+						counter++;
+					}
+					else
+					{
+						diroot[counter+1] = 0;
+						counter = read_ok;
+					}
+				}
+			}
+		}
+		f_close(&fil);
+		//check if the di folder exist
+		dbgprintf("Di folder set to %s\n",diroot);
+		strcpy(path,diroot);
+		if (f_opendir(&dir,path) != FR_OK)
+		{
+			strcpy(diroot,"sneek");
+		}
 	}
 	heap_free( 0, path );
 	heap_free( 0, rbuf );	
 	dbgprintf("Nand folder set to %s\n",nandroot);
+	dbgprintf("Di folder set to %s\n",diroot);
 
 	//clean up folders
 	FS_Delete("/tmp");
