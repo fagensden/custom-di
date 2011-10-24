@@ -179,6 +179,34 @@ void InitCache( void )
 u32 GetSystemMenuRegion( void )
 {
 	char *Path = (char*)malloca( 128, 32 );
+	fstats* status = (fstats*)malloca(sizeof(fstats),0x40);
+	u32 Region = EUR;
+	strcpy( Path, "/title/00000001/00000002/content/title.tmd" );
+	s32 fd = IOS_Open( Path, 1 );
+	if( fd >= 0 )
+	{
+		IOS_Ioctl(fd,ISFS_IOCTL_GETFILESTATS,NULL,0,status,sizeof(fstats));
+		char *TMD = (char*)malloca( status->Size, 32 );
+		IOS_Read(fd,TMD,status->Size);
+		Region = *(u16*)(TMD+0x1DC) & 0xF;
+		dbgprintf("CDI:Region l = %d\n",status->Size); 
+		IOS_Close(fd);
+		free( TMD );
+	}	
+	else
+	{
+		dbgprintf("CDI:Region fail\n");
+	}
+	free( status );
+	free( Path );
+	return Region;
+}
+
+
+/*
+u32 GetSystemMenuRegion2( void )
+{
+	char *Path = (char*)malloca( 128, 32 );
 	u32 Region = EUR;
 	
 	strcpy( Path,"/sneek/nandcfg.bin" );
@@ -218,6 +246,7 @@ u32 GetSystemMenuRegion( void )
 
 	return Region;
 }
+*/
 
 u32 DVDGetInstalledGamesCount( void )
 {
