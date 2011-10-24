@@ -16,7 +16,7 @@
 #include "string.h"
 
 #define LOG_DEBUG	1
-#define AUTO_CREATE_LOGFILE 1
+//#define AUTO_CREATE_LOGFILE 1
 
 #ifdef LOG_DEBUG	
 #include "fs.h"
