@@ -44,9 +44,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define WBFS_CONF		3
 #define DEBUG_READ		4
 
-#define MAX_BNR_BLOCK_RANGE 500
-#define MAX_PART_BLOCK_RANGE 500
-
 enum disctypes
 {
 	DISC_REV	= 0,
@@ -229,6 +226,20 @@ typedef struct
 	char GameTitle[][0x60];
 } GameTitles;
 
+typedef struct
+{
+	u32 magic;
+	u32 nbr_hd_sectors;
+	u8  hdd_sector_size_s;
+	u8  wbfs_sector_size_s;
+	u8  Padding[6];
+} WBFSFileInfo;
+
+typedef struct
+{
+	u8  header[0x100];
+	u16 disc_usage_table[];
+} WBFSInfo;
 
 u8 HardDriveConnected;//holds status of USB harddrive
 
@@ -240,7 +251,7 @@ s32 DVDLowReadFiles( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadDiscIDFiles( u32 Offset, u32 Length, void *ptr );
 s32 WBFS_Read( u64 offset, u32 length, void *ptr );
-s32 WBFS_Read_Block( u64 block, void *ptr, u32 read);
+s32 WBFS_Read_Block( u64 block, void *ptr );
 s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr);
 s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length, u32 fst);
 s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode );
