@@ -33,12 +33,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "SMenu.h"
 #include "utils.h"
 
-
-#define NANDFOLDER "/nands"
-//#define NANDFOLDER "/nandsneek"
-
-
-
 int verbose = 0;
 u32 base_offset=0;
 void *queuespace=NULL;
@@ -1222,7 +1216,7 @@ int _main( int argc, char *argv[] )
 	}*/
 
 	LoadAndRebuildChannelCache();
-	Create_Nand_Cfg(NANDFOLDER);
+	//Create_Nand_Cfg(NANDFOLDER);
 
 	dbgprintf("ES:looping!\n");
 		
