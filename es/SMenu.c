@@ -1494,7 +1494,7 @@ void SMenuReadPad ( void )
 								NandCfg->NandSel = 0;
 							else
 								NandCfg->NandSel++;
-							Save_Nand_Cfg(NandCfg);
+							Save_Nand_Cfg( NandCfg );
 							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
@@ -1570,7 +1570,7 @@ void SMenuReadPad ( void )
 							else
 								NandCfg->NandSel--;
 							
-							Save_Nand_Cfg(NandCfg);
+							Save_Nand_Cfg( NandCfg );
 							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
