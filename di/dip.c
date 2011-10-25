@@ -92,6 +92,8 @@ u32 FMode = IS_FST;
 extern s32 switchtimer;
 extern int QueueID;
 extern int requested_game;
+extern char* cdiconfig ALIGNED (32);
+extern char* cdiconfigpath ALIGNED (32);
 
 /*** Debug loging: ***/
 //#define DEBUG_CACHE
@@ -209,8 +211,34 @@ void Rebuild_Disc_Usage_Table( void )
 		
 	}	
 }
-
 u32 GetSystemMenuRegion( void )
+{
+	char *Path = (char*)malloca( 128, 32 );
+	fstats* status = (fstats*)malloca(sizeof(fstats),0x40);
+	u32 Region = EUR;
+	strcpy( Path, "/title/00000001/00000002/content/title.tmd" );
+	s32 fd = IOS_Open( Path, 1 );
+	if( fd >= 0 )
+	{
+		IOS_Ioctl(fd,ISFS_IOCTL_GETFILESTATS,NULL,0,status,sizeof(fstats));
+		char *TMD = (char*)malloca( status->Size, 32 );
+		IOS_Read(fd,TMD,status->Size);
+		Region = *(u16*)(TMD+0x1DC) & 0xF;
+		dbgprintf("CDI:Region l = %d\n",status->Size); 
+		IOS_Close(fd);
+		free( TMD );
+	}	
+	else
+	{
+		dbgprintf("CDI:Region fail\n");
+	}
+	free( status );
+	free( Path );
+	return Region;
+}
+
+/*
+u32 GetSystemMenuRegion2( void )
 {
 	char *Path = (char*)malloca( 128, 32 );
 	u32 Region = EUR;
@@ -252,7 +280,7 @@ u32 GetSystemMenuRegion( void )
 
 	return Region;
 }
-
+*/
 u32 DVDGetInstalledGamesCount( void )
 {
 	u32 GameCount = 0;
@@ -376,29 +404,31 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	u32 DMLite		= 0;
 	s32 fres		= 0;
 
+	size_t	plen;
 	char *Path = (char*)malloca( 128, 32 );
 
 /*** First check if file exists and create a new one if needed ***/
 #ifdef DEBUG_CACHE
 	dbgprintf("CDI:Timer1 %x \n",read32(HW_TIMER));
 #endif
-	strcpy( Path, "/sneek/diconfig.bin" );
-	s32 fd = DVDOpen( Path, FA_READ | FA_WRITE );
+	//strcpy( Path, "/sneek/diconfig.bin" );
+	s32 fd = DVDOpen( cdiconfig, FA_READ | FA_WRITE );
 	if( fd < 0 )
 	{
 		/*** No diconfig.bin found, create a new one ***/
-		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
-		switch( fd )
+		fd = DVDOpen( cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
+		switch(fd)
 		{
 			case DVD_NO_FILE:
 			{
 				/*** In this case there is probably no /sneek folder ***/
-				strcpy( Path, "/sneek" );
+				//strcpy( Path, "/sneek" );
+				//DVDCreateDir( Path );
 				
-				DVDCreateDir( Path );
+				//strcpy( Path, "/sneek/diconfig.bin" );
+				//DVDCreateDir ( cdiconfigpath );
 				
-				strcpy( Path, "/sneek/diconfig.bin" );
-				fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
+				fd = DVDOpen( cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 				if( fd < 0 )
 				{
 					free( Path );
@@ -417,6 +447,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
 		DICfg->SlotID	= 0;	
+		//DICfg->Config	= CONFIG_AUTO_UPDATE_LIST;
+		DICfg->Config = 0;
 		DICfg->Region = GetSystemMenuRegion();
 		
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
@@ -429,7 +461,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	fres = DVDRead( fd, DICfg, DVD_CONFIG_SIZE );
 	if( fres != DVD_CONFIG_SIZE )
 	{
-		DVDDelete(Path);
+		//strcpy( Path,"/sneek/diconfig.bin" );
+		DVDDelete(cdiconfig);
 		free( Path );
 
 		return DVDUpdateCache(1);
@@ -492,7 +525,11 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	{
 		DVDClose(fd);
 		
-		strcpy( Path, "/sneek/titles.txt" );	
+		//strcpy( Path, "/sneek/titles.txt" );	
+		strcpy( Path, cdiconfigpath);
+		plen = strlen(Path);
+		strcpy( Path+plen,"/titles.txt" );
+		
 		fd = DVDOpen( Path, DREAD );
 		if( fd >= 0 )
 		{
@@ -507,7 +544,12 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			char *TitleInfo = (char*)malloca( 0x60, 32 );
 			u32 lastoff=0;
 			u32 length=0;
-			strcpy( Path, "/sneek/titlecfg.bin" );
+			//strcpy( Path, "/sneek/titlecfg.bin" );
+			strcpy( Path, cdiconfigpath);
+			plen = strlen(Path);
+			strcpy( Path+plen,"/titlecfg.bin" );
+			
+			
 			DVDDelete( Path );
 			fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 			GT->EntryCount = 0;
@@ -531,9 +573,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			free( TitleInfo );
 		}		
 		
-		strcpy( Path, "/sneek/diconfig.bin" );
-		DVDDelete( Path );
-		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
+		//strcpy( Path, "/sneek/diconfig.bin" );
+		
+		DVDDelete( cdiconfig );
+		fd = DVDOpen( cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 
 		char *GameInfo = (char*)malloca( DVD_GAMEINFO_SIZE, 32 );
@@ -543,7 +586,11 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		splitcount = 0;	
 		u32 cTitles = 0;
 
-		strcpy( Path, "/sneek/titlecfg.bin" );
+		//strcpy( Path, "/sneek/titlecfg.bin" );
+		strcpy( Path, cdiconfigpath);
+		plen = strlen(Path);
+		strcpy( Path+plen,"/titlecfg.bin" );
+
 		s32 fdct = DVDOpen( Path, DREAD );
 		if( fdct >= 0 )
 		{
@@ -699,8 +746,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		DVDClose( fd );
 		
 		free( DICfg );
-		strcpy( Path, "/sneek/diconfig.bin" );	
-		fd = DVDOpen( Path, DREAD );
+		//strcpy( Path, "/sneek/diconfig.bin" );	
+		fd = DVDOpen( cdiconfig, DREAD );
 		DICfg = (DIConfig *)malloca( DVDGetSize( fd ), 32 );
 		DVDRead( fd, DICfg, DVDGetSize(fd) );
 		DVDClose(fd);		
@@ -728,8 +775,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			}
 		}
 
-		DVDDelete( Path );
-		fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );	
+		//DVDDelete( Path );
+		DVDDelete(cdiconfig);
+		//fd = DVDOpen( Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );	
+		fd = DVDOpen( cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );	
 		DVDWrite( fd, DICfg, CurrentGame * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE );
 		DVDSeek( fd, CurrentGame * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 0 );
 		DVDWrite( fd, RawGameCount, 4 );
@@ -746,8 +795,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 /*** Read new config ***/
 
 	free( DICfg );
-	strcpy( Path, "/sneek/diconfig.bin" );	
-	fd = DVDOpen( Path, DREAD );
+//	strcpy( Path, "/sneek/diconfig.bin" );	
+	fd = DVDOpen( cdiconfig, DREAD );
 	DICfg = (DIConfig *)malloca( DVDGetSize( fd ), 32 );
 	DVDRead( fd, DICfg, DVDGetSize(fd) );
 	DVDClose(fd);	
@@ -759,6 +808,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 u32 DMLite = 0;
 s32 DVDSelectGame( int SlotID )
 {
+
+	size_t plen;
+	s32 ret;
+
 #ifdef DEBUG_DVDSelectGameB	
 	dbgprintf("DVDSelectGame 0.5sec timer expired at %x \n",read32(HW_TIMER));
 #endif
@@ -963,7 +1016,9 @@ s32 DVDSelectGame( int SlotID )
 	free( str );
 
 	/*** update di-config ***/
-	fd = DVDOpen( "/sneek/diconfig.bin", DWRITE );
+	//fd = DVDOpen( "/sneek/diconfig.bin", DWRITE );
+	fd = DVDOpen( cdiconfig, DWRITE );
+	
 	if( fd >= 0 )
 	{
 		DICfg->SlotID = SlotID;
@@ -1016,6 +1071,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 	s32 fd;
 	u32 DebuggerHook=0;
 	char Path[256];
+	size_t plen;
 
 	if( Offset < 0x110 )	/*** 0x440 ***/
 	{
@@ -1158,7 +1214,11 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			{
 				GameHook = 0xdeadbeef;
 
-				strcpy(	Path, "/sneek/kenobiwii.bin" );
+				//strcpy(	Path, "/sneek/kenobiwii.bin" );
+				strcpy( Path, cdiconfigpath);
+				plen = strlen(Path);
+				strcpy(	Path+plen, "/kenobiwii.bin" );
+				
 				s32 fd = IOS_Open( Path, 1 );
 				if( fd < 0 )
 					return DI_SUCCESS;
@@ -1323,6 +1383,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 	u32 lenout  = msg->ioctl.length_io;
 	s32 ret		= DI_FATAL;
 	s32 fd		= 0;
+	size_t	plen;
 			
 	//dbgprintf("CDI:Ioctl -> command = %d\n",msg->ioctl.command);
 	switch(msg->ioctl.command)
@@ -1342,12 +1403,12 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			
 			memcpy( DICfg, (u8*)(vec[0]), DVD_CONFIG_SIZE );
 
-			sprintf( name, "%s", "/sneek/diconfig.bin" );
-			fd = DVDOpen( name, FA_WRITE|FA_OPEN_EXISTING );
+			//sprintf( name, "%s", "/sneek/diconfig.bin" );
+			fd = DVDOpen( cdiconfig, FA_WRITE|FA_OPEN_EXISTING );
 			if( fd < 0 )
 			{
-				DVDDelete( name );
-				fd = DVDOpen( name, FA_WRITE|FA_CREATE_ALWAYS );
+				DVDDelete( cdiconfig );
+				fd = DVDOpen( cdiconfig, FA_WRITE|FA_CREATE_ALWAYS );
 				if( fd < 0 )
 				{
 					ret = DI_FATAL;
@@ -1361,6 +1422,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			ret = DI_SUCCESS;
 			hfree( name );
 		} break;
+/*
 		case DVD_WRITE_NANDCONFIG:
 		{
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
@@ -1368,7 +1430,15 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			
 			memcpy( NandCfg, (u8*)(vec[0]), DVD_CONFIG_SIZE );
 
-			sprintf( name, "%s", "/sneek/nandcfg.bin" );
+			//sprintf( name, "%s", "/sneek/nandcfg.bin" );
+
+			strcpy( name, cdiconfigpath);
+			plen = strlen(name);
+			strcpy( name+plen,"/nandcfg.bin" );
+				
+				
+			
+			
 			fd = DVDOpen( name, FA_WRITE|FA_OPEN_EXISTING );
 			if( fd >= 0 )
 			{
@@ -1383,16 +1453,30 @@ int DIP_Ioctl( struct ipcmessage *msg )
 				hfree( name );
 			}			
 		} break;
+*/
+
 		case DVD_READ_INFO:
 		{
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
 			
-			if( vec[3] == 0 )
-				fd = DVDOpen( "/sneek/diconfig.bin", FA_READ );
-			
+//			if( vec[3] == 0 )
+//			{
+				//dbgprintf( "CDI:Read gameinfo\n" );
+//				fd = DVDOpen( "/sneek/diconfig.bin", FA_READ );
+				fd = DVDOpen( cdiconfig, FA_READ );
+
+//			}
+/*			
 			if( vec[3] == 1 )
+			{
+				//dbgprintf( "CDI:Read nandinfo\n" );
 				fd = DVDOpen( "/sneek/nandcfg.bin", FA_READ );
-			
+				strcpy( name, cdiconfigpath);
+				plen = strlen(name);
+				strcpy( name+plen,"/nandcfg.bin" );
+
+			}
+*/			
 			if( fd < 0 )
 			{
 				ret = DI_FATAL;
@@ -1418,7 +1502,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 		} break;
 		case DVD_GET_GAMECOUNT:	/*** Get Game count ***/
 		{
-			*(u32*)bufout = DICfg->Gamecount;
+			*(u32*)bufout = DICfg->Gamecount | 0x10000;
 			ret = DI_SUCCESS;
 		} break;
 		case DVD_SELECT_GAME:
