@@ -253,11 +253,24 @@ void _main(void)
 			
 		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
 		f_read( &fil, NandCFG, fil.fsize, &read );
+	
+		// this is no good
+		// why do we use a define and a fixed one here?	
 		__sprintf( nandroot, "/nands/%.63s", NandCFG->NandInfo[NandCFG->NandSel] );
 		f_close(&fil);
 	}
 	
-		strcpy( path,DIPATHFILE );
+	//this was missing...
+		
+	strcpy(path,nandroot);
+	size_t plen=strlen(path);
+	strcpy(path+plen,"/sneekcache");
+	if (f_opendir(&dir,path) != FR_OK)
+	{
+		FS_CreateDir("/sneekcache");
+	}
+	
+	strcpy( path,DIPATHFILE );
 
 	diroot[0] = 0;
 	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
