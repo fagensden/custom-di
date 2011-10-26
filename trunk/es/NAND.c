@@ -130,20 +130,8 @@ s32 NANDWriteFileSafe( char *pathdst, void *data, u32 size )
 
 void Save_Nand_Cfg( NandConfig* NandCfg )
 {
-	//size_t nlen;
-	
-	//char* path = malloca( 0x40, 0x40 );
-	//char* nand = malloca( 0x40, 0x40 );
-	
 	char *path = (char*)heap_alloc_aligned( 0, 0x40, 32 );
-	
-	//strcpy(path, "/sneek/NandPath.bin");
-	//nlen = strlen((const char*)(NandCfg->NandInfo[NandCfg->NandSel]));
-	//nlen &= 0x3f;
-	//memcpy(nand,NandCfg->NandInfo[NandCfg->NandSel],nlen+1);
-	//nand[0x3f] = 0;
-	//ISFS_Delete(path);
-	//NANDWriteFileSafe(path,nand, nlen+1);
+
 	strcpy(path, "/sneek/NandCfg.bin");
 	
 	s32 fd = IOS_Open( path, 2 );
@@ -152,7 +140,6 @@ void Save_Nand_Cfg( NandConfig* NandCfg )
 		heap_free( 0, path );
 		return ;
 	}
-
 	s32 r = IOS_Write( fd, NandCfg, 0x10 );
 	if( r < 0 || r != 0x10 )
 	{
@@ -160,13 +147,7 @@ void Save_Nand_Cfg( NandConfig* NandCfg )
 		heap_free( 0, path );
 		return;
 	}
-
 	IOS_Close( fd );
 	heap_free( 0, path );
 	return;
-	//s32 
-	//ISFS_Delete(path);
-	//NANDWriteFileSafe(path, NandCfg, NandCfg->NandCnt * 0x80 + 0x10);
-	//free(nand);
-	//free(path);
 }
