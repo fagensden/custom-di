@@ -27,16 +27,46 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "sdhcvar.h"
 #include "FS.h"
 
+/*
 #define NANDPATHFILE "/sneek/nandpath.bin"
 #define DIPATHFILE "/sneek/dipath.bin"
 #define MAXPATHLEN	16
 
 extern char nandroot[0x20] ALIGNED(32);
 extern char diroot[0x20] ALIGNED(32);
+*/
 
+#define DIPATHFILE 		"/sneek/dipath.bin"
+#define NANDPATHFILE	"/sneek/nandpath.bin"
+#define PATHFILE 		"/sneek/nandcfg.bin"
+#define NANDFOLDER 		"/nands"
+#define NANDCFG_SIZE 	0x10
+#define NANDDESC_OFF	0x40
+#define NANDDI_OFF		0x80
+#define NANDINFO_SIZE	0xC0
 
+#define MAXPATHLEN	16
 
 FATFS fatfs;
+
+extern char nandroot[0x40] ALIGNED(32);
+extern char diroot[0x40] ALIGNED(32);
+
+
+typedef struct
+{	
+	u32 NandCnt;
+	u32 NandSel;
+	u32 Padding1;
+	u32 Padding2;
+	u8  NandInfo[][NANDINFO_SIZE];
+} NandConfig;
+
+NandConfig *NandCFG;
+
+
+//FATFS fatfs;
+
 int verbose = 0;
 u32 base_offset=0;
 static char Heap[0x100] ALIGNED(32);
@@ -80,13 +110,19 @@ s32 RegisterDevices( void )
 }
 int _main( int argc, char *argv[] )
 {
+
+	FILINFO FInfo;
+	u32 read;
+	u32 write;
+	u32 usenfol=0;
+	s32 counter;
+	size_t slen;
 	int fres=0;
 	s32 ret=0;
 	struct IPCMessage *CMessage=NULL;
 	FIL fil;
 	DIR dir;
 	UINT toread, read_ok;
-	u32 counter;
 
 	thread_set_priority( 0, 0x58 );
 
@@ -119,132 +155,210 @@ int _main( int argc, char *argv[] )
 		ThreadCancel( 0, 0x77 );
 	}
 
-	//dbgprintf("FFS:Clean up...");
 	// get the nandfolder from /sneek/nandpath.bin file.
+	char *path = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
+	char *npath = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
+	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, 0xc0, 32 );
+	u8 *fpath = (u8 *)heap_alloc_aligned( 0, 0x80, 32 );
 	
-	char *path = (char*)heap_alloc_aligned( 0, 0x40, 32 );
-	char *rbuf = (char*)heap_alloc_aligned( 0, MAXPATHLEN + 16, 32 );
-
-	strcpy( path,NANDPATHFILE );
-
-	nandroot[0] = 0;
-	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
+	strcpy( path, DIPATHFILE );
+	
+	if( f_open( &fil, path, FA_READ ) != FR_OK )
 	{
-		if (fil.fsize > 0)
+		strcpy( diroot, "/sneek" );
+	}
+	else
+	{
+		f_read( &fil, npath, fil.fsize, &read );
+		npath[0x3f] = 0;
+		if (read > 0)
 		{
-			if (fil.fsize <= (MAXPATHLEN + 16))
+			read &= 0x3f;
+			for (counter=0;counter<read;counter++)
 			{
-				toread = (UINT)(fil.fsize);
-			}
-			else
-			{
-				toread = MAXPATHLEN + 16;
-			}
-			if(f_read(&fil,rbuf,toread,&read_ok) == FR_OK)
-			{
-				nandroot[0] = '/';
-				counter = 0;
-				while (counter < read_ok)
+				if ((npath[counter] == 13)||(npath[counter] == 10)||(npath[counter] == 32))	
 				{
-					//we might terminate with <CR> <LF> <0> or <space>
-					if ((rbuf[counter] != 13)&&(rbuf[counter] != 10)&&(rbuf[counter] != 0)&&(rbuf[counter] != 32))
-					{
-						nandroot[counter+1] = rbuf[counter];
-						// just in case counter might reach read_ok
-						nandroot[counter+2] = 0;
-						counter++;
-					}
-					else
-					{
-						nandroot[counter+1] = 0;
-						counter = read_ok;
-					}
+					npath[counter] = 0;
 				}
 			}
 		}
 		f_close(&fil);
-		//check if the nandroot folder exist
-		dbgprintf("Nand folder set to %s\n",nandroot);
-		strcpy(path,nandroot);
-		if (f_opendir(&dir,path) != FR_OK)
+		
+		if (npath[0] == '/')
+			strcpy( diroot, npath);
+		else
 		{
-			nandroot[0] = 0;
+			diroot[0] = '/';
+			strcpy(diroot+1,npath);
+		}	
+	}	
+
+	//dbgprintf("FS-USB diroot= %s\n",diroot);
+
+	//first we get our nandpath.bin
+	nandroot[0] = 0;
+	strcpy( path, NANDPATHFILE );
+	if( f_open( &fil, path, FA_READ ) == FR_OK )
+	{	
+		f_read( &fil, npath, fil.fsize, &read );
+		
+		npath[0x3f] = 0;
+		if (read > 0)
+		{
+			read &= 0x3f;
+			for (counter=0;counter<read;counter++)
+			{
+				if ((npath[counter] == 13)||(npath[counter] == 10)||(npath[counter] == 32))	
+				{
+					npath[counter] = 0;
+				}
+			}
+		}
+		f_close(&fil);
+		if(npath[0] == '/')		
+			strcpy( nandroot, npath);
+		else
+		{
+			nandroot[0] = '/';
+			strcpy(nandroot+1,npath);
+		}
+	}
+	else
+	{
+		usenfol = 1;
+	}		
+
+	//dbgprintf("FS-USB nandroot= %s\n",nandroot);
+
+	strcpy( path, PATHFILE );
+	strcpy( npath, NANDFOLDER );
+	if( f_open( &fil, path, FA_READ ) != FR_OK )
+	{
+		if( f_opendir( &dir, npath ) == FR_OK )
+		{
+			u32 ncnt=0;
+			f_open( &fil, path, FA_WRITE|FA_CREATE_ALWAYS );
+			NandCFG->NandCnt = 0;
+			NandCFG->NandSel = 0;
+			f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
+			f_lseek( &fil, 0x10 );
+			usenfol=1;
+			while( f_readdir( &dir, &FInfo ) == FR_OK )
+			{
+				if( FInfo.lfsize )
+				{
+//					memcpy( NInfo, FInfo.lfname, NANDDESC_OFF );
+					memcpy( NInfo+NANDDESC_OFF, FInfo.lfname, NANDDESC_OFF );
+				}
+				else
+				{
+//					memcpy( NInfo, FInfo.fname, NANDDESC_OFF );
+					memcpy( NInfo+NANDDESC_OFF, FInfo.fname, NANDDESC_OFF );
+				}
+				
+				strcpy(fpath,NANDFOLDER);
+				slen = strlen(fpath);
+				fpath[slen] = '/';
+				//strncpy(fpath+slen+1,(char*)(NInfo+NANDDESC_OFF),0x80-slen-1);
+				memcpy(fpath+slen+1,(char*)(NInfo+NANDDESC_OFF),0x40-slen-1);
+				
+				memcpy(NInfo,fpath,0x40);
+
+				memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
+
+				f_write( &fil, NInfo, NANDINFO_SIZE, &write );
+				//here we create fpath which is the full path to the nand
+				//and we check if it is compatible with our nandpath
+				//if it's the case, we simply consider the entry as ok
+				//no need to do this if nandroot is empty
+				if(nandroot[0] != 0)
+				{
+					slen = strlen(nandroot);
+//					dbgprintf("FS-USB nandroot= %s\n",nandroot);
+//					dbgprintf("FS-USB fpath= %s\n",fpath);
+
+					if (memcmp(nandroot,fpath,slen)==0)
+					{
+						NandCFG->NandSel = ncnt;
+						usenfol=0;
+					}
+				}
+				ncnt++;
+			}
+			//add the nandpath entry to the nandcfg entries.
+		
+			if((nandroot[0]!=0)&&(usenfol == 1))
+			{
+				if (ncnt < 40)
+				{
+					memcpy(NInfo,nandroot,NANDDESC_OFF );
+					memcpy(NInfo+NANDDESC_OFF,nandroot,NANDDESC_OFF );
+					memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
+					f_write( &fil, NInfo, NANDINFO_SIZE, &write );
+					NandCFG->NandSel = ncnt;
+					ncnt++;
+				}
+			}
+
+			NandCFG->NandCnt = ncnt;
+			f_lseek( &fil, 0 );
+			f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
+			f_close( &fil );
+			//f_open( &fil, path, FA_READ );
+			//usenfol = 1;
 		}
 		else
 		{
-			
-			size_t plen=strlen(path);
-			strcpy(path+plen,"/sneekcache");
-			if (f_opendir(&dir,path) != FR_OK)
-			{
-				FS_CreateDir("/sneekcache");
-			}
+			usenfol = 0;
 		}
 	}
-	// get the difolder from /sneek/dipath.bin file.
-
-	strcpy( path,DIPATHFILE );
-
-	diroot[0] = 0;
-	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
+	if( usenfol )
 	{
-		if (fil.fsize > 0)
-		{
-			if (fil.fsize <= (MAXPATHLEN + 16))
-			{
-				toread = (UINT)(fil.fsize);
-			}
-			else
-			{
-				toread = MAXPATHLEN + 16;
-			}
-			if(f_read(&fil,rbuf,toread,&read_ok) == FR_OK)
-			{
-				diroot[0] = '/';
-				counter = 0;
-				while (counter < read_ok)
-				{
-					//we might terminate with <CR> <LF> <0> or <space>
-					if ((rbuf[counter] != 13)&&(rbuf[counter] != 10)&&(rbuf[counter] != 0)&&(rbuf[counter] != 32))
-					{
-						diroot[counter+1] = rbuf[counter];
-						// just in case counter might reach read_ok
-						diroot[counter+2] = 0;
-						counter++;
-					}
-					else
-					{
-						diroot[counter+1] = 0;
-						counter = read_ok;
-					}
-				}
-			}
-		}
+		if( NandCFG )
+			heap_free( 0, NandCFG );
+			
+		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
+		f_open( &fil, path, FA_READ );
+		f_read( &fil, NandCFG, fil.fsize, &read );
 		f_close(&fil);
-		//check if the di folder exist
-		dbgprintf("Di folder set to %s\n",diroot);
-		strcpy(path,diroot);
-		if (f_opendir(&dir,path) != FR_OK)
-		{
-			strcpy(diroot,"sneek");
-		}
+		__sprintf( nandroot, "%.63s", NandCFG->NandInfo[NandCFG->NandSel] );
 	}
+	
+	dbgprintf("FS-USB final nandroot= %s\n",nandroot);
+	
+	//create a sneekcache folder if one doesn't exist.
+	strcpy( path, nandroot);
+	size_t plen=strlen(path);
+	strcpy(path+plen,"/sneekcache");
+	
+	if (f_opendir(&dir,path) != FR_OK)
+	{
+		FS_CreateDir("/sneekcache");
+	}
+	
+		
+	heap_free( 0, fpath );
+	heap_free( 0, NInfo );
 	heap_free( 0, path );
-	heap_free( 0, rbuf );	
-	dbgprintf("Nand folder set to %s\n",nandroot);
-	dbgprintf("Di folder set to %s\n",diroot);
-
+	heap_free( 0, npath );
+	heap_free( 0, NandCFG );
 	//clean up folders
+
+	//dbgprintf("Nand folder set to %s\n",nandroot);
+	//dbgprintf("Di folder set to %s\n",diroot);
+
+
 	FS_Delete("/tmp");
 	FS_Delete("/import");
 
 	FS_CreateDir("/tmp");
 	FS_CreateDir("/import");	
+	
 
-//	f_mkdir("/tmp");
-//	f_mkdir("/import");
-
-	//dbgprintf("ok\n");
+/*
+	f_mkdir("/tmp");
+	f_mkdir("/import");
+*/
 
 	while (1)
 	{
