@@ -92,7 +92,7 @@ typedef struct
 	u32 NandSel;
 	u32 Padding1;
 	u32 Padding2;
-	u8  NandInfo[][0xc0];
+	u8  NandInfo[][0xC0];
 } NandConfig;
 
 
