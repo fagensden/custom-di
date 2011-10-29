@@ -525,14 +525,15 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	{
 		DVDClose(fd);
 		
-		//strcpy( Path, "/sneek/titles.txt" );	
-		strcpy( Path, cdiconfigpath);
-		plen = strlen(Path);
-		strcpy( Path+plen,"/titles.txt" );
+		strcpy( Path, "/sneek/titles.txt" );	
+		//strcpy( Path, cdiconfigpath);
+		//plen = strlen(Path);
+		//strcpy( Path+plen,"/titles.txt" );
 		
-		fd = DVDOpen( Path, DREAD );
+		fd = DVDOpen( Path, FA_READ );
 		if( fd >= 0 )
 		{
+			dbgprintf("CDI titles.txt ok\n");
 			u32 Contentsize = DVDGetSize(fd);
 			char *Content = (char *)malloca( Contentsize+1, 32 );
             Content[Contentsize]=0;
@@ -544,10 +545,10 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			char *TitleInfo = (char*)malloca( 0x60, 32 );
 			u32 lastoff=0;
 			u32 length=0;
-			//strcpy( Path, "/sneek/titlecfg.bin" );
-			strcpy( Path, cdiconfigpath);
-			plen = strlen(Path);
-			strcpy( Path+plen,"/titlecfg.bin" );
+			strcpy( Path, "/sneek/titlecfg.bin" );
+			//strcpy( Path, cdiconfigpath);
+			//plen = strlen(Path);
+			//strcpy( Path+plen,"/titlecfg.bin" );
 			
 			
 			DVDDelete( Path );
@@ -586,18 +587,26 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		splitcount = 0;	
 		u32 cTitles = 0;
 
-		//strcpy( Path, "/sneek/titlecfg.bin" );
-		strcpy( Path, cdiconfigpath);
-		plen = strlen(Path);
-		strcpy( Path+plen,"/titlecfg.bin" );
+		strcpy( Path, "/sneek/titlecfg.bin" );
+		//strcpy( Path, cdiconfigpath);
+		//plen = strlen(Path);
+		//strcpy( Path+plen,"/titlecfg.bin" );
 
 		s32 fdct = DVDOpen( Path, DREAD );
 		if( fdct >= 0 )
 		{
+/*
 			cTitles = DVDGetSize(fdct) / 0x60;
 			GT = (GameTitles *)malloca( DVDGetSize(fdct), 32 );
 			DVDRead( fdct, GT, DVDGetSize(fdct) );
+*/
+			cTitles = DVDGetSize(fdct);
+			GT = (GameTitles *)malloca( cTitles, 32 );
+			DVDRead( fdct, GT, cTitles );
+
 			DVDClose( fdct );				
+			cTitles-=0x10;
+			cTitles/=0x60;
 		}
 
 		/*** Check on USB and on SD(DML) ***/
@@ -701,11 +710,12 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						
 						if( cTitles )
 						{
-							char cmp[6];
-							int ct = 0;
+							char cmp[8];
+							int ct;
 							for( ct=0; ct<cTitles; ++ct )
 							{
 								strncpy( cmp, GT->GameTitle[ct], 6 );
+								cmp[6] = 0;
 								if( strcmp( WBFSFile, cmp ) == 0 )
 								{
 									strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
