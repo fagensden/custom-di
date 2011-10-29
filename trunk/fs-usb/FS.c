@@ -31,8 +31,8 @@ static FIL fd_stack[MAX_FILE] ALIGNED(32);
 static u32 obcd_trig[MAX_FILE] ALIGNED(32);
 
 char nandpath[0x60] ALIGNED(32);
-char nandroot[0x20] ALIGNED(32);
-char diroot[0x20] ALIGNED(32);
+char nandroot[0x40] ALIGNED(32);
+char diroot[0x40] ALIGNED(32);
 
 //#define USEATTR
 #undef DEBUG
