@@ -23,5 +23,23 @@ static inline void write32(u32 addr, u32 data)
 	__asm__ volatile ("str\t%0, [%1]" : : "l" (data), "l" (addr));
 }
 
+static inline void write16(u32 addr, u16 data)
+{
+	__asm__ volatile ("strh\t%0, [%1]" : : "r" (data), "r" (addr));
+}
+
+static inline u32 clear32(u32 addr, u32 clear)
+{
+	u32 data;
+	__asm__ volatile (
+		"ldr\t%0, [%1]\n"
+		"\tbic\t%0, %2\n"
+		"\tstr\t%0, [%1]"
+		: "=&r" (data)
+		: "r" (addr), "r" (clear)
+	);
+	return data;
+}
+
 #endif
 
