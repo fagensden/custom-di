@@ -463,16 +463,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKu+DI v4RC3 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKu+DI v4RC4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKu v4RC3 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKu v4RC4 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKs+DI v4RC3 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKs+DI v4RC4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKs v4RC3 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "ONEEKs v4RC4 %s",__DATE__);					
 			}
 		}
 
@@ -520,11 +520,11 @@ void SMenuDraw( void )
 						break;
 
 					if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d )
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (GC)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (GC)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x57424653 )
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  ((*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x44534358)||(DIConfType == 0)))
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Wii FST)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (FST)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else
 						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Invalid)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 
