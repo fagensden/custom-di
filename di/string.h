@@ -24,6 +24,7 @@ extern void memcpy(void *dst, const void *src, u32 size);
 int memcmp(const void *s1, const void *s2, size_t n);
 int sprintf( char *astr, const char *fmt, ...);
 void Asciify( char *str );
+void Asciify2( char *str );
 void upperCase( char *str );
 
 #endif
