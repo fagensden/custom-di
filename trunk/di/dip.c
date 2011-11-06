@@ -554,6 +554,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 									if( strncmp( GameInfo, cmp, 6 ) == 0 )
 									{
 										strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
+										Asciify2( GameInfo+DVD_REAL_NAME_OFF );
 										break;
 									}
 								}
@@ -627,6 +628,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 								if( strcmp( WBFSFile, cmp ) == 0 )
 								{
 									strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
+									Asciify2( GameInfo+DVD_REAL_NAME_OFF );
 									break;
 								}
 							}
