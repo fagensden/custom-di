@@ -825,6 +825,10 @@ s32 DVDSelectGame( int SlotID )
 					DVDClose( fd_mom );
 					DVDDelete( str );
 				}
+				else if( fd_mom >= 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 )
+				{					
+					DVDClose( fd_mom );					
+				}
 				
 				free( WBFSInf );
 				free( WBFSFInf );				
