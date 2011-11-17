@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "dip.h"
 
+#define CUSTOM_TITLES	1
+
 static u32 error ALIGNED(32);
 static u32 PartitionSize ALIGNED(32);
 static u32 DIStatus ALIGNED(32);
