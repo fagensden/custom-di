@@ -250,7 +250,11 @@ u32 DVDGetInstalledGamesCount( void )
 	{
 		while( DVDReadDir() == FR_OK )
 		{	
-			if( DVDDirIsFile() )
+			GameCount++;
+
+//DVDDirIsFile always returns false in uneek. The function doesn't work.
+
+/*			if( DVDDirIsFile() )
 			{
 				if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+7, "wbfs", 4 ) == 0)
 				{
@@ -261,6 +265,7 @@ u32 DVDGetInstalledGamesCount( void )
 			{
 				GameCount++;
 			}			
+*/
 		}
 	}			
 
@@ -339,6 +344,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 	u32 i;
 	u32 DMLite		= 0;
 	s32 fres		= 0;
+	u32 entry_found;
 	
 	char *Path = (char*)malloca( 128, 32 );
 
@@ -443,6 +449,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		UpdateCache = DVDVerifyGames();
 	
 	DVDClose(fd);
+
+#ifdef CUSTOM_TITLES
 		
 	strcpy( Path, "/sneek/titles.txt" );	
 		
@@ -484,7 +492,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		free( TitleInfo );
 		//UpdateCache = 1;
 	}
-	
+#endif	
 	if( UpdateCache )
 	{		
 		DVDDelete( cdiconfig );
@@ -496,6 +504,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		u8 *buf1 = (u8 *)halloca(0x04, 32);
 		InitCache();
 		splitcount = 0;	
+
+#ifdef CUSTOM_TITLES
 		u32 cTitles = 0;
 
 		strcpy( Path, "/sneek/titlecfg.bin" );
@@ -512,7 +522,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 			cTitles-=0x10;
 			cTitles/=0x60;
 		}
-
+#endif
 		/*** Check on USB and on SD(DML) ***/
 		for( i=0; i < 2; i++ )
 		{
@@ -542,7 +552,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 							{						
 								strncpy( GameInfo+DI_MAGIC_OFF, "DSCX", 4 );
 							}
-							
+#ifdef CUSTOM_TITLES							
 							if( cTitles )
 							{
 								char cmp[8];
@@ -559,6 +569,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 									}
 								}
 							}
+#endif							
 							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() ) + 1 );
 
 							DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
@@ -573,50 +584,81 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 				}
 			}
 			
+			
 			strcpy( Path, "/wbfs" ); 
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
 				while( DVDReadDir() == FR_OK )
 				{					
-					if( strlen( DVDDirGetEntryName() ) > 63 )
+					//WBFSPath[0] = 0;
+					entry_found = 0;
+					size_t entsize;
+					entsize = strlen(DVDDirGetEntryName());
+					if( entsize > 63 )
 						continue;
 
-					if( strlen( DVDDirGetEntryName() ) == 11 && strncmp( DVDDirGetEntryName()+6, ".wbfs", 5 ) == 0 )
+					//if (DVDDirIsFile())
+					if (strncmp(DVDDirGetEntryName()+entsize-5, ".wbfs", 5 ) == 0)
+					
 					{
-						sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
-						strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
-						WBFSFile[6] = 0;
+						//if( entsize == 11 && strncmp( DVDDirGetEntryName()+6, ".wbfs", 5 ) == 0 )
+						if( entsize == 11)
+						{
+							sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
+							strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
+							WBFSFile[6] = 0;
+							entry_found = 1;
+						}
+						//gamedescription[gameid].wbfs
+						if( entsize > 12 )
+						{
+							
+							//if (strncmp(DVDDirGetEntryName()+entsize-6, "].wbfs", 6 ) == 0)
+							if(*(DVDDirGetEntryName()+entsize - 6) == ']')
+							{
+								sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
+								strncpy( WBFSFile, DVDDirGetEntryName()+entsize-12, 6 );
+								WBFSFile[6] = 0;
+								entry_found = 1;
+							}
+						}
 					}
 					else 
 					{					
-						if	( strlen(DVDDirGetEntryName()) == 6 ) 
+						if	( entsize == 6 ) 
 						{
 							strcpy ( WBFSFile, DVDDirGetEntryName() );
+							entry_found = 1;
 						}
 						else 
 						{					
+							//gameid_gamedescription
 							mch = strchr(DVDDirGetEntryName(), '_');
 							if( mch-DVDDirGetEntryName() == 6 )
 							{ 						
 								strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
 								WBFSFile[6] = 0;
+								entry_found = 1;
 							}
+							//gamedescription[gameid]
 							mch = strchr(DVDDirGetEntryName(), ']');
-							if( mch-DVDDirGetEntryName()+1 == strlen(DVDDirGetEntryName()) ) 						
+							if( mch-DVDDirGetEntryName()+1 == entsize ) 						
 							{	
-								strncpy( WBFSFile, DVDDirGetEntryName() +  strlen(DVDDirGetEntryName()) - 7, 6 );
+								strncpy( WBFSFile, DVDDirGetEntryName() +  entsize - 7, 6 );
 								WBFSFile[6] = 0;
+								entry_found = 1;
 							}						
 						}
 						sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
-					
+					if (entry_found == 0)
+						continue;
 					WBFS_Read( 0x218, 4, buf1 );
 					if( *(vu32*)buf1 == 0x5d1c9ea3 )
 					{
 						WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
 						strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
-						
+#ifdef CUSTOM_TITLES						
 						if( cTitles )
 						{
 							char cmp[8];
@@ -633,6 +675,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 								}
 							}
 						}
+#endif						
 						memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
 						DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
 						CurrentGame++;
@@ -650,6 +693,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		if( DMLite )
 			FSMode = SNEEK;
 
+		
 		free( GameInfo );
 		hfree( buf1 );
 		free( GT );
@@ -667,23 +711,25 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		u8 TitleC[DVD_GAMEINFO_SIZE];
 	
 		int k, j;
-		for( j=0; j<CurrentGame-1; ++j )
+		if (CurrentGame > 0)
 		{
-			for( k=j+1; k<CurrentGame; ++k )
-			{			
-				sprintf( check1, "%.63s", &DICfg->GameInfo[j][0x20] ) ;
-				sprintf( check2, "%.63s", &DICfg->GameInfo[k][0x20] ) ;
-				upperCase( check1 );
-				upperCase( check2 );
-				if( strcmp( check1, check2 )  > 0 )
-				{				
-					memcpy( TitleC, DICfg->GameInfo[j], DVD_GAMEINFO_SIZE );
-					memcpy( DICfg->GameInfo[j], DICfg->GameInfo[k], DVD_GAMEINFO_SIZE );
-					memcpy( DICfg->GameInfo[k], TitleC, DVD_GAMEINFO_SIZE );				
+			for( j=0; j<CurrentGame-1; ++j )
+			{
+				for( k=j+1; k<CurrentGame; ++k )
+				{			
+					sprintf( check1, "%.63s", &DICfg->GameInfo[j][0x20] ) ;
+					sprintf( check2, "%.63s", &DICfg->GameInfo[k][0x20] ) ;
+					upperCase( check1 );
+					upperCase( check2 );
+					if( strcmp( check1, check2 )  > 0 )
+					{				
+						memcpy( TitleC, DICfg->GameInfo[j], DVD_GAMEINFO_SIZE );
+						memcpy( DICfg->GameInfo[j], DICfg->GameInfo[k], DVD_GAMEINFO_SIZE );
+						memcpy( DICfg->GameInfo[k], TitleC, DVD_GAMEINFO_SIZE );				
+					}
 				}
 			}
 		}
-
 		DVDDelete(cdiconfig);	
 		fd = DVDOpen( cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );	
 		DVDWrite( fd, DICfg, CurrentGame * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE );
@@ -723,10 +769,11 @@ s32 DVDSelectGame( int SlotID )
 	FSTable = (u8*)NULL;
 	ChangeDisc = 1;
 	DICover |= 1;
-	
 	char *str = (char *)malloca( 128, 32 );
-	s32 fd=0;
+	s32 fd=-1;
 		
+	if (DICfg->Gamecount > 0)
+	{
 	switch ( *(vu32*)(DICfg->GameInfo[SlotID]+DI_MAGIC_OFF) )
 	{	
 		case 0x44534358: /*** FST Extracted ***/
@@ -762,7 +809,8 @@ s32 DVDSelectGame( int SlotID )
 		
 			sprintf( WBFSFile, "%s", DICfg->GameInfo[SlotID] );
 			
-			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+7, "wbfs", 4 ) == 0 )
+//			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+7, "wbfs", 4 ) == 0 )
+			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) - 5, ".wbfs", 5 ) == 0 )
 			{
 				strcpy( GamePath, "/wbfs/" );
 				sprintf( WBFSPath, "/wbfs/%s.wbfs", WBFSFile );
@@ -894,7 +942,7 @@ s32 DVDSelectGame( int SlotID )
 			}
 		break;
 	}
-	
+	}
 	if( fd < 0 )
 	{			
 		if( DMLite )
@@ -903,8 +951,8 @@ s32 DVDSelectGame( int SlotID )
 		DVDUpdateCache(1);
 
 		free( str );
-		ChangeDisc = 0;
 		DICover |= 1;
+		ChangeDisc = 0;
 		return DI_FATAL;
 	}
 	else {
@@ -926,6 +974,7 @@ s32 DVDSelectGame( int SlotID )
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 		DVDClose( fd );
 	}
+	//ChangeDisc = 1;
 	return DI_SUCCESS;
 }
 
@@ -1997,10 +2046,13 @@ s32 WBFS_Read_Block( u64 block, void *ptr )
 	offset = game_part_offset + data_offset + ( wii_sector_size * block );
 	
 	WBFS_Read( offset, wii_sector_size, bufrb );
-	memcpy(iv, bufrb + 0x3d0, 16);
+	//memcpy(iv, bufrb + 0x3d0, 16);
+	memcpy32(iv, bufrb + 0x3d0, 4);
 
 	aes_decrypt_( KeyIDT, iv, bufrb + 0x400, 0x7c00, bufrb);	
-	memcpy(ptr, bufrb , 0x7c00);
+	//memcpy(ptr, bufrb , 0x7c00);
+	// 0x7c00 / 4 = 0x1f00
+	memcpy32(ptr, bufrb , 0x1f00);
 	
 	free(bufrb);
 	free(iv);
@@ -2026,7 +2078,6 @@ s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr)
 
 		WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), BC[0].bl_buf );
 		memcpy(ptr, BC[0].bl_buf + (bl_offset << 2), bl_length);		
-
 		ptr += bl_length;
 		offset += bl_length >> 2;
 		length -= bl_length;
@@ -2112,7 +2163,7 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 			if( Offset >= FC[i].Offset )
 			{
 				u64 nOffset = ((u64)(Offset-FC[i].Offset)) << 2;
-				dbgprintf( "DEBUG:File Offset: %08x\n", nOffset );
+				//dbgprintf( "DEBUG:File Offset: %08x\n", nOffset );
 				if( nOffset < FC[i].Size )
 				{
 					DVDSeek( FC[i].File, nOffset, 0 );

@@ -134,6 +134,16 @@ void *memset(void *dst, int x, size_t n)
 	return dst;
 }
 
+void *memcpy32(void *dest, const void *src, size_t count)
+{
+	u32 *tmp = (u32*)(dest);
+	u32 *s = (u32*)(src);
+
+	while (count--)
+		*tmp++ = *s++;
+	return (void*)(dest);
+}
+
 //void *memcpy(void *dst, const void *src, size_t n)
 //{
 //	unsigned char *p;

@@ -204,7 +204,6 @@ void _main(void)
 
 
 	DVDUpdateCache(0);
-	//dbgprintf("CDI: After DVDUpdateCache...\n");
 
 	DVDSelectGame( DICfg->SlotID );
 
