@@ -17,6 +17,7 @@ char * strstr ( const char *str1, const char *str2);
 char* skipPastArticles(char* s);
 
 extern void memcpy(void *dst, const void *src, u32 size);
+void *memcpy32(void *dest, const void *src, size_t count);
 
 //void *memcpy(void *, const void *, size_t);
 //void *memcpy(void *, const void *, size_t);
