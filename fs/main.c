@@ -124,7 +124,10 @@ int _main( int argc, char *argv[] )
 	DIR dir;
 	UINT toread, read_ok;
 
-	thread_set_priority( 0, 0x58 );
+//	thread_set_priority( 0, 0x58 );
+// sneek dev. 172
+	thread_set_priority( 0, 0x0b );
+
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-SD: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );

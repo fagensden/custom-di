@@ -1658,8 +1658,8 @@ s32 ES_LoadModules( u32 KernelVersion )
 		{
 			dbgprintf("ES:Waiting for DI to init device...");
 
-			while(!DVDConnected())
-				udelay(500000);
+			while(DVDConnected() !=1 )
+				udelay(50000);
 
 			dbgprintf("done!\n");
 		}

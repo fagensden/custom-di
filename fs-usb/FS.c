@@ -910,11 +910,39 @@ s32 FS_Open( char *Path, u8 Mode )
 		else
 		{
 			obcd_trig[i] = 0;
+
+
+//sneek rev. 172
+/*
 			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
 			{
 				memset32( &fd_stack[i], 0, sizeof(FIL) );
 				return FS_ENOENT2;
 			}
+*/
+//sneek rev. 172
+//simplified
+			switch ( f_open( &fd_stack[i], Path, Mode ) )
+			{
+				case FR_OK:
+					return i;
+					break;
+				case FR_NO_FILE:
+				{
+					if( Mode & FA_WRITE )
+					{
+						if( f_open( &fd_stack[i], Path, Mode | FA_CREATE_ALWAYS ) == FR_OK )
+						{
+							return i;
+						}
+					} 
+				} 
+				break;
+				default:
+					break;
+			}
+			memset32( &fd_stack[i], 0, sizeof(FIL) );
+			return FS_NO_ENTRY;
 		}
 		return i;
 	}

@@ -166,7 +166,9 @@ void _main(void)
 	//u32 counter;
 	//UINT toread, read_ok;
 
-	thread_set_priority( 0, 0x58 );
+//	thread_set_priority( 0, 0x58 );
+// sneek dev. 172
+	thread_set_priority( 0, 0x0b );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-USB: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
