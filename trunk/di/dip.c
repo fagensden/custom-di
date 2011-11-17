@@ -815,7 +815,9 @@ s32 DVDSelectGame( int SlotID )
 			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) - 5, ".wbfs", 5 ) == 0 )
 			{
 				strcpy( GamePath, "/wbfs/" );
-				sprintf( WBFSPath, "/wbfs/%s.wbfs", WBFSFile );
+				strcpy(WBFSPath, "/wbfs/");
+				strcpy(WBFSPath+6,(char *)&DICfg->GameInfo[SlotID][0x60]);
+//				sprintf( WBFSPath, "/wbfs/%s.wbfs", WBFSFile );
 			}
 			else
 			{
