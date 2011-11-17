@@ -463,16 +463,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2o+cDI v4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI v4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2o v4 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O v4 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2o+cDI v4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI v4 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2o v4 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O v4 %s",__DATE__);					
 			}
 		}
 

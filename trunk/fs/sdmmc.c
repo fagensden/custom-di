@@ -170,7 +170,7 @@ void sdmmc_needs_discover(void)
 	cmd.c_flags = SCF_RSP_R2;
 	sdhc_exec_command(card.handle, &cmd);
 	if (cmd.c_error) {
-		dbgprintf("sdmmc: MMC_ALL_SEND_CID failed with %d\n", cmd.c_error);
+		//dbgprintf("sdmmc: MMC_ALL_SEND_CID failed with %d\n", cmd.c_error);
 		goto out_clock;
 	}
 
@@ -187,7 +187,7 @@ void sdmmc_needs_discover(void)
 	cmd.c_flags = SCF_RSP_R6;
 	sdhc_exec_command(card.handle, &cmd);
 	if (cmd.c_error) {
-		dbgprintf("sdmmc: SD_SEND_RCA failed with %d\n", cmd.c_error);
+		//dbgprintf("sdmmc: SD_SEND_RCA failed with %d\n", cmd.c_error);
 		goto out_clock;
 	}
 
@@ -203,7 +203,7 @@ void sdmmc_needs_discover(void)
 	cmd.c_flags = SCF_RSP_R2;
 	sdhc_exec_command(card.handle, &cmd);
 	if (cmd.c_error) {
-		dbgprintf("sdmmc: MMC_SEND_CSD failed with %d\n", cmd.c_error);
+		//dbgprintf("sdmmc: MMC_SEND_CSD failed with %d\n", cmd.c_error);
 		goto out_power;
 	}
 
