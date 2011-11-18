@@ -390,6 +390,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
 		UpdateCache = 1;
+//		dbgprintf("cdi:default diconfig.bin created\n"); 
 	} 
 
 	DVDSeek( fd, 0, 0 );
@@ -528,6 +529,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		/*** Check on USB and on SD(DML) ***/
 		for( i=0; i < 2; i++ )
 		{
+//			dbgprintf("CDI:scanning games folder\n");
 			strcpy( Path, "/games" );
 			if( DVDOpenDir( Path ) == FR_OK )
 			{
@@ -586,6 +588,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 				}
 			}
 			
+//			dbgprintf("CDI:scanning wbfs folder\n");
 			
 			strcpy( Path, "/wbfs" ); 
 			if( DVDOpenDir( Path ) == FR_OK )
@@ -707,6 +710,8 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		DVDRead( fd, DICfg, DVDGetSize(fd) );
 		DVDClose(fd);		
 	
+		dbgprintf("CDI:end of updatecache\n");
+
 		char check1[64];
 		char check2[64];
 	
@@ -2050,13 +2055,12 @@ s32 WBFS_Read_Block( u64 block, void *ptr )
 	offset = game_part_offset + data_offset + ( wii_sector_size * block );
 	
 	WBFS_Read( offset, wii_sector_size, bufrb );
-	//memcpy(iv, bufrb + 0x3d0, 16);
-	memcpy32(iv, bufrb + 0x3d0, 4);
+	memcpy(iv, bufrb + 0x3d0, 16);
+	//memcpy32(iv, bufrb + 0x3d0, 16);
 
 	aes_decrypt_( KeyIDT, iv, bufrb + 0x400, 0x7c00, bufrb);	
-	//memcpy(ptr, bufrb , 0x7c00);
-	// 0x7c00 / 4 = 0x1f00
-	memcpy32(ptr, bufrb , 0x1f00);
+	memcpy(ptr, bufrb , 0x7c00);
+	//memcpy32(ptr, bufrb , 0x7c00);
 	
 	free(bufrb);
 	free(iv);

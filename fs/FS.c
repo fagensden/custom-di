@@ -741,16 +741,17 @@ s32 FS_Open( char *Path, u8 Mode )
 		{
 			obcd_trig[i] = 0;
 //sneek rev. 172
-/*
+
 			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
 			{
 				memset32( &fd_stack[i], 0, sizeof(FIL) );
 				return FS_NO_ENTRY;
 			}
-*/
+
 //sneek rev. 172
 //simplified
-			switch ( f_open( &fd_stack[i], Path, Mode ) )
+/*
+			switch ( f_open( &fd_stack[i], nandpath, Mode ) )
 			{
 				case FR_OK:
 					return i;
@@ -759,7 +760,7 @@ s32 FS_Open( char *Path, u8 Mode )
 				{
 					if( Mode & FA_WRITE )
 					{
-						if( f_open( &fd_stack[i], Path, Mode | FA_CREATE_ALWAYS ) == FR_OK )
+						if( f_open( &fd_stack[i], nandpath, Mode | FA_CREATE_ALWAYS ) == FR_OK )
 						{
 							return i;
 						}
@@ -771,6 +772,7 @@ s32 FS_Open( char *Path, u8 Mode )
 			}
 			memset32( &fd_stack[i], 0, sizeof(FIL) );
 			return FS_NO_ENTRY;
+*/
 		}
 		return i;
 	}
