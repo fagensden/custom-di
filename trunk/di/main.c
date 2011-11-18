@@ -202,7 +202,7 @@ void _main(void)
 
 	DICfg = (DIConfig*)malloca( DVD_CONFIG_SIZE, 32 );
 
-
+//	dbgprintf("CDI:before DVDUpdateCache\n"); 
 	DVDUpdateCache(0);
 
 	DVDSelectGame( DICfg->SlotID );

@@ -6,6 +6,11 @@
 
 #include "string.h"
 
+/*
+static u32 *tmp ALIGNED(32);
+static u32 *s ALIGNED(32);
+*/
+
 size_t strnlen(const char *s, size_t count)
 {
 	const char *sc;
@@ -134,16 +139,30 @@ void *memset(void *dst, int x, size_t n)
 	return dst;
 }
 
+/*
+
 void *memcpy32(void *dest, const void *src, size_t count)
 {
-	u32 *tmp = (u32*)(dest);
-	u32 *s = (u32*)(src);
+//	u32 *tmp = (u32*)(dest);
+//	u32 *s = (u32*)(src);
 
-	while (count--)
-		*tmp++ = *s++;
+	if( ( (  (u32)(src) | (u32)(dest) | count) & 0x3)==4)
+	{ 
+		tmp = (u32*)(dest);
+		s = (u32*)(src);
+		count/=4;
+		while (count--)
+			*tmp++ = *s++;
+//		return (void*)(dest);
+	}
+	else
+	{
+		memcpy(dest,src,count);
+	}
 	return (void*)(dest);
-}
 
+}
+*/
 //void *memcpy(void *dst, const void *src, size_t n)
 //{
 //	unsigned char *p;
