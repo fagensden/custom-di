@@ -38,7 +38,7 @@ WBFSFileInfo *WBFSFInf;
 
 static char GamePath[128];
 static char WBFSFile[8];
-static char WBFSPath[128];
+static char WBFSPath[128]; 
 //static char SuvolutionPath[128];
 
 static u32 *KeyID ALIGNED(32);
@@ -656,8 +656,9 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						}
 						sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
-					if (entry_found == 0)
+					if ( entry_found == 0 )
 						continue;
+						
 					WBFS_Read( 0x218, 4, buf1 );
 					if( *(vu32*)buf1 == 0x5d1c9ea3 )
 					{
@@ -813,21 +814,23 @@ s32 DVDSelectGame( int SlotID )
 				DestroyKey( KeyIDT );
 				
 			KeyIDT = 0;
+			
+			char WBFSsFile[128];
 		
 			sprintf( WBFSFile, "%s", DICfg->GameInfo[SlotID] );
 			
-//			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+7, "wbfs", 4 ) == 0 )
 			if( strncmp( (char *)&DICfg->GameInfo[SlotID][0x60]+strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) - 5, ".wbfs", 5 ) == 0 )
 			{
 				strcpy( GamePath, "/wbfs/" );
-				strcpy(WBFSPath, "/wbfs/");
-				strcpy(WBFSPath+6,(char *)&DICfg->GameInfo[SlotID][0x60]);
-//				sprintf( WBFSPath, "/wbfs/%s.wbfs", WBFSFile );
+				sprintf( WBFSPath, "/wbfs/%.63s", &DICfg->GameInfo[SlotID][0x60] );
+				strncpy( WBFSsFile, (char *)&DICfg->GameInfo[SlotID][0x60], strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) - 5 );
+				WBFSsFile[strlen( (char *)( &DICfg->GameInfo[SlotID][0x60] ) ) - 5] = '\0';
 			}
 			else
 			{
 				sprintf( GamePath, "/wbfs/%.63s/", &DICfg->GameInfo[SlotID][0x60] );
 				sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile );
+				strcpy( WBFSsFile, WBFSFile );
 			}
 			
 			fd = DVDOpen( WBFSPath, FA_READ);
@@ -844,7 +847,7 @@ s32 DVDSelectGame( int SlotID )
 				splitcount=1;
 				while(1)
 				{			
-					sprintf( str, "%s%s.wbf%d", GamePath, WBFSFile, splitcount );
+					sprintf( str, "%s%s.wbf%d", GamePath, WBFSsFile, splitcount );
 					s32 fd_sf = DVDOpen( str, FA_READ );
 					if( fd_sf >= 0 )
 					{					
@@ -1030,7 +1033,6 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 	s32 fd;
 	u32 DebuggerHook=0;
 	char Path[256];
-	size_t plen;
 
 	if( Offset < 0x110 )	/*** 0x440 ***/
 	{
@@ -1173,10 +1175,7 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 			{
 				GameHook = 0xdeadbeef;
 
-				//strcpy(	Path, "/sneek/kenobiwii.bin" );
-				strcpy( Path, cdiconfigpath);
-				plen = strlen(Path);
-				strcpy(	Path+plen, "/kenobiwii.bin" );
+				strcpy(	Path, "/sneek/kenobiwii.bin" );
 				
 				s32 fd = IOS_Open( Path, 1 );
 				if( fd < 0 )					
