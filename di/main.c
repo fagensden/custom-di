@@ -141,7 +141,7 @@ void _main(void)
 	//so we will disable it until so
 	ignore_logfile = 1;
 	//dbgprintf("CDI: main starting...\n");
-	ThreadSetPriority( 0, 0xF4 );
+	ThreadSetPriority( 0, 0xFF );
 
 	HeapInit();
 

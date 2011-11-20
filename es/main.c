@@ -1107,9 +1107,7 @@ int _main( int argc, char *argv[] )
 	
 	thread_set_priority( 0, 0x79 );
 	thread_set_priority( 0, 0x50 );
-
-//sneek rev. 172
-	thread_set_priority( 0, 0x0A );
+	thread_set_priority( 0, 0x10 );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: ES: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
@@ -1176,12 +1174,8 @@ int _main( int argc, char *argv[] )
 		strcpy(diroot,"sneek");
 	}
 
-//SD Card 
 	SDStatus = (u32*)malloca( sizeof(u32), 0x40 );
 
-//obcd enable sd for modmii
-//	*SDStatus = 0x00000001;
-//don't enable sd:
 	*SDStatus = 0x00000002;
 	HCR = (u32*)malloca( sizeof(u32)*0x30, 0x40 );
 	memset32( HCR, 0, sizeof(u32)*0x30 );
