@@ -1215,7 +1215,7 @@ int _main( int argc, char *argv[] )
 	}*/
 
 	LoadAndRebuildChannelCache();
-	//Create_Nand_Cfg(NANDFOLDER);
+	Force_Internet_Test();
 
 	dbgprintf("ES:looping!\n");
 		

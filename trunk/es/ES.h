@@ -204,6 +204,64 @@ typedef struct
 
 } __attribute__((packed)) UIDSYS;
 
+typedef struct _proxy
+{
+    u8 use_proxy;
+    u8 use_proxy_userandpass;
+    u8 padding_1[2];
+    u8 proxy_name[255];
+    u8 padding_2;
+    u16 proxy_port;
+    u8 proxy_username[32];
+    u8 padding_3;         
+    u8 proxy_password[32];
+} __attribute__((__packed__)) proxy_t; 
+
+typedef struct _connection
+{
+    u8 flags;
+    u8 padding_1[3]; 
+    u8 ip[4];
+    u8 netmask[4];
+    u8 gateway[4];
+    u8 dns1[4];
+    u8 dns2[4];
+    u8 padding_2[2]; 
+    u16 mtu;
+    u8 padding_3[8]; 
+    proxy_t proxy_settings;
+    u8 padding_4; 
+    proxy_t proxy_settings_copy;
+    u8 padding_5[1297];
+    u8 ssid[32]; 
+    u8 padding_6;
+    u8 ssid_length;
+    u8 padding_7[2]; 
+    u8 padding_8;
+    u8 encryption;
+    u8 padding_9[2]; 
+    u8 padding_10;
+    u8 key_length;
+    u8 unknown;
+    u8 padding_11; 
+    u8 key[64]; 
+    u8 padding_12[236];
+} connection_t;
+
+typedef struct _netconfig
+{
+    u8 header0;
+    u8 header1;
+    u8 header2;
+    u8 header3;
+    u8 header4;
+    u8 header5;
+    u8 header6;
+    u8 header7;
+ 
+    connection_t connection[3];
+} netconfig_t;
+
 s32 ES_TitleCreatePath( u64 TitleID );
 void ES_Fatal( char *name, u32 line, char *file, s32 error, char *msg );
 s32 ES_LoadModules( u32 KernelVersion );
