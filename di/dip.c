@@ -66,7 +66,6 @@ FileSplits FS[FILESPLITS_MAX];
 u32 splitcount=0;
 u32 BCEntry=0;
 u32 BCRead=0;
-u32 obnr=0;
 
 /*** WBFS image vars ***/
 u16 start_loc=0;
@@ -105,7 +104,7 @@ extern char* cdiconfigpath ALIGNED (32);
 /*** Debug loging: ***/
 //#define DEBUG_PRINT_FILES
 
-static void Set_key2(void)
+static void Set_key2( void )
 {
 	u8 *TIK = (u8 *)halloca(0x2a4, 0x40);
 	u8 *TitleID    = (u8*)malloca( 0x10, 0x20 );

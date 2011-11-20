@@ -1668,10 +1668,10 @@ s32 ES_LoadModules( u32 KernelVersion )
 //obcd
 	if (KernelVersion != 253)
 	{
-		dbgprintf("ES:Waiting for network module...\n");
+		dbgprintf( "ES:Waiting for network module...\n" );
 
 		u32 counter = 0;
-		while(counter < 10)
+		while( counter < 20 )
 //	while( 1 )
 		{
 			int rfs = IOS_Open("/dev/net/ncd/manage", 0 );
@@ -1684,7 +1684,7 @@ s32 ES_LoadModules( u32 KernelVersion )
 			counter++;
 		}
 	}
-	dbgprintf("done!\n");
+	dbgprintf( "done!\n" );
 
 	free( size );
 	free( TMD );
@@ -1910,4 +1910,76 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	free( path );
 
 	return 0;
+}
+
+s32 Force_Internet_Test()
+{
+	char *path	= (char *)malloca( 0x80, 32 );
+	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
+	u8 tmp = 0xa0;	
+	strcpy( path, "/shared2/sys/net/02/config.dat" );
+	netconfig_t *NETCfg = (netconfig_t *)NANDLoadFile( path, size );	
+	if( NETCfg == NULL )
+	{
+		free( path );
+		return *size;
+	}
+	
+	if( NETCfg->connection[0].flags && NETCfg->connection[0].flags < 0xa0 )
+	{
+		NETCfg->header4 = 0x01;
+		NETCfg->header5 = 0x07;
+		if( !NETCfg->connection[0].ssid_length )
+			tmp += 0x01;
+		if( NETCfg->connection[0].dns1[0] == 0 )
+			tmp += 0x02;
+		if( NETCfg->connection[0].ip[0] == 0 )
+			tmp += 0x04;
+		if( NETCfg->connection[0].proxy_settings.use_proxy )
+			tmp += 0x16;
+			
+		NETCfg->connection[0].flags = tmp;
+			
+		NANDWriteFileSafe( path, NETCfg, *size );
+	}	
+	else if( NETCfg->connection[1].flags && NETCfg->connection[1].flags < 0xa0 )
+	{
+		NETCfg->header4 = 0x01;
+		NETCfg->header5 = 0x07;
+		if( !NETCfg->connection[1].ssid_length )
+			tmp += 0x01;
+		if( NETCfg->connection[1].dns1[0] == 0 )
+			tmp += 0x02;
+		if( NETCfg->connection[1].ip[0] == 0 )
+			tmp += 0x04;
+		if( NETCfg->connection[1].proxy_settings.use_proxy )
+			tmp += 0x16;
+			
+		NETCfg->connection[1].flags = tmp;
+			
+		NANDWriteFileSafe( path, NETCfg, *size );
+	}	
+	else if( NETCfg->connection[2].flags && NETCfg->connection[2].flags < 0xa0 )
+	{
+		NETCfg->header4 = 0x01;
+		NETCfg->header5 = 0x07;
+		if( !NETCfg->connection[2].ssid_length )
+			tmp += 0x01;
+		if( NETCfg->connection[2].dns1[0] == 0 )
+			tmp += 0x02;
+		if( NETCfg->connection[2].ip[0] == 0 )
+			tmp += 0x04;
+		if( NETCfg->connection[2].proxy_settings.use_proxy )
+			tmp += 0x16;
+			
+		NETCfg->connection[2].flags = tmp;
+			
+		NANDWriteFileSafe( path, NETCfg, *size );
+	}	
+	
+	free( NETCfg );
+	free( size );
+	free( path );
+	
+	return 0;	
 }

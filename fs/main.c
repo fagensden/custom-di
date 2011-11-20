@@ -115,7 +115,7 @@ int _main( int argc, char *argv[] )
 	DIR dir;
 	UINT toread, read_ok;
 
-	thread_set_priority( 0, 0x11 );
+	thread_set_priority( 0, 0x58 );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-SD: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
@@ -345,7 +345,7 @@ int _main( int argc, char *argv[] )
 	FS_CreateDir("/tmp");
 	FS_CreateDir("/import");	
 	
-
+	thread_set_priority( 0, 0x08 );
 /*
 	f_mkdir("/tmp");
 	f_mkdir("/import");

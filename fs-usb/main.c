@@ -162,7 +162,7 @@ void _main(void)
 	s32 counter;
 	size_t slen;
 
-	thread_set_priority( 0, 0x11 );
+	thread_set_priority( 0, 0x58 );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-USB: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
@@ -375,7 +375,7 @@ void _main(void)
 	FS_CreateDir("/tmp");
 	FS_CreateDir("/import");	
 	
-
+	thread_set_priority( 0, 0x08 );
 /*
 	f_mkdir("/tmp");
 	f_mkdir("/import");
