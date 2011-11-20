@@ -27,15 +27,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "sdhcvar.h"
 #include "FS.h"
 
-/*
-#define NANDPATHFILE "/sneek/nandpath.bin"
-#define DIPATHFILE "/sneek/dipath.bin"
-#define MAXPATHLEN	16
-
-extern char nandroot[0x20] ALIGNED(32);
-extern char diroot[0x20] ALIGNED(32);
-*/
-
 #define DIPATHFILE 		"/sneek/dipath.bin"
 #define NANDPATHFILE	"/sneek/nandpath.bin"
 #define PATHFILE 		"/sneek/nandcfg.bin"
@@ -124,10 +115,7 @@ int _main( int argc, char *argv[] )
 	DIR dir;
 	UINT toread, read_ok;
 
-//	thread_set_priority( 0, 0x58 );
-// sneek dev. 172
-	thread_set_priority( 0, 0x0b );
-
+	thread_set_priority( 0, 0x11 );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-SD: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );

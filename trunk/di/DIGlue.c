@@ -96,12 +96,12 @@ void DVDInit( void )
 				default:
 				case FR_DISK_ERR:
 				{
-					dbgprintf("DIP: Disk error\n", fres );
+					//dbgprintf("DIP: Disk error\n", fres );
 					f_mount(0,0);
 					MountFail++;
 					if( MountFail == 10 )
 					{
-						dbgprintf("DIP:too much fail! looping now!\n");
+						//dbgprintf("DIP:too much fail! looping now!\n");
 						while(1);
 					}
 					udelay(500000);

@@ -34,8 +34,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define NANDDI_OFF		0x80
 #define NANDINFO_SIZE	0xC0
 
-#define MAXPATHLEN	16
-
 FATFS fatfs;
 
 extern char nandroot[0x40] ALIGNED(32);
@@ -163,12 +161,8 @@ void _main(void)
 	u32 usenfol=0;
 	s32 counter;
 	size_t slen;
-	//u32 counter;
-	//UINT toread, read_ok;
 
-//	thread_set_priority( 0, 0x58 );
-// sneek dev. 172
-	thread_set_priority( 0, 0x0b );
+	thread_set_priority( 0, 0x11 );
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: FFS-USB: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
@@ -291,15 +285,10 @@ void _main(void)
 			while( f_readdir( &dir, &FInfo ) == FR_OK )
 			{
 				if( FInfo.lfsize )
-				{
-//					memcpy( NInfo, FInfo.lfname, NANDDESC_OFF );
 					memcpy( NInfo+NANDDESC_OFF, FInfo.lfname, NANDDESC_OFF );
-				}
 				else
-				{
-//					memcpy( NInfo, FInfo.fname, NANDDESC_OFF );
 					memcpy( NInfo+NANDDESC_OFF, FInfo.fname, NANDDESC_OFF );
-				}
+
 				
 				strcpy(fpath,NANDFOLDER);
 				slen = strlen(fpath);
@@ -316,14 +305,7 @@ void _main(void)
 				//no need to do this if nandroot is empty
 				if(nandroot[0] != 0)
 				{
-//					strcpy(fpath,NANDFOLDER);
-//					slen = strlen(fpath);
-//					fpath[slen] = '/';
-//					strncpy(fpath+slen+1,(char*)(NInfo),0x80-slen-1);
 					slen = strlen(nandroot);
-//					dbgprintf("FS-USB nandroot= %s\n",nandroot);
-//					dbgprintf("FS-USB fpath= %s\n",fpath);
-
 					if (memcmp(nandroot,fpath,slen)==0)
 					{
 						NandCFG->NandSel = ncnt;
@@ -351,20 +333,13 @@ void _main(void)
 			f_lseek( &fil, 0 );
 			f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
 			f_close( &fil );
-			//f_open( &fil, path, FA_READ );
-			//usenfol = 1;
 		}
 		else
 		{
 			usenfol = 0;
 		}
 	}
-/*
-	else
-	{
-		usenfol = 1;
-	}
-*/	
+
 	if( usenfol )
 	{
 		if( NandCFG )
@@ -374,13 +349,7 @@ void _main(void)
 		f_open( &fil, path, FA_READ );
 		f_read( &fil, NandCFG, fil.fsize, &read );
 		f_close(&fil);
-
-		//strcpy(nandroot,NANDFOLDER);
-		//slen = strlen(nandroot);
-		//nandroot[slen] = '/';
-		//strncpy(nandroot+slen+1,(char*)(NandCFG->NandInfo[NandCFG->NandSel]),0x40-slen-1);
 		__sprintf( nandroot, "%.63s", NandCFG->NandInfo[NandCFG->NandSel] );
-//		memcpy(nandroot,(char*)(NandCFG->NandInfo[NandCFG->NandSel]),0x40);
 	}
 	
 	dbgprintf("FS-USB final nandroot= %s\n",nandroot);
@@ -394,53 +363,6 @@ void _main(void)
 		FS_CreateDir("/sneekcache");
 	}
 	
-		
-	/*strcpy( path, DIPATHFILE );
-
-	diroot[0] = 0;
-	if( f_open( &fil, (char*)path, FA_READ ) == FR_OK )
-	{
-		if (fil.fsize > 0)
-		{
-			if (fil.fsize <= (MAXPATHLEN + 16))
-			{
-				toread = (UINT)(fil.fsize);
-			}
-			else
-			{
-				toread = MAXPATHLEN + 16;
-			}
-			if(f_read(&fil,npath,toread,&read_ok) == FR_OK)
-			{
-				diroot[0] = '/';
-				counter = 0;
-				while (counter < read_ok)
-				{
-					//we might terminate with <CR> <LF> <0> or <space>
-					if ((npath[counter] != 13)&&(npath[counter] != 10)&&(npath[counter] != 0)&&(npath[counter] != 32))
-					{
-						diroot[counter+1] = npath[counter];
-						// just in case counter might reach read_ok
-						diroot[counter+2] = 0;
-						counter++;
-					}
-					else
-					{
-						diroot[counter+1] = 0;
-						counter = read_ok;
-					}
-				}
-			}
-		}
-		f_close(&fil);
-		//check if the nandroot folder exist
-		dbgprintf("Di folder set to %s\n",diroot);
-		strcpy( path, diroot );
-		if (f_opendir(&dir,path) != FR_OK)
-		{
-			strcpy(diroot,"sneek");
-		}
-	}*/
 	heap_free( 0, fpath );
 	heap_free( 0, NInfo );
 	heap_free( 0, path );

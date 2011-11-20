@@ -43,6 +43,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define FST_EXTR		2
 #define WBFS_CONF		3
 #define DEBUG_READ		4
+#define EXTRACT_OBNR	5
+
+#define FILECACHE_MAX	5
+#define BLOCKCACHE_MAX	5
+#define FILESPLITS_MAX	10
 
 enum disctypes
 {
@@ -88,6 +93,8 @@ enum opcodes
 	DVD_READ				= 0x41,
 	DVD_WRITE				= 0x42,
 	DVD_CLOSE				= 0x43,
+	
+	DVD_EXTRACT_OBNR		= 0x44,
 
 };
 
@@ -184,16 +191,12 @@ typedef struct
 	s32 File;
 } FileCache;
 
-#define FILECACHE_MAX	5
-
 typedef struct
 {	
 	u64 Offset;
 	u32 Size;
 	char Path[128];
 } FileSplits;
-
-#define FILESPLITS_MAX	10
 
 typedef struct
 {
@@ -206,8 +209,6 @@ typedef struct
 	u8 bl_buf[0x7c00];
 	u32 bl_num;
 } BlockCache;
-
-#define BLOCKCACHE_MAX	5
 
 typedef struct
 {
