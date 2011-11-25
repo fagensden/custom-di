@@ -206,7 +206,7 @@ typedef struct
 
 typedef struct
 { 
-	u8 bl_buf[0x7c00];
+//	u8 bl_buf[0x7c00];
 	u32 bl_num;
 } BlockCache;
 
@@ -252,7 +252,8 @@ s32 DVDLowReadFiles( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadDiscIDFiles( u32 Offset, u32 Length, void *ptr );
 s32 WBFS_Read( u64 offset, u32 length, void *ptr );
-s32 WBFS_Read_Block( u64 block, void *ptr );
+//s32 WBFS_Read_Block( u64 block, void *ptr );
+s32 WBFS_Read_Blockn( u64 block, u32 bl_num ); 
 s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr);
 s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length );
 s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode );
