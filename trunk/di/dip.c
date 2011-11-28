@@ -31,7 +31,6 @@ static u32 DICover ALIGNED(32);
 static u32 ChangeDisc ALIGNED(32);
 DIConfig *DICfg;
 NandConfig *NandCfg;
-GameConfig *GameCFG;
 GameTitles *GT;
 
 WBFSInfo *WBFSInf;
@@ -90,10 +89,6 @@ u32 data_offset=0;
 u32 data_size=0;
 u32 cert_offset=0;
 u32 cert_size=0;
-//u32 dol_offset=0;
-//u32 dol_size=0;
-u32 fst_offset=0;
-u32 fst_size=0;
 
 static u32 bufcache_init=0;
 u8* bufrb ALIGNED (32);
@@ -389,8 +384,9 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
-		DICfg->SlotID	= 0;	
-		DICfg->Config = CONFIG_AUTO_UPDATE_LIST;
+		DICfg->SlotID	= 0;
+		/*** Disable auto update functions because they don't work probably! ***/
+		//DICfg->Config = CONFIG_AUTO_UPDATE_LIST;
 		DICfg->Region = GetSystemMenuRegion();
 		
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
@@ -601,44 +597,52 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 				while( DVDReadDir() == FR_OK )
 				{					
 					entry_found = 0;
-					size_t entsize;
-					entsize = strlen(DVDDirGetEntryName());
-
-					if( entsize  > 63 )
+					strcpy( WBFSPath, "/wbfs/" );
+					
+					if( strlen( DVDDirGetEntryName() ) > 63 )
 						continue;
-
-					//if( strncmp( DVDDirGetEntryName() + entsize -4, ".txt", 4 ) == 0 )
-					//	continue;
-				
-					if( strncmp( DVDDirGetEntryName() + entsize -5, ".wbfs", 5 ) == 0 )
+						
+					if( strchr( DVDDirGetEntryName(), '.' ) != NULL )
 					{
-						sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
-						entry_found = 1;
-					}
-					//A dot near the end of name is considered a file instead of a folder
-					mch = strchr(DVDDirGetEntryName(), '.');
-					if( DVDDirGetEntryName() + entsize - mch < 5 )
-						continue;
-					if(entry_found == 0) 
+						//sprintf( WBFSPath, "/wbfs/%s", DVDDirGetEntryName() );
+						strcat( WBFSPath, DVDDirGetEntryName() );
+						
+						if( strncmp( DVDDirGetEntryName()+strlen( DVDDirGetEntryName() )-5, ".wbfs", 5 ) == 0 )
+						{							
+							entry_found = 1;
+						}				
+						else
+						{
+							s32 fd_cf = DVDOpen( WBFSPath, FA_READ );
+							if( fd_cf >= 0 )
+							{
+								DVDClose( fd_cf );
+								//dbgprintf( "Skipping file: %s\n", DVDDirGetEntryName() );
+								continue;
+							}
+						}
+					}					
+					
+					if( !entry_found ) 
 					{					
-						if	( entsize == 6 ) 
+						if( strlen( DVDDirGetEntryName() ) == 6 ) 
 						{
 							strcpy ( WBFSFile, DVDDirGetEntryName() );
 							entry_found = 1;
 						}
 						else 
 						{					
-							mch = strchr(DVDDirGetEntryName(), '_');
+							mch = strchr( DVDDirGetEntryName(), '_' );
 							if( mch - DVDDirGetEntryName() == 6 )
 							{ 						
 								strncpy( WBFSFile, DVDDirGetEntryName(), 6 );
 								WBFSFile[6] = 0;
 								entry_found = 1;
 							}
-							mch = strchr(DVDDirGetEntryName(), ']');
-							if( mch - DVDDirGetEntryName()+1 == entsize ) 						
+							mch = strchr( DVDDirGetEntryName(), ']' );
+							if( mch - DVDDirGetEntryName()+1 == strlen( DVDDirGetEntryName() ) ) 						
 							{	
-								strncpy( WBFSFile, DVDDirGetEntryName() + entsize - 7, 6 );
+								strncpy( WBFSFile, DVDDirGetEntryName() + strlen( DVDDirGetEntryName() ) - 7, 6 );
 								WBFSFile[6] = 0;
 								entry_found = 1;
 							}						
@@ -646,43 +650,38 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 						sprintf( WBFSPath, "/wbfs/%.63s/%s.wbfs", DVDDirGetEntryName(), WBFSFile );
 					}
 					if ( !entry_found )
-					{
-						//dbgprintf( "Skipping Entry: %s\n", DVDDirGetEntryName() );
 						continue;
-					}					
 						
-					if(WBFS_Read( 0x218, 4, buf1 )==WBFS_OK)
+					WBFS_Read( 0x218, 4, buf1 );
+					if( *(vu32*)buf1 == 0x5d1c9ea3 )
 					{
-						if( *(vu32*)buf1 == 0x5d1c9ea3 )
-						{
-							WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
-							strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
+						WBFS_Read( 0x200, DVD_GAMEINFO_SIZE, GameInfo );
+						strncpy( GameInfo+DI_MAGIC_OFF, "WBFS", 4 );
 						
-							if( strncmp( GameInfo, WBFSFile, 6 ) != 0 )
-								strncpy( WBFSFile, GameInfo, 6 );
+						if( strncmp( GameInfo, WBFSFile, 6 ) != 0 )
+							strncpy( WBFSFile, GameInfo, 6 );
 
 #ifdef CUSTOM_TITLES
-							if( cTitles )
+						if( cTitles )
+						{
+							char cmp[8];
+							int ct;
+							for( ct=0; ct<cTitles; ++ct )
 							{
-								char cmp[8];
-								int ct;
-								for( ct=0; ct<cTitles; ++ct )
+								strncpy( cmp, GT->GameTitle[ct], 6 );
+								cmp[6] = 0;
+								if( strcmp( WBFSFile, cmp ) == 0 )
 								{
-									strncpy( cmp, GT->GameTitle[ct], 6 );
-									cmp[6] = 0;
-									if( strcmp( WBFSFile, cmp ) == 0 )
-									{
-										strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
-										Asciify2( GameInfo+DVD_REAL_NAME_OFF );
-										break;
-									}
+									strncpy( GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63 );
+									Asciify2( GameInfo+DVD_REAL_NAME_OFF );
+									break;
 								}
 							}
-#endif						
-							memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
-							DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
-							CurrentGame++;
 						}
+#endif						
+						memcpy( GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen( DVDDirGetEntryName() )+1 );
+						DVDWrite( fd, GameInfo, DVD_GAMEINFO_SIZE );
+						CurrentGame++;
 					}			
 				}
 			}
@@ -742,7 +741,7 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 		DICfg->Gamecount = CurrentGame;
 		//if this is set to zero, the diconfig.bin is only build once
 
-		DICfg->Config = CONFIG_AUTO_UPDATE_LIST;
+		//DICfg->Config = CONFIG_AUTO_UPDATE_LIST;
 		DVDSeek( fd, 0, 0 );
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );		
 		free( RawGameCount);
@@ -943,10 +942,10 @@ s32 DVDSelectGame( int SlotID )
 				data_offset <<= 2;
 
 				WBFS_Encrypted_Read( 0, 0x480, buf2 );
-				//dol_offset 	= *(vu32*)(buf2+0x420);
-				fst_offset  = *(vu32*)(buf2+0x424);
-				fst_size    = *(vu32*)(buf2+0x428);
-				//dol_size    = fst_offset - dol_offset;
+				DolOffset 	= *(vu32*)(buf2+0x420);
+				FSTableOffset  = *(vu32*)(buf2+0x424);
+				FSTableSize    = *(vu32*)(buf2+0x428);
+				DolSize    = FSTableOffset - DolOffset;
 				
 				hfree( buf2 );
 			}
@@ -1342,10 +1341,6 @@ s32 DVDLowReadDiscID( u32 Offset, u32 Length, void *ptr )
 	return DI_SUCCESS;
 }
 
-void DIP_Fatal( char *name, u32 line, char *file, s32 error, char *msg )
-{
-	while(1);
-}
 int DIP_Ioctl( struct ipcmessage *msg )
 {
 	u8  *bufin  = (u8*)msg->ioctl.buffer_in;
@@ -1582,10 +1577,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 									if( offset / (0x7c00 >> 2) == BC[i].bl_num )
 									{
 										ret = WBFS_OK;
-										//memcpy(bufout, BC[i].bl_buf + ( bl_offset << 2 ), bl_length);
-//memcpy_fast
 										memcpy(bufout, bufrb + (i * wii_sector_size) + ( bl_offset << 2 ), bl_length);
-
 										BCRead = 1;
 									}
 								}
@@ -1601,11 +1593,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 								blloc = ( offset+disc_part_offset )>>( WBFSFInf->wbfs_sector_size_s-2 );		
 								valblloc = WBFSInf->disc_usage_table[blloc];
 	
-//								ret = WBFS_Read_Block( ( offset / ( 0x7c00 >> 2 ) ) - ( valblloc * 0x10 ), BC[BCEntry].bl_buf );
-								ret = WBFS_Read_Blockn( ( offset / ( 0x7c00 >> 2 ) ) - ( valblloc * 0x10 ), BCEntry );
-
-								//memcpy( bufout, BC[BCEntry].bl_buf + ( bl_offset << 2 ), bl_length );
-//memcpy_fast								
+								ret = WBFS_Read_Block( ( offset / ( 0x7c00 >> 2 ) ) - ( valblloc * 0x10 ), BCEntry );								
 								memcpy( bufout, bufrb + (BCEntry * wii_sector_size) + ( bl_offset << 2 ), bl_length );
 										
 								BC[BCEntry].bl_num = offset / ( 0x7c00 >> 2 );
@@ -1616,7 +1604,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 							offset += bl_length >> 2;
 							length -= bl_length;
 						}
-						//if( *(u32*)(bufin+8) >= dol_offset && *(u32*)(bufin+8) < dol_offset + dol_size )
+						//if( *(u32*)(bufin+8) >= DolOffset && *(u32*)(bufin+8) < DolOffset + DolSize )
 						//	Region_Patch( bufout, *(u32*)(bufin+4) );
 
 						if(ret != WBFS_OK) 
@@ -1740,11 +1728,6 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 		} break;
 		case DVD_OPEN_PARTITION:
 		{				
-			if( Partition == 1 )
-			{
-				DIP_Fatal( "DVDLowOpenPartition", __LINE__, __FILE__, 0, "Partition already open!");
-			}
-
 			PartitionOffset = *(u32*)(v[0].data+4);
 			PartitionOffset <<= 2;
 
@@ -1897,7 +1880,7 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 
 			s32 ESHandle = IOS_Open("/dev/es", 0 );
 
-			s32 r = IOS_Ioctlv( ESHandle, 0x1C, 4, 2, buffer );
+			IOS_Ioctlv( ESHandle, 0x1C, 4, 2, buffer );
 
 			IOS_Close( ESHandle );
 
@@ -1911,11 +1894,6 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 			hfree( TIK );
 			hfree( CRT );
 			hfree( TMD );
-
-			if( r < 0 )
-			{
-				DIP_Fatal( "DVDLowOpenPartition", __LINE__, __FILE__, r, "ios_ioctlv() failed!");
-			}
 			
 			ret = DI_SUCCESS;
 
@@ -2063,33 +2041,7 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 	return DI_FATAL;
 }
 
-/*
-s32 WBFS_Read_Block( u64 block, void *ptr ) 
-{
-	u8 *bufrb = (u8 *)malloca( wii_sector_size, 0x40 );
-	u8 *iv = (u8 *)malloca( 0x10, 0x40 );
-	u64 offset;
-
-	if( KeyIDT == 0 )
-		Set_key2();		
-	
-	offset = game_part_offset + data_offset + ( wii_sector_size * block );
-	
-	WBFS_Read( offset, wii_sector_size, bufrb );
-	memcpy( iv, bufrb + 0x3d0, 16 );
-
-	aes_decrypt_( KeyIDT, iv, bufrb + 0x400, 0x7c00, bufrb);	
-	memcpy( ptr, bufrb , 0x7c00 );
-	
-	free(bufrb);
-	free(iv);
-	
-	return WBFS_OK;
-}
-*/
-
-
-s32 WBFS_Read_Blockn( u64 block, u32 bl_num ) 
+s32 WBFS_Read_Block( u64 block, u32 bl_num ) 
 {
 	if (bufcache_init == 0)
 	{
@@ -2111,15 +2063,10 @@ s32 WBFS_Read_Blockn( u64 block, u32 bl_num )
 
 	
 	aes_decrypt_( KeyIDT, iv, u8ptr + 0x400 , 0x7c00, u8ptr );	
-	//memcpy( ptr, bufrb , 0x7c00 );
-	//free(bufrb);
 	free(iv);
 	
 	return WBFS_OK;
 }
-
-
-
 
 s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr )  
 {
@@ -2136,10 +2083,8 @@ s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr )
 		
 		if (bl_length > length) 
 			bl_length = length;
-//memcpy_fast
-		//WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), BC[0].bl_buf );
-		//memcpy(ptr, BC[0].bl_buf + (bl_offset << 2), bl_length);		
-		WBFS_Read_Blockn( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
+		
+		WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
 		memcpy(ptr, bufrb + (bl_offset << 2), bl_length);		
 
 		ptr += bl_length;
@@ -2151,7 +2096,6 @@ s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr )
 
 s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length )
 {
-//	u8 *bufrw = (u8 *)malloca(0x7c00, 0x40);
 	u32 bl_offset, bl_length;
 	char *str = (char *)malloca( 128, 32 );
 	sprintf( str, "%s/%s", path, filename );
@@ -2171,12 +2115,8 @@ s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length )
 		blloc = ( offset+disc_part_offset )>>( WBFSFInf->wbfs_sector_size_s-2 );		
 		valblloc = WBFSInf->disc_usage_table[blloc];
 
-//		WBFS_Read_Blockn( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), bufrw );
-//		DVDWrite( writefd, bufrw + ( bl_offset << 2 ), bl_length);					
-
-//memcpy_fast
 		BC[0].bl_num = 0xdeadbeef;
-		WBFS_Read_Blockn( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
+		WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
 		DVDWrite( writefd, bufrb + ( bl_offset << 2 ), bl_length);					
 
 		offset += bl_length >> 2;
@@ -2185,7 +2125,6 @@ s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length )
 	}
 	DVDClose( writefd );
 	free( str );
-//	free( bufrw );
 	return WBFS_OK;
 }
 

@@ -306,6 +306,15 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 		{
 			switch( TitleVersion )
 			{
+				case 450:	// EUR 4.1
+				{
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D800 = 0x4800001C;
+					*(u32*)0x0137D824 = 0x60000000;
+					
+					//Move Disc Channel
+					*(u32*)0x013AF580 = 0x60000000;					
+				} break;				
 				case 482:	// EUR 4.2
 				{
 					//Wii-Disc Region free hack
@@ -342,6 +351,15 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 					//*(u32*)0x01379B40 = 0x60000000;
 					
 				} break;
+				case 449:	// USA 4.1
+				{
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D758 = 0x4800001C;
+					*(u32*)0x0137D77C = 0x60000000;
+					
+					//Move Disc Channel
+					*(u32*)0x013AF580 = 0x60000000;
+				} break;
 				case 481:	// USA 4.2
 				{
 					//Wii-Disc Region free hack
@@ -350,8 +368,6 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 					
 					//Move Disc Channel
 					*(u32*)0x013AFC00 = 0x60000000;
-
-
 				} break;
 				case 513:	// USA 4.3
 				{
@@ -366,36 +382,41 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 					*(u32*)0x013B030C = 0x60000000;
 
 				} break;
-				case 512:   // JAP 4.3
+				case 448:   // JPN 4.1
 				{				
 					//Wii-Disc Region free hack
-					*(u32*)0x0137D234 = 0x4800001C;
-					*(u32*)0x0137DA88 = 0x60000000;
+					*(u32*)0x0137CC0C = 0x4800001C;
+					*(u32*)0x0137CC30 = 0x60000000;
 
-				} break;				
-				case 480:   // JAP 4.2
+				} break;
+				case 480:   // JPN 4.2
 				{				
 					//Wii-Disc Region free hack
 					*(u32*)0x0137D09C = 0x4800001C;
 					*(u32*)0x0137D8F0 = 0x60000000;
 
 				} break;
-				case 518:   // KOR 4.3
+				case 512:   // JPN 4.3
 				{				
 					//Wii-Disc Region free hack
-					*(u32*)0x0137D114 = 0x4800001C;
-					*(u32*)0x0137D968 = 0x60000000;
+					*(u32*)0x0137D234 = 0x4800001C;
+					*(u32*)0x0137DA88 = 0x60000000;
 
-				} break;				
+				} break;
 				case 486:   // KOR 4.2
 				{				
 					//Wii-Disc Region free hack
 					*(u32*)0x0137CF7C = 0x4800001C;
 					*(u32*)0x0137D7D0 = 0x60000000;
 
-				} break;
-				
-				
+				} break;				
+				case 518:   // KOR 4.3
+				{				
+					//Wii-Disc Region free hack
+					*(u32*)0x0137D114 = 0x4800001C;
+					*(u32*)0x0137D968 = 0x60000000;
+
+				} break;	
 			}
 		} break;
 	}
@@ -463,16 +484,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r58 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r63 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r58 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r63 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r58 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r63 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r58 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r63 %s",__DATE__);					
 			}
 		}
 
