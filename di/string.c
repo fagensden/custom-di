@@ -226,10 +226,11 @@ void Asciify2( char *str )
 			case 0x8c:
 			case 0xe2:
 			case 0x27:
+			case 0x80:
 				ctr--;
 				break;
 			case 0x87:
-				*ctr = 0x80; 
+				*ctr = 0x41; 
 				break;
 			case 0xa7:
 				*ctr = 0x87; 
@@ -237,12 +238,12 @@ void Asciify2( char *str )
 			case 0xa0:
 				*ctr = 0x85; 
 				break;
-			case 0xa2:
-				*ctr = 0x83; 
-				break;
-			case 0x80:
-				*ctr = 0x41; 
-				break;
+			//case 0xa2:
+			//	*ctr = 0x83; 
+			//	break;
+			//case 0x80:
+			//	*ctr = 0x41; 
+			//	break;
 			case 0x82:
 				*ctr = 0x41; 
 				break;
@@ -273,6 +274,12 @@ void Asciify2( char *str )
 			case 0xab:
 				*ctr = 0xeb;
 				break;
+			case 0xaf:
+				*ctr = 0x69;
+				break;
+			case 0xa2:
+				*ctr = 0x2d;
+				break;
 			default:
 				*ctr = str[i];
 				break;				
@@ -291,3 +298,17 @@ void upperCase( char *str )
 		if( str[i] >= 'a' && str[i] <= 'z' )
 			str[i] -= 0x20;
 }
+
+char *strcat( char *str1, const char *str2 )
+{
+	char *res = str1;
+	
+	while( *str1 )
+		str1++;
+		
+	while( ( *str1++ = *str2++ ) )
+		;
+		
+	return res;
+}
+

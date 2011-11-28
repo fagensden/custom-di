@@ -27,5 +27,6 @@ int sprintf( char *astr, const char *fmt, ...);
 void Asciify( char *str );
 void Asciify2( char *str );
 void upperCase( char *str );
+char *strcat( char *str1, const char *str2 );
 
 #endif
