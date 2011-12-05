@@ -30,6 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "FS.h"
 #include "NAND.h"
 #include "alloc.h"
+#include "sysconf.h"
 
 #define SHA_INIT 0
 #define SHA_UPDATE 1
@@ -45,6 +46,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define	ES_ETIKTMD		-1029
 #define	ES_EHASH		-1022
 #define ES_EFAIL		-4100
+#define ES_EBADFILE		-6001
+#define ES_ENOENT		-6002
+#define ES_ENOTINIT		-6004
+#define ES_EBADSAVE		-6009
 
 // ES ioctl's
 #define IOCTL_ES_ADDTICKET				0x01
@@ -257,8 +262,7 @@ typedef struct _netconfig
     u8 header4;
     u8 header5;
     u8 header6;
-    u8 header7;
- 
+    u8 header7; 
     connection_t connection[3];
 } netconfig_t;
 
