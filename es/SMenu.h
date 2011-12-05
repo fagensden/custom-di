@@ -60,6 +60,26 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define GAMEINFO			0
 #define NANDINFO			1
 
+enum SMConfig
+{
+	CONFIG_PRESS_A				= (1<<0),
+	CONFIG_NO_BG_MUSIC			= (1<<1),
+	CONFIG_NO_SOUND				= (1<<2),
+	CONFIG_MOVE_DISC_CHANNEL	= (1<<3),
+	CONFIG_REM_NOCOPY			= (1<<4),
+	CONFIG_REGION_FREE			= (1<<5),
+	CONFIG_REGION_CHANGE		= (1<<6),
+	CONFIG_RES_1				= (1<<7),
+};
+
+typedef struct
+{	
+	u32 EULang;
+	u32 USLang;
+	u32 Config;
+	u32 Padding;
+} HacksConfig; 
+
 void SMenuInit( u64 TitleID, u16 TitleVersion );
 u32 SMenuFindOffsets( void *ptr, u32 SearchSize );
 void SMenuAddFramebuffer( void );

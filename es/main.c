@@ -477,7 +477,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				s32 fd = IOS_Open( path, ISFS_OPEN_WRITE );
 				if( fd < 0 )
 				{
-					dbgprintf("IOS_Open(\"%s\"):%d\n", path, fd );
+					//dbgprintf("IOS_Open(\"%s\"):%d\n", path, fd );
 					ret = fd;
 				} else {
 					ret = IOS_Write( fd, (u8*)(v[0].data), v[0].len );
@@ -523,7 +523,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				s32 fd = IOS_Open( path, ISFS_OPEN_WRITE );
 				if( fd < 0 )
 				{
-					dbgprintf("ES:IOS_Open(\"%s\"):%d\n", path, fd );
+					//dbgprintf("ES:IOS_Open(\"%s\"):%d\n", path, fd );
 					ret = fd;
 				} else {
 
@@ -543,8 +543,8 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 						//this function moves the file, overwriting the target
 						ret = ISFS_Rename( path, dstpath );
-						if( ret < 0 )
-							dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, dstpath, ret );
+						//if( ret < 0 )
+						//	dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, dstpath, ret );
 
 						free( dstpath );
 					}
@@ -702,7 +702,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ret = ES_SUCCESS;
 			}
 
-			dbgprintf("ES:GetDITicketViews( %08x-%08x ):%d\n", (u32)(TitleID>>32), (u32)TitleID, ret );
+			//dbgprintf("ES:GetDITicketViews( %08x-%08x ):%d\n", (u32)(TitleID>>32), (u32)TitleID, ret );
 		} break;
 		case IOCTL_ES_GETVIEWS:
 		{
@@ -723,7 +723,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ret = ES_SUCCESS;
 			}
 
-			dbgprintf("ES:GetTicketViews( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
+			//dbgprintf("ES:GetTicketViews( %08x-%08x ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), ret );
 		} break;
 		case IOCTL_ES_GETTMDVIEWSIZE:
 		{
@@ -742,7 +742,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ret = ES_SUCCESS;
 			}
 
-			dbgprintf("ES:GetTMDViewSize( %08x-%08x, %d ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
+			//dbgprintf("ES:GetTMDViewSize( %08x-%08x, %d ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
 		} break;
 		case IOCTL_ES_DIGETTMDVIEW:
 		{
@@ -754,7 +754,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			free( data );
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:DIGetTMDView():%d\n", ret );
+			//dbgprintf("ES:DIGetTMDView():%d\n", ret );
 		} break;
 		case IOCTL_ES_DIGETTMDVIEWSIZE:
 		{
@@ -766,19 +766,19 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			free( TMD );
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:DIGetTMDViewSize( %d ):%d\n", *(u32*)(v[1].data), ret );
+			//dbgprintf("ES:DIGetTMDViewSize( %d ):%d\n", *(u32*)(v[1].data), ret );
 		} break;
 		case IOCTL_ES_CLOSECONTENT:
 		{
 			IOS_Close( *(u32*)(v[0].data) );
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:CloseContent(%d):%d\n", *(u32*)(v[0].data), ret );
+			//dbgprintf("ES:CloseContent(%d):%d\n", *(u32*)(v[0].data), ret );
 		} break;
 		case IOCTL_ES_SEEKCONTENT:
 		{
 			ret = IOS_Seek( *(u32*)(v[0].data), *(u32*)(v[1].data), *(u32*)(v[2].data) );
-			dbgprintf("ES:SeekContent( %d, %d, %d ):%d\n", *(u32*)(v[0].data), *(u32*)(v[1].data), *(u32*)(v[2].data), ret );
+			//dbgprintf("ES:SeekContent( %d, %d, %d ):%d\n", *(u32*)(v[0].data), *(u32*)(v[1].data), *(u32*)(v[2].data), ret );
 		} break;
 		case IOCTL_ES_READCONTENT:
 		{
@@ -789,7 +789,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			{
 				if( memcmp( (void*)((u8*)(v[1].data)+i), sig_fwrite, sizeof(sig_fwrite) ) == 0 )
 				{
-					dbgprintf("ES:[patcher] Found __fwrite pattern:%08X\n",  (u32)((u8*)(v[1].data)+i) | 0x80000000 );
+					//dbgprintf("ES:[patcher] Found __fwrite pattern:%08X\n",  (u32)((u8*)(v[1].data)+i) | 0x80000000 );
 					memcpy( (void*)((u8*)(v[1].data)+i), patch_fwrite, sizeof(patch_fwrite) );
 				}
 				//if( *(vu32*)((u8*)(v[1].data)+i) == 0x3C608000 )
@@ -804,12 +804,12 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				//}
 			}
 
-			dbgprintf("ES:ReadContent( %d, %p, %d ):%d\n", *(u32*)(v[0].data), v[1].data, v[1].len, ret );
+			//dbgprintf("ES:ReadContent( %d, %p, %d ):%d\n", *(u32*)(v[0].data), v[1].data, v[1].len, ret );
 		} break;
 		case IOCTL_ES_OPENCONTENT:
 		{
 			ret = ES_OpenContent( TitleID, *(u32*)(v[0].data) );
-			dbgprintf("ES:OpenContent(%d):%d\n", *(u32*)(v[0].data), ret );
+			//dbgprintf("ES:OpenContent(%d):%d\n", *(u32*)(v[0].data), ret );
 		} break;
 		case IOCTL_ES_OPENTITLECONTENT:
 		{
@@ -817,7 +817,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			ret = ES_OpenContent( *iTitleID, *(u32*)(v[2].data) );
 
-			dbgprintf("ES:OpenTitleContent( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[2].data), ret );
+			//dbgprintf("ES:OpenTitleContent( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[2].data), ret );
 		} break;
 		case IOCTL_ES_GETTITLEDIR:
 		{
@@ -828,17 +828,17 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			memcpy( (u8*)(v[1].data), path, 32 );
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:GetTitleDataDir(%s):%d\n", v[1].data, ret );
+			//dbgprintf("ES:GetTitleDataDir(%s):%d\n", v[1].data, ret );
 		} break;
 		case IOCTL_ES_LAUNCH:
 		{
 			memcpy( iTitleID, (u8*)(v[0].data), sizeof(u64) );
 
-			dbgprintf("ES:LaunchTitle( %08x-%08x )\n", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
+			//dbgprintf("ES:LaunchTitle( %08x-%08x )\n", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
 
 			ret = ES_LaunchTitle( (u64*)(v[0].data), (u8*)(v[1].data) );
 
-			dbgprintf("ES_LaunchTitle Failed with:%d\n", ret );
+			//dbgprintf("ES_LaunchTitle Failed with:%d\n", ret );
 
 		} break;
 		case IOCTL_ES_SETUID:
@@ -860,8 +860,8 @@ void ES_Ioctlv( struct ipcmessage *msg )
 						ret = *size;
 					} else {
 						ret = _cc_ahbMemFlush( 0xF, TMD->GroupID );
-						if( ret < 0 )
-							dbgprintf("_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, TMD->GroupID, ret );
+						//if( ret < 0 )
+						//	dbgprintf("_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, TMD->GroupID, ret );
 						free( TMD );
 					}
 				} else {
@@ -869,34 +869,34 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				}
 			}
 
-			dbgprintf("ES:SetUID(%08x-%08x):%d\n", (u32)(TitleID>>32), (u32)TitleID, ret );
+			//dbgprintf("ES:SetUID(%08x-%08x):%d\n", (u32)(TitleID>>32), (u32)TitleID, ret );
 		} break;
 		case IOCTL_ES_GETTITLEID:
 		{
 			memcpy( (u8*)(v[0].data), &TitleID, sizeof(u64) );
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:GetTitleID(%08x-%08x):%d\n", (u32)(*(u64*)(v[0].data)>>32), (u32)*(u64*)(v[0].data), ret );
+			//dbgprintf("ES:GetTitleID(%08x-%08x):%d\n", (u32)(*(u64*)(v[0].data)>>32), (u32)*(u64*)(v[0].data), ret );
 		} break;
 		case IOCTL_ES_GETOWNEDTITLECNT:
 		{
 			ret = ES_GetNumOwnedTitles( (u32*)(v[0].data) );
-			dbgprintf("ES:GetOwnedTitleCount(%d):%d\n", *(u32*)(v[0].data), ret );
+			//dbgprintf("ES:GetOwnedTitleCount(%d):%d\n", *(u32*)(v[0].data), ret );
 		} break;
 		case IOCTL_ES_GETTITLECNT:
 		{
 			ret = ES_GetNumTitles( (u32*)(v[0].data) );
-			dbgprintf("ES:GetTitleCount(%d):%d\n", *(u32*)(v[0].data), ret );
+			//dbgprintf("ES:GetTitleCount(%d):%d\n", *(u32*)(v[0].data), ret );
 		} break;
 		case IOCTL_ES_GETOWNEDTITLES:
 		{
 			ret = ES_GetOwnedTitles( (u64*)(v[1].data) );
-			dbgprintf("ES:GetOwnedTitles():%d\n", ret );
+			//dbgprintf("ES:GetOwnedTitles():%d\n", ret );
 		} break;
 		case IOCTL_ES_GETTITLES:
 		{
 			ret = ES_GetTitles( (u64*)(v[1].data) );
-			dbgprintf("ES:GetTitles():%d\n", ret );
+			//dbgprintf("ES:GetTitles():%d\n", ret );
 		} break;
 		/*
 			Returns 0 views if title is not installed but always ES_SUCCESS as return
@@ -918,7 +918,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			}
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:GetTicketViewCount( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
+			//dbgprintf("ES:GetTicketViewCount( %08x-%08x, %d):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
 		} break;
 		case IOCTL_ES_GETSTOREDTMDSIZE:
 		{
@@ -948,7 +948,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				free( status );
 			}
 
-			dbgprintf("ES:GetStoredTMDSize( %08x-%08x, %d ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
+			//dbgprintf("ES:GetStoredTMDSize( %08x-%08x, %d ):%d\n", (u32)(*iTitleID>>32), (u32)(*iTitleID), *(u32*)(v[1].data), ret );
 		} break;
 		case IOCTL_ES_GETSTOREDTMD:
 		{
@@ -967,7 +967,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				IOS_Close( fd );
 			}
 
-			dbgprintf("ES:GetStoredTMD(%08x-%08x):%d\n", (u32)((*(u64*)(v[0].data))>>32), (u32)((*(u64*)(v[0].data))), ret );
+			//dbgprintf("ES:GetStoredTMD(%08x-%08x):%d\n", (u32)((*(u64*)(v[0].data))>>32), (u32)((*(u64*)(v[0].data))), ret );
 		} break;
 		case 0x3B:
 		{
@@ -981,7 +981,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 				ES:IOS_Ioctlv( 154 0x3b 4 2 0x138f17f0 )
 			*/
 			ret = ES_FATAL;
-			dbgprintf("ES:DIVerfiyTikView():%d\n", ret );
+			//dbgprintf("ES:DIVerfiyTikView():%d\n", ret );
 		} break;
 		case IOCTL_ES_DIVERIFY:
 		{
@@ -989,28 +989,28 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			if( (u32*)(v[4].data) == NULL )		// key
 			{
-				dbgprintf("key ptr == NULL\n");
+				//dbgprintf("key ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( v[4].len != 4 ) {
-				dbgprintf("key len invalid, %d != 4\n", v[4].len );
+				//dbgprintf("key len invalid, %d != 4\n", v[4].len );
 				ret = ES_FATAL;
 			}
 
 			if( (u8*)(v[3].data) == NULL )		// TMD
 			{
-				dbgprintf("TMD ptr == NULL\n");
+				//dbgprintf("TMD ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( ((*(u16*)(v[3].data+0x1DE))*36+0x1E4) != v[3].len ) {
-				dbgprintf("TMD len invalid, %d != %d\n", ((*(u16*)(v[3].data+0x1DE))*36+0x1E4), v[3].len );
+				//dbgprintf("TMD len invalid, %d != %d\n", ((*(u16*)(v[3].data+0x1DE))*36+0x1E4), v[3].len );
 				ret = ES_FATAL;
 			}
 
 			if( (u8*)(v[2].data) == NULL )		// tik
 			{
-				dbgprintf("tik ptr == NULL\n");
+				//dbgprintf("tik ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( v[2].len != 0x2A4 ) {
-				dbgprintf("tik len invalid, %d != 0x2A4\n", v[2].len );
+				//dbgprintf("tik len invalid, %d != 0x2A4\n", v[2].len );
 				ret = ES_FATAL;
 			}
 
@@ -1050,31 +1050,31 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			pKeyIDT = &KeyIDT;
 
 			ret = CreateKey( pKeyIDT, 0, 0 );
-			if( ret < 0 )
-			{
-				dbgprintf("CreateKey( %p, %d, %d ):%d\n",&KeyIDT, 0, 0, ret );
-				dbgprintf("KeyID:%d\n", KeyIDT );
-			}
-			else
-			{
+			//if( ret < 0 )
+			//{
+				//dbgprintf("CreateKey( %p, %d, %d ):%d\n",&KeyIDT, 0, 0, ret );
+				//dbgprintf("KeyID:%d\n", KeyIDT );
+			//}
+			//else
+			//{
 
 				s32 r = syscall_71( KeyIDT, 8 );
-				if( r < 0 )
-				{
-					dbgprintf("ES:keyid:%p:%08x\n",&KeyIDT, KeyIDT );
-					dbgprintf("ES:syscall_71():%d\n", r);
-				}
+				//if( r < 0 )
+				//{
+				//	dbgprintf("ES:keyid:%p:%08x\n",&KeyIDT, KeyIDT );
+				//	dbgprintf("ES:syscall_71():%d\n", r);
+				//}
 				
-				dbgprintf(" ES key setting parameters \n");
+				//dbgprintf(" ES key setting parameters \n");
 				hexdump (v[0].data,0x10);
 				hexdump (v[1].data,0x10); 
 				
 				
 				ret = syscall_5d( KeyIDT, 0, 4, 1, 0, (void *)(v[0].data), (void *)(v[1].data) );
-				if( ret < 0 )
-					dbgprintf("syscall_5d( %d, %d, %d, %d, %d, %p, %p ):%d\n", KeyIDT, 0, 4, 1, ret, (void *)(v[0].data), (void *)(v[1].data), ret );
+				//if( ret < 0 )
+				//	dbgprintf("syscall_5d( %d, %d, %d, %d, %d, %p, %p ):%d\n", KeyIDT, 0, 4, 1, ret, (void *)(v[0].data), (void *)(v[1].data), ret );
 				
-			}
+			//}
 //we will recycle pKeyIDT and use it to transfer the KeyIDT to DI
 			pKeyIDT = (u32*)(v[2].data);
 			*pKeyIDT = KeyIDT;				
@@ -1086,10 +1086,10 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		{
 			for( i=0; i<InCount+OutCount; ++i)
 			{
-				dbgprintf("data:%p len:%d(0x%X)\n", v[i].data, v[i].len, v[i].len );
+				//dbgprintf("data:%p len:%d(0x%X)\n", v[i].data, v[i].len, v[i].len );
 				hexdump( (u8*)(v[i].data), v[i].len );
 			}
-			dbgprintf("ES:IOS_Ioctlv( %d 0x%x %d %d 0x%p )\n", msg->fd, msg->ioctlv.command, msg->ioctlv.argc_in, msg->ioctlv.argc_io, msg->ioctlv.argv);
+			//dbgprintf("ES:IOS_Ioctlv( %d 0x%x %d %d 0x%p )\n", msg->fd, msg->ioctlv.command, msg->ioctlv.argc_in, msg->ioctlv.argc_io, msg->ioctlv.argv);
 			ret = ES_FATAL;
 		} break;
 	}

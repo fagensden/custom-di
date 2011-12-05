@@ -124,7 +124,7 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 					ret = IOS_Open( path, 1 );
 					//dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
 				} else {
-					dbgprintf("ES:iOpenContent->Fatal Error: tried to open nonexisting content!\n");
+					//dbgprintf("ES:iOpenContent->Fatal Error: tried to open nonexisting content!\n");
 					hexdump( TMD->Contents[i].SHA1, 0x14 );
 					ret = ES_NFOUND;
 				}
@@ -177,7 +177,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		*TitleID = 0x100000002LL;
 	}
 
-	dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
+	//dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
 
 	if( (u32)(*TitleID>>32) == 1 && (u32)(*TitleID) != 2 )	//	IOS loading requested
 	{
@@ -192,7 +192,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, size );
 		if( TMD == NULL )
 		{
-			dbgprintf("ES:Failed to open:\"%s\":%d\n", path, *size );
+			//dbgprintf("ES:Failed to open:\"%s\":%d\n", path, *size );
 			free( path );
 			free( size );
 			PanicBlink( 0, 1,-1);
@@ -204,7 +204,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		free( TMD );
 	}
 
-	dbgprintf("ES:Loading IOS%d v%d...\n", IOSVersion, TitleVersion );
+	//dbgprintf("ES:Loading IOS%d v%d...\n", IOSVersion, TitleVersion );
 	
 	//Load TMD of the requested IOS and build KernelVersion
 	_sprintf( path, "/title/00000001/%08x/content/title.tmd", IOSVersion );
@@ -212,7 +212,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, size );
 	if( TMD == NULL )
 	{
-		dbgprintf("ES:Failed to open:\"%s\":%d\n", path, *size );
+		//dbgprintf("ES:Failed to open:\"%s\":%d\n", path, *size );
 		free( path );
 		free( size );
 		PanicBlink( 0, 1,1,-1);
@@ -223,7 +223,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	SetKernelVersion( *KernelVersion );
 
 	u32 version = GetKernelVersion();
-	dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
+	//dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
 
 	free( TMD );
 
@@ -235,12 +235,11 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		IOSVersion = 56;
 
 	s32 r = ES_LoadModules( IOSVersion );
-	dbgprintf("ES:ES_LoadModules(%d):%d\n", IOSVersion, r );
+	//dbgprintf("ES:ES_LoadModules(%d):%d\n", IOSVersion, r );
 	if( r < 0 )
 		PanicBlink( 0, 1,1,1,1,-1 );
 //	}
-
-	_sprintf( path, "/sys/disc.sys" );
+	_sprintf( path, "/sys/disc.sys" );	
 	
 	if( LaunchDisc )
 	{
@@ -250,11 +249,13 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		{
 			*TitleID = *(vu64*)data;		// Set TitleID to disc Title
 
+			DoGameRegion( *(vu64*)data );
+
 			r = LoadPPC( data+0x29A );
-			dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
+			//dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
 
 			r = ISFS_Delete( path );
-			dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
+			//dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
 
 			free( data );
 			free( path );
@@ -265,6 +266,9 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	}
 	
 	ISFS_Delete( path );
+	
+	if( !LaunchDisc ) 
+		DoSMRegion( *TitleID, TitleVersion );
 
 	r = ES_LaunchSYS( TitleID );
 
@@ -292,7 +296,7 @@ s32 ES_Sign( u64 *TitleID, u8 *data, u32 len, u8 *sign, u8 *cert )
 	r = syscall_74( *Key );
 	if( r < 0 )
 	{
-		dbgprintf("syscall_74():%d\n", r );
+		//dbgprintf("syscall_74():%d\n", r );
 		goto ES_Sign_CleanUp;
 	}
 
@@ -301,7 +305,7 @@ s32 ES_Sign( u64 *TitleID, u8 *data, u32 len, u8 *sign, u8 *cert )
 	r = syscall_76( *Key, issuer, NewCert );
 	if( r < 0 )
 	{
-		dbgprintf("syscall_76( %d, %p, %p ):%d\n", *Key, issuer, NewCert, r );
+		//dbgprintf("syscall_76( %d, %p, %p ):%d\n", *Key, issuer, NewCert, r );
 		goto ES_Sign_CleanUp;
 	}
 
@@ -637,12 +641,12 @@ s32 ES_GetUID( u64 *TitleID, u16 *UID )
 			s32 r = ISFS_CreateFile( path, 0, 3, 3, 3 );
 			if( r < 0 )
 			{
-				dbgprintf("ES:ES_GetUID():Could not create \"/sys/uid.sys\"! Error:%d\n", r );
+				//dbgprintf("ES:ES_GetUID():Could not create \"/sys/uid.sys\"! Error:%d\n", r );
 				free( path );
 				free( size );
 				return r;
 			} else {
-				dbgprintf("ES:Created new uid.sys!\n");
+				//dbgprintf("ES:Created new uid.sys!\n");
 				//Create default system menu entry
 				s32 fd = IOS_Open( path, 2 );
 				if( fd < 0 )
@@ -667,7 +671,7 @@ s32 ES_GetUID( u64 *TitleID, u16 *UID )
 
 		} else {
 			free( path );
-			dbgprintf("ES:ES_GetUID():Could not open \"/sys/uid.sys\"! Error:%d\n", *size );
+			//dbgprintf("ES:ES_GetUID():Could not open \"/sys/uid.sys\"! Error:%d\n", *size );
 			return *size;
 		}
 		
@@ -712,7 +716,7 @@ s32 ES_GetUID( u64 *TitleID, u16 *UID )
 
 		*UID = 0x1000+*size/12+1;
 
-		dbgprintf("ES:TitleID not found adding new UID:0x%04x\n", *UID );
+		//dbgprintf("ES:TitleID not found adding new UID:0x%04x\n", *UID );
 
 		s32 r = IOS_Seek( fd, 0, SEEK_END );
 		if( r < 0 )
@@ -764,7 +768,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 				r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 				if( r < 0 && r != FS_EEXIST2 )
 				{
-					dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+					//dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
 					goto ES_DIVerfiy_end;
 				}
 			}
@@ -775,7 +779,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 				r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 				if( r < 0 && r != FS_EEXIST2 )
 				{
-					dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+					//dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
 					goto ES_DIVerfiy_end;
 				}
 			}
@@ -786,7 +790,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 				r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 				if( r < 0 && r != FS_EEXIST2 )
 				{
-					dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+					//dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
 					goto ES_DIVerfiy_end;
 				}
 			}
@@ -797,7 +801,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 				r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 				if( r < 0 && r != FS_EEXIST2 )
 				{
-					dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+					//dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
 					goto ES_DIVerfiy_end;
 				}
 			}
@@ -809,7 +813,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 		} break;
 		default:
 		{
-			dbgprintf("ES:ISFS_GetUsage(\"%s\"):%d\n", path, r );
+			//dbgprintf("ES:ISFS_GetUsage(\"%s\"):%d\n", path, r );
 		} break;
 	}
 
@@ -821,7 +825,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 	TitleMetaData *nTMD = (TitleMetaData*)NANDLoadFile( path, size );
 	if( nTMD != NULL )
 	{
-		dbgprintf("ES:NAND-TMD:v%d DISC-TMD:v%d\n", nTMD->TitleVersion, TMD->TitleVersion );
+		//dbgprintf("ES:NAND-TMD:v%d DISC-TMD:v%d\n", nTMD->TitleVersion, TMD->TitleVersion );
 
 		//Check version
 		if( nTMD->TitleVersion < TMD->TitleVersion )
@@ -829,7 +833,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 			r = NANDWriteFileSafe( path, TMD, tmd_size );
 			if( r < 0 )
 			{
-				dbgprintf("ES:NANDWriteFileSafe(\"%s\"):%d\n", path, r );
+				//dbgprintf("ES:NANDWriteFileSafe(\"%s\"):%d\n", path, r );
 				goto ES_DIVerfiy_end;
 			}
 		}
@@ -838,7 +842,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 		r = NANDWriteFileSafe( path, TMD, tmd_size );
 		if( r < 0 )
 		{
-			dbgprintf("ES:NANDWriteFileSafe(\"%s\"):%d\n", path, r );
+			//dbgprintf("ES:NANDWriteFileSafe(\"%s\"):%d\n", path, r );
 			goto ES_DIVerfiy_end;
 		}
 	}
@@ -846,16 +850,16 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 	r = CreateKey( Key, 0, 0 );
 	if( r < 0 )
 	{
-		dbgprintf("ES:CreateKey():%d\n", r );
-		dbgprintf("ES:keyid:%p:%08x\n", Key, *Key );
+		//dbgprintf("ES:CreateKey():%d\n", r );
+		//dbgprintf("ES:keyid:%p:%08x\n", Key, *Key );
 		return r;
 	}
 
 	r = syscall_71( *Key, 8 );
 	if( r < 0 )
 	{
-		dbgprintf("ES:keyid:%p:%08x\n", Key, *Key );
-		dbgprintf("ES:syscall_71():%d\n", r);
+		//dbgprintf("ES:keyid:%p:%08x\n", Key, *Key );
+		//dbgprintf("ES:syscall_71():%d\n", r);
 		return r;
 	}
 
@@ -868,28 +872,28 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 	r = syscall_5d( *Key, 0, 4, 1, 0, sTitleID, encTitleKey );
 	if( r < 0 )
 	{
-		dbgprintf("ES:syscall_5d():%d\n", r);
+		//dbgprintf("ES:syscall_5d():%d\n", r);
 		goto ES_DIVerfiy_end1;
 	}
 
 	r = ES_GetUID( &(TMD->TitleID), &UID );
 	if( r < 0 )
 	{
-		dbgprintf("ES:ES_GetUID():%d\n", r );
+		//dbgprintf("ES:ES_GetUID():%d\n", r );
 		goto ES_DIVerfiy_end;
 	}
 
 	r = SetUID( 0xF, UID );
 	if( r < 0 )
 	{
-		dbgprintf("ES:SetUID( 0xF, %04X ):%d\n", UID, r );
+		//dbgprintf("ES:SetUID( 0xF, %04X ):%d\n", UID, r );
 		goto ES_DIVerfiy_end;
 	}
 
 	r = _cc_ahbMemFlush( 0xF, TMD->GroupID );
 	if( r < 0 )
 	{
-		dbgprintf("ES:_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, TMD->GroupID, r );
+		//dbgprintf("ES:_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, TMD->GroupID, r );
 		goto ES_DIVerfiy_end;
 	}
 
@@ -954,7 +958,7 @@ s32 ES_GetS1ContentID( void *ContentHash )
 {
 	if( *CNTMapDirty )
 	{
-		dbgprintf("ES:Loading content.map...\n");
+		//dbgprintf("ES:Loading content.map...\n");
 
 		if( CNTMap != NULL )
 		{
@@ -982,7 +986,7 @@ s32 ES_CheckSharedContent( void *ContentHash )
 {
 	if( *CNTMapDirty )
 	{
-		dbgprintf("ES:Loading content.map...\n");
+		//dbgprintf("ES:Loading content.map...\n");
 
 		if( CNTMap != NULL )
 		{
@@ -1035,7 +1039,7 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 
 					if( r < 0 )
 					{
-						dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
+						//dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
 						free( path );
 						free( pathdst );
 						return r;
@@ -1045,7 +1049,7 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 					u8 *Entry = (u8*)malloca( 0x1C, 32 );
 
 					_sprintf( (char*)Entry, "%08x", size/0x1c );
-					dbgprintf("ES:Adding new shared1 content:\"%s.app\"\n", Entry );
+					//dbgprintf("ES:Adding new shared1 content:\"%s.app\"\n", Entry );
 					memcpy( Entry+8, TMD->Contents[i].SHA1, 0x14 );
 
 					r = IOS_Write( fd, Entry, 0x1C );
@@ -1056,18 +1060,18 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 
 					*CNTMapDirty = 1;
 
-					dbgprintf("ES:AddTitleFinish() CID:%08x Installed to shared1 dir\n", TMD->Contents[i].ID );
+					//dbgprintf("ES:AddTitleFinish() CID:%08x Installed to shared1 dir\n", TMD->Contents[i].ID );
 
 					r = ES_SUCCESS;
 
 				} break;
 				case 1:	// content already in shared1, move on
-					dbgprintf("ES:AddTitleFinish() CID:%08x already installed!\n", TMD->Contents[i].ID );
+					//dbgprintf("ES:AddTitleFinish() CID:%08x already installed!\n", TMD->Contents[i].ID );
 					_sprintf( path, "/tmp/%08x.app", TMD->Contents[i].ID );
 					ISFS_Delete( path );
 					break;
 				default:
-					dbgprintf("ES_CheckSharedContent(): failed! \"/shared1/content.map\" missing!\n");
+					//dbgprintf("ES_CheckSharedContent(): failed! \"/shared1/content.map\" missing!\n");
 					break;
 			}
 		} else {
@@ -1086,23 +1090,23 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 					r = ISFS_Rename( path, pathdst );
 					if( r < 0 )
 					{
-						dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
+						//dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
 						break;
 					}
 
 				} else if( r < 0 ) {
-					dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
+					//dbgprintf("ES:ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
 					break;
 				}
 
-				dbgprintf("ES:AddTitleFinish() CID:%08x Installed to content dir\n", TMD->Contents[i].ID );
+				//dbgprintf("ES:AddTitleFinish() CID:%08x Installed to content dir\n", TMD->Contents[i].ID );
 
 			} else {
 				
 				IOS_Close( fd );
 				ISFS_Delete( path );
 
-				dbgprintf("ES:AddTitleFinish() CID:%08x already installed!\n", TMD->Contents[i].ID );
+				//dbgprintf("ES:AddTitleFinish() CID:%08x already installed!\n", TMD->Contents[i].ID );
 
 				r = ES_SUCCESS;
 			}
@@ -1117,7 +1121,7 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 
 		r = ISFS_Rename( path, pathdst );
 		if( r < 0 )
-			dbgprintf("ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
+			//dbgprintf("ISFS_Rename( \"%s\", \"%s\" ):%d\n", path, pathdst, r );
 		
 		*TCountDirty = 1;
 		TOCountDirty= 1;
@@ -1210,8 +1214,8 @@ s32 ES_CreateKey( u8 *Ticket )
 	s32 r = CreateKey( KeyID, 0, 0 );
 	if( r < 0 )
 	{
-		dbgprintf("CreateKey( %p, %d, %d ):%d\n", KeyID, 0, 0, r );
-		dbgprintf("KeyID:%d\n", KeyID[0] );
+		//dbgprintf("CreateKey( %p, %d, %d ):%d\n", KeyID, 0, 0, r );
+		//dbgprintf("KeyID:%d\n", KeyID[0] );
 		free( sTitleID );
 		free( encTitleKey );
 		return r;
@@ -1219,7 +1223,7 @@ s32 ES_CreateKey( u8 *Ticket )
 
 	r = syscall_5d( KeyID[0], 0, 4, 1, r, sTitleID, encTitleKey );
 	if( r < 0 )
-		dbgprintf("syscall_5d( %d, %d, %d, %d, %d, %p, %p ):%d\n", KeyID[0], 0, 4, 1, r, sTitleID, encTitleKey, r );
+		//dbgprintf("syscall_5d( %d, %d, %d, %d, %d, %p, %p ):%d\n", KeyID[0], 0, 4, 1, r, sTitleID, encTitleKey, r );
 
 	free( sTitleID );
 	free( encTitleKey );
@@ -1233,20 +1237,20 @@ s32 doTicketMagic( Ticket *Ticket )
 	Object[1] = 0;
 
 	s32 r = CreateKey( Object, 1, 4 );
-	if( r < 0 )
-		dbgprintf("CreateKey():%d %p:%08X\n", r, Object, Object[0] );
+	//if( r < 0 )
+	//	dbgprintf("CreateKey():%d %p:%08X\n", r, Object, Object[0] );
 
 	r = syscall_5f( Ticket->DownloadContent, 0, Object[0] );
-	if( r < 0 )
-		dbgprintf("syscall_5f():%d %p:%08X\n", r, Object, Object[0] );
+	//if( r < 0 )
+	//	dbgprintf("syscall_5f():%d %p:%08X\n", r, Object, Object[0] );
 
 	r = CreateKey( Object+1, 0, 0 );
-	if( r < 0 )
-		dbgprintf("CreateKey():%d %p:%08X\n", r, Object+1, Object[1] );
+	//if( r < 0 )
+	//	dbgprintf("CreateKey():%d %p:%08X\n", r, Object+1, Object[1] );
 
 	r = syscall_61( 0, Object[0], Object[1] );
-	if( r < 0 )
-		dbgprintf("syscall_61():%d %08X:%08X\n", r, Object[0], Object[1] );
+	//if( r < 0 )
+	//	dbgprintf("syscall_61():%d %08X:%08X\n", r, Object[0], Object[1] );
 
 	u8 *TicketID	= (u8*)malloca( 0x10, 0x20 );
 	u8 *decTitleKey = (u8*)malloca( 0x10, 0x20 );
@@ -1263,8 +1267,8 @@ s32 doTicketMagic( Ticket *Ticket )
 	//hexdump( Ticket, 0x2a4 );
 
 	r = aes_decrypt_( Object[1], TicketID, encTitleKey, 0x10, decTitleKey );
-	if( r < 0 )
-		dbgprintf("aes_decrypt_():%d\n", r );
+	//if( r < 0 )
+	//	dbgprintf("aes_decrypt_():%d\n", r );
 	//hexdump( decTitleKey, 0x10 );
 
 	memcpy( Ticket->EncryptedTitleKey, decTitleKey, 0x10 );
@@ -1293,7 +1297,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 	s32 in = IOS_Open( path, 1 );
 	if( in < 0 )
 	{
-		dbgprintf("IOS_Open(\"%s\",1):%d\n", path, in );
+		//dbgprintf("IOS_Open(\"%s\",1):%d\n", path, in );
 		free( path );
 		if( in == ES_NFOUND )
 			return ES_SUCCESS;
@@ -1304,7 +1308,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 	s32 r = ISFS_CreateFile( path, 0, 3, 3, 3 );
 	if( r < 0 )
 	{
-		dbgprintf("ISFS_CreateFile(\"%s\"):%d\n", path, r );
+		//dbgprintf("ISFS_CreateFile(\"%s\"):%d\n", path, r );
 		IOS_Close( in );
 		free( path );
 		return r;
@@ -1313,7 +1317,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 	s32 out = IOS_Open( path, 2 );
 	if( out < 0 )
 	{
-		dbgprintf("IOS_Open(\"%s\",2):%d\n", path, out );
+		//dbgprintf("IOS_Open(\"%s\",2):%d\n", path, out );
 		IOS_Close( in );
 		free( path );
 		return out;
@@ -1336,14 +1340,14 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 		{
 			*(u16*)iv	= TMD->Contents[i].Index;
 			FileSize	= (u32)TMD->Contents[i].Size;
-			dbgprintf("ES:Found CID:%d Size:%d\n",  TMD->Contents[i].Index, FileSize );
+			//dbgprintf("ES:Found CID:%d Size:%d\n",  TMD->Contents[i].Index, FileSize );
 			break;
 		}
 	}
 
 	if( FileSize == 0 )
 	{
-		dbgprintf("ES:CID not found in TMD!\n");
+		//dbgprintf("ES:CID not found in TMD!\n");
 		IOS_Close( out );
 		IOS_Close( in );
 		free( path );
@@ -1358,7 +1362,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 	r = sha1( SHA1i, 0, 0, SHA_INIT, Object );
 	if( r < 0 )
 	{
-		dbgprintf("ES:sha1():%d\n", r );
+		//dbgprintf("ES:sha1():%d\n", r );
 		free( SHA1i );
 		free( hash );
 		free( Object );
@@ -1375,22 +1379,22 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 		r = IOS_Read( in, block, (FileSize+31)&(~31) );
 		if( r < 0 || r < FileSize )
 		{
-			dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, (FileSize+31)&(~31), r );
+			//dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, (FileSize+31)&(~31), r );
 			r = ES_EHASH;
 			goto ACF_Fail;
 		}
 
 		r = aes_decrypt_( *KeyID, iv, block, 0x4000, block );
-		if(  r < 0 )
-			dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
+		//if(  r < 0 )
+		//	dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
 
 		r = IOS_Write( out, block, FileSize );
-		if( r < 0 || r != FileSize )
-			dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, FileSize, r );
+		//if( r < 0 || r != FileSize )
+		//	dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, FileSize, r );
 
 		r = sha1( SHA1i, block, FileSize, SHA_FINISH, hash );
-		if( r < 0 )
-			dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, FileSize, SHA_FINISH, hash, r );
+		//if( r < 0 )
+		//	dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, FileSize, SHA_FINISH, hash, r );
 
 	} else {
 
@@ -1400,21 +1404,21 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 			r = IOS_Read( in, block, 0x4000 );
 			if( r < 0 || r != 0x4000 )
 			{
-				dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
+				//dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
 			r = aes_decrypt_( *KeyID, iv, block, 0x4000, block );
 			if(  r < 0 )
 			{
-				dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
+				//dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
 			r = IOS_Write( out, block, 0x4000 );
 			if( r < 0 || r != 0x4000 )
 			{
-				dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, 0x4000, r );
+				//dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, 0x4000, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
@@ -1428,21 +1432,21 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 				{
 					//finish
 					r = sha1( SHA1i, block, 0x4000, SHA_FINISH, hash );
-					if( r < 0 )
-						dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_FINISH, hash, r );
+					//if( r < 0 )
+					//	dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_FINISH, hash, r );
 
 				} else {
 					//just update
 					r = sha1( SHA1i, block, 0x4000, SHA_UPDATE, hash );
-					if( r < 0 )
-						dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_UPDATE, hash, r );
+					//if( r < 0 )
+					//	dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_UPDATE, hash, r );
 
 				}
 			} else {
 				//just update
 				r = sha1( SHA1i, block, 0x4000, SHA_UPDATE, hash );
-				if( r < 0 )
-					dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_UPDATE, hash, r );
+				//if( r < 0 )
+				//	dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, 0x4000, SHA_UPDATE, hash, r );
 			}
 		}
 
@@ -1454,21 +1458,21 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 			r = IOS_Read( in, block, (readsize+31)&(~31) );
 			if( r < 0 || r < readsize )
 			{
-				dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, readsize, r );
+				//dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, readsize, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
 			r = aes_decrypt_( *KeyID, iv, block, 0x4000, block );
-			if(  r < 0 )
-				dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
+			//if(  r < 0 )
+			//	dbgprintf("aes_decrypt( %d, %p, %p %x, %p ):%d\n",  *KeyID, iv, block, 0x4000, block, r );
 
 			r = IOS_Write( out, block, readsize );
-			if( r < 0 || r != readsize )
-				dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, readsize, r );
+			//if( r < 0 || r != readsize )
+			//	dbgprintf("IOS_Write( %d, %p, %d):%d\n", out, block, readsize, r );
 
 			r = sha1( SHA1i, block, readsize, SHA_FINISH, hash );
-			if( r < 0 )
-				dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, readsize, SHA_FINISH, hash, r );
+			//if( r < 0 )
+			//	dbgprintf("sha1( %p, %p, %d, %d, %p):%d\n", SHA1i, block, readsize, SHA_FINISH, hash, r );
 		}
 	}
 
@@ -1482,10 +1486,10 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 			if( memcmp( hash, TMD->Contents[i].SHA1, 0x14 ) == 0 )
 				r = ES_SUCCESS;
 			else {
-				dbgprintf("ES:Content SHA1 mismatch!\n");
-				dbgprintf("ES:TMD HASH (cid:%d):\n", i);
+				//dbgprintf("ES:Content SHA1 mismatch!\n");
+				//dbgprintf("ES:TMD HASH (cid:%d):\n", i);
 				hexdump( TMD->Contents[i].SHA1, 0x14 );
-				dbgprintf("ES:CALC HASH:\n");
+				//dbgprintf("ES:CALC HASH:\n");
 				hexdump( hash, 0x14 );
 			}
 			break;
@@ -1519,7 +1523,7 @@ s32 ES_AddContentData(s32 cfd, void *data, u32 data_size )
 			r = ISFS_CreateFile( path, 0, 3, 3, 3 );
 			if( r < 0 )
 			{
-				dbgprintf("ES:ISFS_CreateFile(\"%s\"):%d\n", path, r );
+				//dbgprintf("ES:ISFS_CreateFile(\"%s\"):%d\n", path, r );
 				free( path );
 				return r;
 			}
@@ -1527,7 +1531,7 @@ s32 ES_AddContentData(s32 cfd, void *data, u32 data_size )
 			fd = IOS_Open( path, 2 );
 
 		} else {
-			dbgprintf("ES:IOS_Open(\"%s\"):%d\n", path, fd );
+			//dbgprintf("ES:IOS_Open(\"%s\"):%d\n", path, fd );
 			free( path );
 			return fd;
 		}
@@ -1539,7 +1543,7 @@ s32 ES_AddContentData(s32 cfd, void *data, u32 data_size )
 	r = IOS_Write( fd, data, data_size );
 	if( r < 0 || r != data_size )
 	{
-		dbgprintf("ES:IOS_Write( %d, %p, %d):%d\n", fd, data, data_size, r );
+		//dbgprintf("ES:IOS_Write( %d, %p, %d):%d\n", fd, data, data_size, r );
 		IOS_Close( fd );
 		free( path );
 		return r;
@@ -1576,14 +1580,14 @@ s32 ES_LoadModules( u32 KernelVersion )
 
 	if( TMD->ContentCount == 3 )	// STUB detected!
 	{
-		dbgprintf("ES:STUB IOS detected, falling back to IOS35\n");
+		//dbgprintf("ES:STUB IOS detected, falling back to IOS35\n");
 		free( path );
 		free( KeyID );
 		free( size );
 		return ES_LoadModules( 35 );
 	}
 
-	dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount );
+	//dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount );
 
 	//Check if di.bin is present
    
@@ -1592,14 +1596,14 @@ s32 ES_LoadModules( u32 KernelVersion )
 	slen = strlen(path);
 	strcpy (path+slen,"/di.bin");
 	
-	dbgprintf("GS: Searching for %s\n",path);
+	//dbgprintf("GS: Searching for %s\n",path);
 
 	s32 Dfd = IOS_Open( path, 1 );
 	if( Dfd >= 0 )
 	{
 		IOS_Close(Dfd);
 		LoadDI = true;
-		dbgprintf("ES:Found di.bin\n");
+		//dbgprintf("ES:Found di.bin\n");
 	}
 
 	for( i=0; i < TMD->ContentCount; ++i )
@@ -1631,8 +1635,8 @@ s32 ES_LoadModules( u32 KernelVersion )
 
 				if( (s32)ID == ES_FATAL )
 				{
-					dbgprintf("ES:Fatal error: required shared content not found!\n");
-					dbgprintf("Hash:\n");
+					//dbgprintf("ES:Fatal error: required shared content not found!\n");
+					//dbgprintf("Hash:\n");
 					hexdump( TMD->Contents[i].SHA1, 0x14 );
 					while(1);
 
@@ -1645,30 +1649,30 @@ s32 ES_LoadModules( u32 KernelVersion )
 			}
 		}
 
-		dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
+		//dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
 		r = LoadModule( path );
 		if( r < 0 )
 		{
-			dbgprintf("ES:Fatal error: module failed to start!\n");
-			dbgprintf("ret:%d\n", r );
+			//dbgprintf("ES:Fatal error: module failed to start!\n");
+			//dbgprintf("ret:%d\n", r );
 			while(1);
 		}
 		
 		if( TMD->Contents[i].Index == 1 && LoadDI && ISFS_IsUSB() == FS_ENOENT2 )	//Only wait when in SNEEK+DI mode
 		{
-			dbgprintf("ES:Waiting for DI to init device...");
+			//dbgprintf("ES:Waiting for DI to init device...");
 
 			while(DVDConnected() !=1 )
 				udelay(50000);
 
-			dbgprintf("done!\n");
+			//dbgprintf("done!\n");
 		}
 	}
 
 //obcd
 	if (KernelVersion != 253)
 	{
-		dbgprintf( "ES:Waiting for network module...\n" );
+		//dbgprintf( "ES:Waiting for network module...\n" );
 
 		u32 counter = 0;
 		while( counter < 20 )
@@ -1684,7 +1688,7 @@ s32 ES_LoadModules( u32 KernelVersion )
 			counter++;
 		}
 	}
-	dbgprintf( "done!\n" );
+	//dbgprintf( "done!\n" );
 
 	free( size );
 	free( TMD );
@@ -1706,7 +1710,7 @@ s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 		TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, size );
 		if( TMD == NULL )
 		{
-			dbgprintf("ES:Couldn't find TMD of BC!\n");
+			//dbgprintf("ES:Couldn't find TMD of BC!\n");
 			_sprintf( path, "/sneek/kernel.bin");
 			free( size );
 
@@ -1717,12 +1721,12 @@ s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 			free( size );
 		}
 
-		dbgprintf("ES:IOSBoot( %s, 0, %d )\n", path, 0, GetKernelVersion() );
+		//dbgprintf("ES:IOSBoot( %s, 0, %d )\n", path, 0, GetKernelVersion() );
 
 		//now load IOS kernel
 		IOSBoot( path, 0, GetKernelVersion() );			
 	
-		dbgprintf("ES:Booting file failed!\nES:Loading kernel.bin.." );
+		//dbgprintf("ES:Booting file failed!\nES:Loading kernel.bin.." );
 
 		_sprintf( path, "/sneek/kernel.bin");
 		IOSBoot( path, 0, GetKernelVersion() );
@@ -1745,7 +1749,7 @@ s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 	free( data );
 	free( path );
 
-	dbgprintf("NANDWriteFileSafe():%d\n", r );
+	//dbgprintf("NANDWriteFileSafe():%d\n", r );
 
 	if( r < 0 )
 		return r;
@@ -1824,12 +1828,12 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	}
 
 	u16 UID = 0;
-	dbgprintf("ES:NANDLoadFile:%p size:%d\n", TIK_Data, *size );
+	//dbgprintf("ES:NANDLoadFile:%p size:%d\n", TIK_Data, *size );
 
 	s32 r = ES_GetUID( TitleID, &UID );
 	if( r < 0 )
 	{
-		dbgprintf("ES:ES_GetUID:%d\n", r );
+		//dbgprintf("ES:ES_GetUID:%d\n", r );
 
 		free( TIK_Data );
 		free( TMD );
@@ -1841,7 +1845,7 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	r = SetUID( 0xF, UID );
 	if( r < 0 )
 	{
-		dbgprintf("ES:SetUID( 0xF, 0x%04X ):%d\n", UID, r );
+		//dbgprintf("ES:SetUID( 0xF, 0x%04X ):%d\n", UID, r );
 
 		free( TIK_Data );
 		free( TMD );
@@ -1853,7 +1857,7 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	r = _cc_ahbMemFlush( 0xF, *(vu16*)((u8*)TMD+0x198) );
 	if( r < 0 )
 	{
-		dbgprintf("_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, *(vu16*)((u8*)TMD+0x198), r );
+		//dbgprintf("_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, *(vu16*)((u8*)TMD+0x198), r );
 
 		free( TIK_Data );
 		free( TMD );
@@ -1899,7 +1903,7 @@ s32 ES_LaunchSYS( u64 *TitleID )
 				return ES_FATAL;
 		}
 	} else {
-		dbgprintf("PPCBoot(\"%s\"):", path );
+		//dbgprintf("PPCBoot(\"%s\"):", path );
 		r = PPCBoot( path );
 		dbgprintf("%d\n", r );
 	}
@@ -1910,76 +1914,4 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	free( path );
 
 	return 0;
-}
-
-s32 Force_Internet_Test()
-{
-	char *path	= (char *)malloca( 0x80, 32 );
-	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
-	u8 tmp = 0xa0;	
-	strcpy( path, "/shared2/sys/net/02/config.dat" );
-	netconfig_t *NETCfg = (netconfig_t *)NANDLoadFile( path, size );	
-	if( NETCfg == NULL )
-	{
-		free( path );
-		return *size;
-	}
-	
-	if( NETCfg->connection[0].flags && NETCfg->connection[0].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[0].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[0].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[0].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[0].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[0].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
-	}	
-	else if( NETCfg->connection[1].flags && NETCfg->connection[1].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[1].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[1].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[1].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[1].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[1].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
-	}	
-	else if( NETCfg->connection[2].flags && NETCfg->connection[2].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[2].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[2].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[2].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[2].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[2].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
-	}	
-	
-	free( NETCfg );
-	free( size );
-	free( path );
-	
-	return 0;	
 }
