@@ -18,6 +18,7 @@ u32 SLock=0;
 s32 PosX=0,ScrollX=0;
 u32 fnnd=0;
 u32 rebreq=0;
+u32 nisp=0;
 
 u32 *FB;
 
@@ -88,6 +89,16 @@ char *LanguageStr[] =
 	"Spanish",
 	"Italian",
 	"Dutch",
+	"Chinese Simple",
+	"Chinese Traditional",
+	"Korean",
+};
+
+char *BootStr[] = 
+{	
+	"System Menu",
+	"Installed Channel",	
+	"Installed DOL",
 };
 
 unsigned char VISetFB[] =
@@ -190,6 +201,24 @@ void LoadAndRebuildChannelCache()
 		NANDWriteFileSafe("/sneekcache/channelcache.bin",channelCache,sizeof(ChannelCache) + sizeof(ChannelInfo) * channelCache->numChannels);
 	}
 	free(uid);
+}
+
+void __configloadcfg( void )
+{
+	u32 size;
+	PL = NULL;
+	PL = (HacksConfig *)NANDLoadFile( "/sneekcache/hackscfg.bin", &size );
+	if( PL == NULL )
+	{
+		PL = (HacksConfig *)malloca( sizeof(HacksConfig), 32);
+		PL->EULang 		= 1;
+		PL->USLang 		= 1;
+		PL->Config 		= 0;
+		PL->Autoboot	= 0;
+		PL->ChNbr 		= 0;
+		PL->TitleID 	= 0x0000000100000002LL;
+	}
+	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
 }
 
 u32 SMenuFindOffsets( void *ptr, u32 SearchSize )
@@ -304,23 +333,13 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	DVDReinsertDisc=false;
 	DICfg	= NULL;
 	NandCfg = NULL;
-	PL 		= NULL;
 	PICBuffer = (char*)NULL;
 
 	Offsets		= (u32*)malloca( sizeof(u32) * MAX_HITS, 32 );
 	GameCount	= (u32*)malloca( sizeof(u32), 32 );
-	FB			= (u32*)malloca( sizeof(u32) * MAX_FB, 32 );
-	//PL 			= (HacksConfig *)malloca( sizeof(u32) * 4, 32 );
+	FB			= (u32*)malloca( sizeof(u32) * MAX_FB, 32 );	
 	
-	PL = (HacksConfig *)NANDLoadFile( "/sneek/hackscfg.bin", &size );
-	if( PL == NULL )
-	{
-		PL = (HacksConfig *)malloca( sizeof(u32)*4, 32);
-		PL->EULang = 1;
-		PL->USLang = 1;
-		PL->Config = 0;
-	}
-	NANDWriteFileSafe( "/sneek/hackscfg.bin", PL , sizeof(u32)*4 );
+	__configloadcfg();
 
 	for( i=0; i < MAX_FB; ++i )
 		FB[i] = 0;
@@ -329,11 +348,12 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	switch( TitleID )
 	{
 		case 0x0000000100000002LL:
-		{
+		{			
 			switch( TitleVersion )
 			{
 				case 450:	// EUR 4.1
 				{
+					nisp = 1;
 					if( PL->Config&CONFIG_REGION_FREE )
 					{
 						//Wii-Disc Region free hack
@@ -363,6 +383,7 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 				} break;				
 				case 482:	// EUR 4.2
 				{
+					nisp = 1;
 					if( PL->Config&CONFIG_REGION_FREE )
 					{
 						//Wii-Disc Region free hack
@@ -401,6 +422,7 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 				} break;
 				case 514:	// EUR 4.3
 				{
+					nisp = 1;
 					if( PL->Config&CONFIG_REGION_FREE )
 					{
 						//Wii-Disc Region free hack
@@ -409,7 +431,7 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 					
 
 						//GC-Disc Region free hack
-						*(u32*)0x137DAEC = 0x7F60DB78;
+						*(u32*)0x0137DAEC = 0x7F60DB78;
 					}
 					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
 					{
@@ -650,7 +672,7 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 
 				} break;				
 				case 518:   // KOR 4.3
-				{				
+				{	
 					if( PL->Config&CONFIG_REGION_FREE )
 					{
 						//Wii-Disc Region free hack
@@ -1081,7 +1103,7 @@ void SMenuDraw( void )
 													DVDErrorSkip = 1;
 												} else {
 													//dbgprintf("\nES:DVDLowRead():%d\n", ret );
-													dbgprintf("ES:DVDError:%X\n", DVDError );
+													//dbgprintf("ES:DVDError:%X\n", DVDError );
 													break;
 												}
 											}
@@ -1097,7 +1119,7 @@ void SMenuDraw( void )
 										} else {
 
 											//dbgprintf("\nES:DVDLowRead():%d\n", ret );
-											dbgprintf("ES:DVDError:%X\n", DVDError );
+											//dbgprintf("ES:DVDError:%X\n", DVDError );
 											break;
 
 										}
@@ -1150,23 +1172,37 @@ void SMenuDraw( void )
 				memcpy( FB[i], PICBuffer, FBSize );
 			} break;
 			case 5:
-			{
-				PrintFormat( FB[i], MENU_POS_X+30, 48, "Menu Hacks:" );			
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*0, "Auto Press A at Health Screen      :%s", ( PL->Config&CONFIG_PRESS_A ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*1, "No System Menu Background Music    :%s", ( PL->Config&CONFIG_NO_BG_MUSIC ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*2, "No System Menu Sounds At All       :%s", ( PL->Config&CONFIG_NO_SOUND ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*3, "Move Disc Channel                  :%s", ( PL->Config&CONFIG_MOVE_DISC_CHANNEL ) ? "On" : "Off" );				
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*7, "Region Free Hacks:" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*9, "System Region Free Hack            :%s", ( PL->Config&CONFIG_REGION_FREE ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*10, "Temp Region Change                 :%s", ( PL->Config&CONFIG_REGION_CHANGE ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*11, "EUR Default Language:  %s", LanguageStr[PL->EULang] );
-				PrintFormat( FB[i], MENU_POS_X+30, 88+16*12, "USA Default Language:  %s", LanguageStr[PL->USLang] );
-				if( rebreq )
-					PrintFormat( FB[i], MENU_POS_X+30, 88+16*14, "Save Hacks (*Reboot Required)" );
-				else
-					PrintFormat( FB[i], MENU_POS_X+30, 88+16*14, "Save Hacks" );
+			{				
+				PrintFormat( FB[i], MENU_POS_X+15, 52, "Menu Hacks:" );			
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*0, "Auto Press A at Health Screen             :%s", ( PL->Config&CONFIG_PRESS_A ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*1, "No System Menu Background Music           :%s", ( PL->Config&CONFIG_NO_BG_MUSIC ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*2, "No System Menu Sounds At All              :%s", ( PL->Config&CONFIG_NO_SOUND ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*3, "Move Disc Channel                         :%s", ( PL->Config&CONFIG_MOVE_DISC_CHANNEL ) ? "On" : "Off" );				
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Bypass WIFI Connection Test               :%s", ( PL->Config&CONFIG_FORCE_INET ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*6, "Region Free Hacks:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*8, "System Region Free Hack                   :%s", ( PL->Config&CONFIG_REGION_FREE ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Temp Region Change                        :%s", ( PL->Config&CONFIG_REGION_CHANGE ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "EUR Default Language:  %s", LanguageStr[PL->EULang] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*11, "USA Default Language:  %s", LanguageStr[PL->USLang] );
+				if( nisp )
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Force EuRGB60 with NTSC games on PAL nands:%s", ( PL->Config&CONFIG_FORCE_EuRGB60 ) ? "On" : "Off" );
+				else	
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Force EuRGB60 with NTSC games on PAL nands:NA" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*14, "Auto Boot Options:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*16, "Autoboot: %s", BootStr[PL->Autoboot] );
+				if( PL->Autoboot == 1 )					
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB Channel: %.20s", channelCache->channels[PL->ChNbr].name );				
+				else if( PL->Autoboot == 2 )
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB DOL: %.20s", PL->bootapp );
+					
 				
-				PrintFormat( FB[i], MENU_POS_X+10, 88+16*PosX, "-->");
+				
+				if( rebreq )
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*19, "Save Hacks (*Reboot Required)" );
+				else
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*19, "Save Hacks" );
+				
+				PrintFormat( FB[i], MENU_POS_X-5, 84+16*PosX, "-->");
 				sync_after_write( (u32*)(FB[i]), FBSize );			
 			} break;
 			default:
@@ -1286,17 +1322,11 @@ void SMenuReadPad ( void )
 						free(DICfgO);
                 	}
 				}
-/*                
-                DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-                DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
-*/
 			}
 			if( NandCfg == NULL )
 			{
 				char *path = malloca( 0x40, 0x40 );
 				strcpy(path, "/sneek/NandCfg.bin");
-				//slen = strlen(path);
-				//strcpy (path+slen,"/NandCfg.bin");
 				u32* fsize = malloca(sizeof(u32),0x20);
 				*fsize = 0x10;
 				NandCfg = (NandConfig*)NANDLoadFile(path,fsize);
@@ -1809,7 +1839,6 @@ void SMenuReadPad ( void )
 							else
 								NandCfg->NandSel++;
 							Save_Nand_Cfg( NandCfg );
-							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
 				}
@@ -1885,7 +1914,6 @@ void SMenuReadPad ( void )
 								NandCfg->NandSel--;
 							
 							Save_Nand_Cfg( NandCfg );
-							//DVDWriteNandConfig( NandCfg );
 						}
 					} break;
 					
@@ -1951,7 +1979,6 @@ void SMenuReadPad ( void )
 					case 0:
 					{
 						PL->Config ^= CONFIG_PRESS_A;
-						rebreq = 1;
 					} break;
 					case 1:
 					{
@@ -1970,26 +1997,26 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						PL->Config ^= CONFIG_REM_NOCOPY;
+						PL->Config ^= CONFIG_FORCE_INET;
 						rebreq = 1;
 					} break;
-					case 9:
+					case 8:
 					{
 						PL->Config ^= CONFIG_REGION_FREE;
 						rebreq = 1;
 					} break;
-					case 10:
+					case 9:
 					{
 						PL->Config ^=CONFIG_REGION_CHANGE;
 					} break;
-					case 11:
+					case 10:
 					{
 						if( PL->EULang == 6 )
 							PL->EULang = 1;
 						else
 							PL->EULang++;
 					} break;
-					case 12:
+					case 11:
 					{
 						if( PL->USLang == 1 )
 							PL->USLang = 3;
@@ -1998,12 +2025,36 @@ void SMenuReadPad ( void )
 						else if( PL->USLang == 4 )
 							PL->USLang = 1;
 					} break;
-					case 14:
+					case 12:
 					{
-						NANDWriteFileSafe( "/sneek/hackscfg.bin", PL , sizeof(u32)*4 );
-						if( rebreq )
-							LaunchTitle( 0x0000000100000002LL );
+						if( nisp )
+							PL->Config ^=CONFIG_FORCE_EuRGB60;
+					} break;
+					case 16:
+					{
+						if( PL->Autoboot == 1 )
+							PL->Autoboot = 0;
+						else
+							PL->Autoboot++;
+					} break;
+					case 17:
+					{
+						if( PL->Autoboot == 1 )
+						{
+							if( PL->ChNbr == channelCache->numChannels-1 )
+								PL->ChNbr = 0;
+							else
+								PL->ChNbr++;
 							
+							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
+						}
+						
+					} break;
+					case 19:
+					{
+						NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
+						if( rebreq )
+							LaunchTitle( 0x0000000100000002LL );						
 					} break;
 				}
 				SLock = 1;
@@ -2015,16 +2066,27 @@ void SMenuReadPad ( void )
 					PosX--;
 				}					
 				
-				if( PosX == 13 )
+				if( PosX == 18 )
+				{
+					if( PL->Autoboot == 1 || PL->Autoboot == 2 )
+						PosX = 17;
+					else
+						PosX = 16;
+				}
+				else if( PosX == 15 )
+				{
 					PosX = 12;
-				else if( PosX == 8 )
-					PosX = 3;
+				}
+				else if( PosX == 7 )
+				{
+					PosX = 4;
+				}
 
 				SLock = 1;
 			} 
 			else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
 			{
-				if( PosX >= 14 )
+				if( PosX >= 19 )
 				{
 					PosX=0;
 				} 
@@ -2033,10 +2095,14 @@ void SMenuReadPad ( void )
 					PosX++;
 				}
 
-				if( PosX == 4 )
-					PosX = 9;
+				if( PosX == 5 )
+					PosX = 8;
 				else if( PosX == 13 )
-					PosX = 14;
+					PosX = 16;
+				else if( PosX == 17 && PL->Autoboot == 0 )
+					PosX = 19;
+				else if( PosX == 18 )
+					PosX = 19;	
 				SLock = 1;
 			}
 
@@ -2047,7 +2113,6 @@ void SMenuReadPad ( void )
 					case 0:
 					{
 						PL->Config ^= CONFIG_PRESS_A;
-						rebreq = 1;
 					} break;
 					case 1:
 					{
@@ -2064,23 +2129,28 @@ void SMenuReadPad ( void )
 						PL->Config ^= CONFIG_MOVE_DISC_CHANNEL;
 						rebreq = 1;
 					} break;
-					case 9:
+					case 4:
+					{
+						PL->Config ^= CONFIG_FORCE_INET;
+						rebreq = 1;
+					} break;
+					case 8:
 					{
 						PL->Config ^= CONFIG_REGION_FREE;
 						rebreq = 1;
 					} break;
-					case 10:
+					case 9:
 					{
 						PL->Config ^=CONFIG_REGION_CHANGE;
 					} break;
-					case 11:
+					case 10:
 					{
 						if( PL->EULang == 6 )
 							PL->EULang = 1;
 						else
 							PL->EULang++;
 					} break;
-					case 12:
+					case 11:
 					{
 						if( PL->USLang == 1 )
 							PL->USLang = 3;
@@ -2088,6 +2158,31 @@ void SMenuReadPad ( void )
 							PL->USLang = 4;
 						else if( PL->USLang == 4 )
 							PL->USLang = 1;
+					} break;
+					case 12:
+					{
+						if( nisp )
+							PL->Config ^=CONFIG_FORCE_EuRGB60;
+					} break;
+					case 16:
+					{
+						if( PL->Autoboot == 1 )
+							PL->Autoboot = 0;
+						else
+							PL->Autoboot++;
+					} break;
+					case 17:
+					{
+						if( PL->Autoboot == 1 )
+						{
+							if( PL->ChNbr == channelCache->numChannels-1 )
+								PL->ChNbr = 0;
+							else
+								PL->ChNbr++;
+							
+							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
+						}
+						
 					} break;
 				}
 				SLock = 1;
@@ -2098,7 +2193,6 @@ void SMenuReadPad ( void )
 					case 0:
 					{
 						PL->Config ^= CONFIG_PRESS_A;
-						rebreq = 1;
 					} break;
 					case 1:
 					{
@@ -2115,23 +2209,28 @@ void SMenuReadPad ( void )
 						PL->Config ^= CONFIG_MOVE_DISC_CHANNEL;
 						rebreq = 1;
 					} break;
-					case 9:
+					case 4:
+					{
+						PL->Config ^= CONFIG_FORCE_INET;
+						rebreq = 1;
+					} break;
+					case 8:
 					{
 						PL->Config ^= CONFIG_REGION_FREE;
 						rebreq = 1;
 					} break;
-					case 10:
+					case 9:
 					{
 						PL->Config ^=CONFIG_REGION_CHANGE;
 					} break;
-					case 11:
+					case 10:
 					{
 						if( PL->EULang == 1 )
 							PL->EULang = 6;
 						else
 							PL->EULang--;
 					} break;
-					case 12:
+					case 11:
 					{
 						if( PL->USLang == 1 )
 							PL->USLang = 4;
@@ -2139,6 +2238,31 @@ void SMenuReadPad ( void )
 							PL->USLang = 1;
 						else if( PL->USLang == 4 )
 							PL->USLang = 3;
+					} break;
+					case 12:
+					{
+						if( nisp )
+							PL->Config ^=CONFIG_FORCE_EuRGB60;
+					} break;
+					case 16:
+					{
+						if( PL->Autoboot == 0 )
+							PL->Autoboot = 1;
+						else
+							PL->Autoboot--;
+					} break;
+					case 17:
+					{
+						if( PL->Autoboot == 1 )
+						{
+							if( PL->ChNbr == 0 )
+							PL->ChNbr = channelCache->numChannels-1;
+							else
+								PL->ChNbr--;
+							
+							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
+						}
+						
 					} break;
 				}
 				SLock = 1;

@@ -20,6 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "ES.h"
 #include "DI.h"
+#include "utils.h"
+#include "SMenu.h"
 
 
 
@@ -42,6 +44,8 @@ u32 TOCount;
 u32 TOCountDirty;
 
 u32 LoadDI;
+
+HacksConfig *PL;
 
 extern char diroot[0x20];
 
@@ -83,12 +87,12 @@ s32 ES_TitleCreatePath( u64 TitleID )
 void ES_Fatal( char *name, u32 line, char *file, s32 error, char *msg )
 {
 	dbgprintf("\n\n************ ES FATAL ERROR ************\n");
-	dbgprintf("Function :%s\n", name );
-	dbgprintf("line     :%d\n", line );
-	dbgprintf("file     :%s\n", file );
-	dbgprintf("error    :%d\n", error );
-	dbgprintf("%s\n", msg );
-	dbgprintf("************ ES FATAL ERROR ************\n");
+	//dbgprintf("Function :%s\n", name );
+	//dbgprintf("line     :%d\n", line );
+	//dbgprintf("file     :%s\n", file );
+	//dbgprintf("error    :%d\n", error );
+	//dbgprintf("%s\n", msg );
+	//dbgprintf("************ ES FATAL ERROR ************\n");
 
 	while(1);
 }
@@ -172,10 +176,17 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	TOCountDirty	= 0;
 	TOCountDirty	= 1;
 
+	
+	
 	if( ES_CheckBootOption( "/sys/launch.sys", TitleID ) == 0 )
 	{
-		*TitleID = 0x100000002LL;
+		__configloadcfg();
+		if( PL->Autoboot == 0 )
+			*TitleID = 0x100000002LL;			
+		else if	( PL->Autoboot == 1 )	
+			*TitleID = PL->TitleID;
 	}
+
 
 	//dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
 
@@ -311,7 +322,10 @@ s32 ES_Sign( u64 *TitleID, u8 *data, u32 len, u8 *sign, u8 *cert )
 
 	r = syscall_75( hash, 0x14, *Key, sign );
 	if( r < 0 )
-		dbgprintf("syscall_75( %p, %d, %d, %p ):%d\n", hash, 0x14, *Key, sign, r );
+	{		
+		//	dbgprintf("syscall_75( %p, %d, %d, %p ):%d\n", hash, 0x14, *Key, sign, r );
+		goto ES_Sign_CleanUp;
+	}
 	else {
 		memcpy( cert, NewCert, 0x180 );
 	}

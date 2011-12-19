@@ -57,8 +57,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define VI_DEBUG_PAL		4
 #define VI_EUR60			5
 
-#define GAMEINFO			0
-#define NANDINFO			1
+enum {
+	AREA_JPN = 0,
+	AREA_USA,
+	AREA_EUR,
+	AREA_KOR = 6,
+};
 
 enum SMConfig
 {
@@ -69,15 +73,22 @@ enum SMConfig
 	CONFIG_REM_NOCOPY			= (1<<4),
 	CONFIG_REGION_FREE			= (1<<5),
 	CONFIG_REGION_CHANGE		= (1<<6),
-	CONFIG_RES_1				= (1<<7),
+	CONFIG_FORCE_INET			= (1<<7),
+	CONFIG_FORCE_EuRGB60		= (1<<8),
 };
 
 typedef struct
-{	
+{
+	
 	u32 EULang;
 	u32 USLang;
 	u32 Config;
+	u32 Autoboot;	
+	u32 ChNbr;
 	u32 Padding;
+	u64 TitleID;
+	u8 bootapp[256];
+	u8 DOLName[40];
 } HacksConfig; 
 
 void SMenuInit( u64 TitleID, u16 TitleVersion );
@@ -90,6 +101,7 @@ void SCheatDraw( void );
 void SCheatReadPad( void );
 
 void LoadAndRebuildChannelCache();
+void __configloadcfg( void );
 
 s32 LaunchTitle(u64 TitleID);
 

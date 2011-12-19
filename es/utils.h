@@ -41,5 +41,18 @@ static inline u32 clear32(u32 addr, u32 clear)
 	return data;
 }
 
+static inline u32 set32(u32 addr, u32 set)
+{
+	u32 data;
+	__asm__ volatile (
+		"ldr\t%0, [%1]\n"
+		"\torr\t%0, %2\n"
+		"\tstr\t%0, [%1]"
+		: "=&r" (data)
+		: "r" (addr), "r" (set)
+	);
+	return data;
+}
+
 #endif
 

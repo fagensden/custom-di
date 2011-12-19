@@ -25,12 +25,12 @@ extern int FFSHandle;
 s32 ISFS_Init( void )
 {
 	FFSHandle = IOS_Open("/dev/fs", 0 );
-	dbgprintf("ES:IOS_Open(\"/dev/fs\", 0 ):%d\n", FFSHandle );
+	//dbgprintf("ES:IOS_Open(\"/dev/fs\", 0 ):%d\n", FFSHandle );
 
 	u8 *stats = (u8 *)heap_alloc( 0, 0x1C );
 
 	s32 r = ISFS_GetStats( stats );
-	dbgprintf("ES:ISFS_GetStats():%d\n", r );
+	//dbgprintf("ES:ISFS_GetStats():%d\n", r );
 
 	free(stats);
 
@@ -39,59 +39,59 @@ s32 ISFS_Init( void )
 
 	_sprintf( path, "/sys" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//if( r >= 0 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/ticket" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//if( r >= 0 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/shared1" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//if( r >= 0 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/shared2" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
+	//if( r >= 0 )
+	//{
 		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//}
 
 	_sprintf( path, "/tmp" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//if( r >= 0 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/import" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/meta" );
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
-	if( r >= 0 )
-	{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
-	}
+	//if( r >= 0 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//}
 
 	_sprintf( path, "/shared1/content.map" );
 	r = ISFS_CreateFile( path, 0, 3, 3, 3 );
-	if( r != -105 )
-	{
-		dbgprintf("ES:ISFS_CreateFile(\"%s\"):%d\n", path, r );
-	}
+	//if( r != -105 )
+	//{
+	//	dbgprintf("ES:ISFS_CreateFile(\"%s\"):%d\n", path, r );
+	//}
 
 	free(num);
 	free(path);
