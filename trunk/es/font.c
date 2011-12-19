@@ -76,7 +76,7 @@ s32 LoadFont( char *str )
 	fontfx = (u32*)NANDLoadFile( str, size );
 	if( fontfx == NULL )
 	{
-		dbgprintf("ES:Couldn't open:\"%s\":%d\n", str, *size );
+		//dbgprintf("ES:Couldn't open:\"%s\":%d\n", str, *size );
 		free( size );
 		return 0;
 	}

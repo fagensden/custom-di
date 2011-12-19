@@ -1176,7 +1176,7 @@ int _main( int argc, char *argv[] )
 
 	SDStatus = (u32*)malloca( sizeof(u32), 0x40 );
 
-	*SDStatus = 0x00000002;
+	*SDStatus = 0x00000001;
 	HCR = (u32*)malloca( sizeof(u32)*0x30, 0x40 );
 	memset32( HCR, 0, sizeof(u32)*0x30 );
 	
@@ -1205,12 +1205,12 @@ int _main( int argc, char *argv[] )
 	if( TitleID == 0x0000000100000002LL )
 	{
 		//Disable SD access for system menu, as it breaks channel/game loading
-		if( *SDStatus == 1 )
-			*SDStatus = 2;
+		//if( *SDStatus == 1 )
+		//	*SDStatus = 1;
 
 		MenuType = 1;
 		
-	}/* else if ( (TitleID >> 32) ==  0x00010000LL ) {
+	} /*else if ( (TitleID >> 32) ==  0x00010000LL ) {
 		MenuType = 2;
 	}*/
 

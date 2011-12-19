@@ -48,21 +48,6 @@ void __Dec_Enc_TB( void )
 	tbdec = tbdec ? false : true;
 }
 
-void __configloadcfg( void )
-{
-	u32 size;
-	PL = NULL;
-	PL = (HacksConfig *)NANDLoadFile( "/sneek/hackscfg.bin", &size );
-	if( PL == NULL )
-	{
-		PL = (HacksConfig *)malloca( sizeof(u32)*4, 32);
-		PL->EULang = 1;
-		PL->USLang = 1;
-		PL->Config = 0;
-	}
-	NANDWriteFileSafe( "/sneek/hackscfg.bin", PL , sizeof(u32)*4 );
-}
-
 void __configshifttxt( char *str )
 {
 	const char *ptr = str;
@@ -294,7 +279,7 @@ void DoGameRegion( u64 TitleID )
 {
 	__configloadcfg();
 	
-	if( PL->Config & CONFIG_REGION_CHANGE )
+	if( PL->Config&CONFIG_REGION_CHANGE )
 	{
 		if( __configread() == ES_SUCCESS )
 		{
@@ -304,7 +289,10 @@ void DoGameRegion( u64 TitleID )
 				{
 					case 'J':
 					{
-						__configsetbyte( "IPL.E60", 0 );
+						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
 						__configsetbyte( "IPL.LNG", 0 );				
 						__configsetsetting( "AREA", "JPN" );
@@ -316,9 +304,12 @@ void DoGameRegion( u64 TitleID )
 					} break;
 					case 'E':
 					{
-						__configsetbyte( "IPL.E60", 0 );
+						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+							__configsetbyte( "IPL.E60", 1 );
+						else
+							__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
-						__configsetbyte( "IPL.LNG", PL->USLang );				
+						__configsetbyte( "IPL.LNG", PL->USLang );
 						__configsetsetting( "AREA", "USA" );
 						__configsetsetting( "MODEL", "RVL-001(USA)" );
 						__configsetsetting( "CODE", "LU" );
@@ -329,19 +320,34 @@ void DoGameRegion( u64 TitleID )
 					case 'D':
 					case 'F':
 					case 'I':
+					case 'M':
 					case 'P':
 					case 'S':
 					case 'U':					
 					{
-				
 						__configsetbyte( "IPL.E60", 1 );
 						__configsetbyte( "IPL.PGS", 0 );
-						__configsetbyte( "IPL.LNG", PL->EULang );				
+						__configsetbyte( "IPL.LNG", PL->EULang );
 						__configsetsetting( "AREA", "EUR" );
 						__configsetsetting( "MODEL", "RVL-001(EUR)" );
 						__configsetsetting( "CODE", "LEH" );
 						__configsetsetting( "VIDEO", "PAL" );
 						__configsetsetting( "GAME", "EU" );
+						__configwrite();				
+					} break;
+					case 'K':					
+					{
+						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+							__configsetbyte( "IPL.E60", 1 );
+						else
+							__configsetbyte( "IPL.E60", 0 );
+						__configsetbyte( "IPL.PGS", 1 );
+						__configsetbyte( "IPL.LNG", 9 );
+						__configsetsetting( "AREA", "KOR" );
+						__configsetsetting( "MODEL", "RVL-001(KOR)" );
+						__configsetsetting( "CODE", "LKM" );
+						__configsetsetting( "VIDEO", "NTSC" );
+						__configsetsetting( "GAME", "KR" );
 						__configwrite();				
 					} break;
 				}
@@ -354,15 +360,16 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 {
 	__configloadcfg();
 	
-	if( PL->Config & CONFIG_REGION_CHANGE )
+	if( PL->Config&CONFIG_REGION_CHANGE )
 	{	
 		if( __configread() == ES_SUCCESS )
 		{
 			if( TitleID == 0x0000000100000002LL )
 			{
+				dbgprintf( "Asked region: %d\n", TitleVersion&0xF );
 				switch( TitleVersion&0xF )
 				{
-					case JAP:
+					case AREA_JPN:
 					{
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
@@ -374,7 +381,7 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetsetting( "GAME", "JP" );
 						__configwrite();				
 					} break;
-					case USA:
+					case AREA_USA:
 					{
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
@@ -386,8 +393,8 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetsetting( "GAME", "US" );				
 						__configwrite();				
 					} break;				
-					case EUR:
-					{				
+					case AREA_EUR:
+					{	
 						__configsetbyte( "IPL.E60", 1 );
 						__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );				
@@ -398,6 +405,18 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetsetting( "GAME", "EU" );
 						__configwrite();
 					} break;
+					case AREA_KOR:					
+					{	
+						__configsetbyte( "IPL.E60", 0 );
+						__configsetbyte( "IPL.PGS", 1 );
+						__configsetbyte( "IPL.LNG", 9 );
+						__configsetsetting( "AREA", "KOR" );
+						__configsetsetting( "MODEL", "RVL-001(KOR)" );
+						__configsetsetting( "CODE", "LKM" );
+						__configsetsetting( "VIDEO", "NTSC" );
+						__configsetsetting( "GAME", "KR" );
+						__configwrite();				
+					} break;
 				}
 			}
 		}
@@ -406,79 +425,81 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 
 s32 Force_Internet_Test( void )
 {
-	char *path	= (char *)malloca( 0x80, 32 );
-	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
-	u8 tmp = 0xa0;	
-	strcpy( path, "/shared2/sys/net/02/config.dat" );
-	netconfig_t *NETCfg = (netconfig_t *)NANDLoadFile( path, size );	
-	if( NETCfg == NULL )
+	if( PL->Config&CONFIG_FORCE_INET )
 	{
+		char *path	= (char *)malloca( 0x80, 32 );
+		u32 *size	= (u32*)malloca( sizeof(u32), 32 );
+		u8 tmp = 0xa0;	
+		strcpy( path, "/shared2/sys/net/02/config.dat" );
+		netconfig_t *NETCfg = (netconfig_t *)NANDLoadFile( path, size );	
+		if( NETCfg == NULL )
+		{
+			free( path );
+			return *size;
+		}
+	
+		if( NETCfg->connection[0].flags && NETCfg->connection[0].flags < 0xa0 )
+		{
+			NETCfg->header4 = 0x01;
+			NETCfg->header5 = 0x07;
+			if( !NETCfg->connection[0].ssid_length )
+				tmp += 0x01;
+			if( NETCfg->connection[0].dns1[0] == 0 )
+				tmp += 0x02;
+			if( NETCfg->connection[0].ip[0] == 0 )
+				tmp += 0x04;
+			if( NETCfg->connection[0].proxy_settings.use_proxy )
+				tmp += 0x16;
+			
+			NETCfg->connection[0].flags = tmp;
+			
+			NANDWriteFileSafe( path, NETCfg, *size );
+		}	
+		else if( NETCfg->connection[1].flags && NETCfg->connection[1].flags < 0xa0 )
+		{
+			NETCfg->header4 = 0x01;
+			NETCfg->header5 = 0x07;
+			if( !NETCfg->connection[1].ssid_length )
+				tmp += 0x01;
+			if( NETCfg->connection[1].dns1[0] == 0 )
+				tmp += 0x02;
+			if( NETCfg->connection[1].ip[0] == 0 )
+				tmp += 0x04;
+			if( NETCfg->connection[1].proxy_settings.use_proxy )
+				tmp += 0x16;
+			
+			NETCfg->connection[1].flags = tmp;
+			
+			NANDWriteFileSafe( path, NETCfg, *size );
+		}	
+		else if( NETCfg->connection[2].flags && NETCfg->connection[2].flags < 0xa0 )
+		{
+			NETCfg->header4 = 0x01;
+			NETCfg->header5 = 0x07;
+			if( !NETCfg->connection[2].ssid_length )
+				tmp += 0x01;
+			if( NETCfg->connection[2].dns1[0] == 0 )
+				tmp += 0x02;
+			if( NETCfg->connection[2].ip[0] == 0 )
+				tmp += 0x04;
+			if( NETCfg->connection[2].proxy_settings.use_proxy )
+				tmp += 0x16;
+			
+			NETCfg->connection[2].flags = tmp;
+			
+			NANDWriteFileSafe( path, NETCfg, *size );
+		}	
+	
+		free( NETCfg );
+		free( size );
 		free( path );
-		return *size;
-	}
 	
-	if( NETCfg->connection[0].flags && NETCfg->connection[0].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[0].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[0].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[0].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[0].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[0].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
+		if( __configread() == ES_SUCCESS )
+		{
+			__configsetbyte( "IPL.CD2", 1 );
+			__configsetbyte( "IPL.EULA", 1 );
+			__configwrite();
+		}
 	}	
-	else if( NETCfg->connection[1].flags && NETCfg->connection[1].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[1].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[1].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[1].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[1].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[1].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
-	}	
-	else if( NETCfg->connection[2].flags && NETCfg->connection[2].flags < 0xa0 )
-	{
-		NETCfg->header4 = 0x01;
-		NETCfg->header5 = 0x07;
-		if( !NETCfg->connection[2].ssid_length )
-			tmp += 0x01;
-		if( NETCfg->connection[2].dns1[0] == 0 )
-			tmp += 0x02;
-		if( NETCfg->connection[2].ip[0] == 0 )
-			tmp += 0x04;
-		if( NETCfg->connection[2].proxy_settings.use_proxy )
-			tmp += 0x16;
-			
-		NETCfg->connection[2].flags = tmp;
-			
-		NANDWriteFileSafe( path, NETCfg, *size );
-	}	
-	
-	free( NETCfg );
-	free( size );
-	free( path );
-	
-	if( __configread() == ES_SUCCESS )
-	{
-		__configsetbyte( "IPL.CD2", 1 );
-		__configsetbyte( "IPL.EULA", 1 );
-		__configwrite();
-	}
-	
 	return 0;	
 }
