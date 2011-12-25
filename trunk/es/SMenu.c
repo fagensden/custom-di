@@ -35,13 +35,11 @@ u32 *Offsets;
 
 GCPadStatus GCPad;
 
-DIConfig *DICfg;
-DIConfigO *DICfgO;
-
 u32 DIConfType; 
 
+DIConfig *DICfg;
+DIConfigO *DICfgO;
 NandConfig *NandCfg;
-
 ChannelCache *channelCache;
 HacksConfig *PL;
 
@@ -767,16 +765,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r64 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r66 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r64 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r66 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r64 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r66 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r64 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r66 %s",__DATE__);					
 			}
 		}
 
@@ -1304,6 +1302,7 @@ void SMenuReadPad ( void )
                 		*GameCount &= ~0x10000;
                 		DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
                 		DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
+						//DoEE( 432, DICfg );
 					}
 					else
 					{

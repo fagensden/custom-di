@@ -29,74 +29,41 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "dip.h"
 #include "DIGlue.h"
 
-
 extern DIConfig *DICfg;
-extern char *RegionStr;
 
 s32 switchtimer;
 int QueueID;
 int requested_game;
 u32 ignore_logfile;
-char* cdiconfigpath ALIGNED(32);
-char* cdiconfig ALIGNED(32);
-size_t slen;
-
-static u8 *dipath ALIGNED(32);
-
+char *cdiconfig ALIGNED(32);
 
 s32 FS_Get_Di_Path( void )
 {
-	
-	
-	//dbgprintf("CDI:About to Get_Di_Path \n");
-
 	s32 FFSHandle = IOS_Open("/dev/fs", 0 );
 	if( FFSHandle < 0 )
 		return FFSHandle;
-	//u8 *dipath = (u8 *)HeapAlloc( 0, 0x20 );
-	dipath = (u8 *)malloca( 0x20, 0x20 );
+
+	u8 *dipath = (u8 *)malloca( 0x20, 0x20 );
 
 	s32 r = IOS_Ioctl( FFSHandle, ISFS_GET_DI_PATH, NULL, 0, (void*)(dipath), 0x20 );
-	//s32 r = -1;
 	IOS_Close( FFSHandle );
 	
-	if (r == FS_SUCCESS)
+	if ( r == FS_SUCCESS )
 	{
-		memcpy(cdiconfigpath,dipath,0x20);
-		cdiconfigpath[0x1f] = 0;
+		memcpy( cdiconfig, dipath, 0x20 );
+		cdiconfig[0x1f] = 0;
 	}
 	else
 	{
 		//for compatibility with previous
-		strcpy(cdiconfigpath,"/sneek");
+		strcpy( cdiconfig, "/sneek" );
 	}
-	//dbgprintf("CDI:Get_Di_Path = %s\n",cdiconfigpath);
-	//strcpy(cdiconfigpath,"/sneek");
-
-	strcpy(cdiconfig,cdiconfigpath);
-	slen = strlen(cdiconfig);
-	strcpy (cdiconfig+slen ,"/diconfig.bin");
-	//HeapFree  (0,dipath);
-	free  (dipath);
-
-	//dbgprintf("CDI:Get_Di_Path = %s\n",cdiconfig);
-	return r;
-}
-
-/*
-s32 FS_Running( void )
-{
-	s32 fd = IOS_Open("/dev/fs", 0 );
-	if( fd < 0 )
-		return fd;
-
-	s32 r = IOS_Ioctl( fd, ISFS_SUPPORT_SD_DI, NULL, 0, NULL, 0);
-	
-	IOS_Close( fd );
+	strcat( cdiconfig,"/diconfig.bin" );
+	free( dipath );
 
 	return r;
 }
-*/
+
 
 void udelay(int us)
 {
@@ -122,7 +89,7 @@ out:
 
 s32 RegisterDevices( void *QueueSpace )
 {
-	int QueueID = MessageQueueCreate( QueueSpace, 8);
+	QueueID = MessageQueueCreate( QueueSpace, 8);
 
 	s32 ret = IOS_Register("/dev/di", QueueID );
 
@@ -154,49 +121,21 @@ void _main(void)
 		ThreadCancel( 0, 0x77 );
 	}
 	
-	s32 ret = EnableVideo(1);
+	s32 ret = EnableVideo( 1 );
 
 	DVDInit();								 
-	
-	//a 2 seconds delay to avoid racing
-	//udelay(2000000);
-/*
-	s32 tries = 0;
-
-	s32 runresult;
-	runresult = FS_Running();
-	while((runresult!=FS_SUCCESS)&&(tries < 20)) 
-	{
-		//dbgprintf("CDI:Init FS runresult = %d\n",runresult);
-		udelay(1000000);
-		tries++;
-		runresult = FS_Running();
-	}
-	if (tries == 20)
-	{
-		dbgprintf("CDI:FS-USB init failure...?\n");
-	}
-*/
-//	else
-//	{
-//		dbgprintf("CDI:Init FS Succeeded after %d\n",tries+1);
-//	}
-
-//  SNEEK problem
-//	DVDInit();
 
 	//a 0.5 seconds delay to avoid racing
 	//as es is waiting for the harddisk to become ready
 	//this needs to be after the DVDInit();
 	//which sets the flag for harddisk ready
 
-	udelay(500000);
+	udelay( 500000 );
 
 
 	//basically
 	ignore_logfile = 0;
-	cdiconfig = (char*)(malloca( 0x40, 0x20));
-	cdiconfigpath = (char*)(malloca( 0x20, 0x20));
+	cdiconfig = (char *)( malloca( 0x40, 0x20 ) );
 
 	FS_Get_Di_Path();
 
