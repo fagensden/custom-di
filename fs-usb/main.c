@@ -197,6 +197,7 @@ void _main(void)
 	// get the nandfolder from /sneek/nandpath.bin file.
 	char *path = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
 	char *npath = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
+	char *tempnroot = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
 	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, 0xc0, 32 );
 	u8 *fpath = (u8 *)heap_alloc_aligned( 0, 0x80, 32 );
 	
@@ -271,74 +272,86 @@ void _main(void)
 
 	strcpy( path, PATHFILE );
 	strcpy( npath, NANDFOLDER );
-	if( f_open( &fil, path, FA_READ ) != FR_OK )
+	
+	if( f_open( &fil, path, FA_READ ) == FR_OK )
 	{
-		if( f_opendir( &dir, npath ) == FR_OK )
+		if( NandCFG )
+			heap_free( 0, NandCFG );
+			
+		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
+		f_open( &fil, path, FA_READ );
+		f_read( &fil, NandCFG, fil.fsize, &read );
+		f_close(&fil);
+		__sprintf( tempnroot, "%.63s", NandCFG->NandInfo[NandCFG->NandSel] );
+		f_unlink( path );
+		heap_free( 0, NandCFG );
+	}	
+	
+	if( f_opendir( &dir, npath ) == FR_OK )
+	{
+		u32 ncnt=0;
+		f_open( &fil, path, FA_WRITE|FA_CREATE_ALWAYS );
+		NandCFG->NandCnt = 0;
+		NandCFG->NandSel = 0;
+		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
+		f_lseek( &fil, 0x10 );
+		usenfol = 1;
+		while( f_readdir( &dir, &FInfo ) == FR_OK )
 		{
-			u32 ncnt=0;
-			f_open( &fil, path, FA_WRITE|FA_CREATE_ALWAYS );
-			NandCFG->NandCnt = 0;
-			NandCFG->NandSel = 0;
-			f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
-			f_lseek( &fil, 0x10 );
-			usenfol=1;
-			while( f_readdir( &dir, &FInfo ) == FR_OK )
-			{
-				if( FInfo.lfsize )
-					memcpy( NInfo+NANDDESC_OFF, FInfo.lfname, NANDDESC_OFF );
-				else
-					memcpy( NInfo+NANDDESC_OFF, FInfo.fname, NANDDESC_OFF );
+			if( FInfo.lfsize )
+				memcpy( NInfo+NANDDESC_OFF, FInfo.lfname, NANDDESC_OFF );
+			else
+				memcpy( NInfo+NANDDESC_OFF, FInfo.fname, NANDDESC_OFF );
 
-				
-				strcpy(fpath,NANDFOLDER);
-				slen = strlen(fpath);
-				fpath[slen] = '/';
-				strncpy(fpath+slen+1,(char*)(NInfo+NANDDESC_OFF),0x80-slen-1);
-				memcpy(NInfo,fpath,0x40);
+			strcpy( fpath, NANDFOLDER );
+			slen = strlen(fpath);
+			fpath[slen] = '/';
+			strncpy( fpath+slen+1, (char *)(NInfo+NANDDESC_OFF), 0x80-slen-1 );
+			memcpy( NInfo, fpath, 0x40 );
 
-				memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
+			memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
 
-				f_write( &fil, NInfo, NANDINFO_SIZE, &write );
+			f_write( &fil, NInfo, NANDINFO_SIZE, &write );
 				//here we create fpath which is the full path to the nand
 				//and we check if it is compatible with our nandpath
 				//if it's the case, we simply consider the entry as ok
 				//no need to do this if nandroot is empty
-				if(nandroot[0] != 0)
+			if(nandroot[0] != 0)
+			{
+				slen = strlen( nandroot );
+				if ( memcmp( nandroot , fpath, slen ) == 0 )
 				{
-					slen = strlen(nandroot);
-					if (memcmp(nandroot,fpath,slen)==0)
-					{
-						NandCFG->NandSel = ncnt;
-						usenfol=0;
-					}
+					//NandCFG->NandSel = ncnt;
+					usenfol=0;
 				}
-				ncnt++;
-			}
+			}			
+			if( strcmp( tempnroot, fpath ) == 0 )
+				NandCFG->NandSel = ncnt;
+				
+			ncnt++;
+		}
 			//add the nandpath entry to the nandcfg entries.
 		
-			if((nandroot[0]!=0)&&(usenfol == 1))
-			{
-				if (ncnt < 40)
-				{
-					memcpy(NInfo,nandroot,NANDDESC_OFF );
-					memcpy(NInfo+NANDDESC_OFF,nandroot,NANDDESC_OFF );
-					memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
-					f_write( &fil, NInfo, NANDINFO_SIZE, &write );
-					NandCFG->NandSel = ncnt;
-					ncnt++;
-				}
-			}
-
-			NandCFG->NandCnt = ncnt;
-			f_lseek( &fil, 0 );
-			f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
-			f_close( &fil );
-		}
-		else
+		if( ( nandroot[0] != 0 ) && ( usenfol == 1 ) )
 		{
-			usenfol = 0;
+			memcpy( NInfo, nandroot, NANDDESC_OFF );
+			memcpy( NInfo+NANDDESC_OFF, nandroot, NANDDESC_OFF );
+			memcpy( NInfo+NANDDI_OFF, diroot, NANDDESC_OFF );
+			f_write( &fil, NInfo, NANDINFO_SIZE, &write );
+			NandCFG->NandSel = ncnt;
+			ncnt++;			
 		}
+
+		NandCFG->NandCnt = ncnt;
+		f_lseek( &fil, 0 );
+		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
+		f_close( &fil );
 	}
+	else
+	{
+		usenfol = 0;
+	}
+	
 
 	if( usenfol )
 	{
@@ -364,6 +377,7 @@ void _main(void)
 	}
 	
 	heap_free( 0, fpath );
+	heap_free( 0, tempnroot );
 	heap_free( 0, NInfo );
 	heap_free( 0, path );
 	heap_free( 0, npath );
