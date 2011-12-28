@@ -319,7 +319,7 @@ void _main(void)
 			ncnt++;			
 		}
 
-		NandCFG->NandCnt = ncnt-1;
+		NandCFG->NandCnt = ncnt;
 		f_lseek( &fil, 0 );
 		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
 		f_close( &fil );
