@@ -265,7 +265,7 @@ int _main( int argc, char *argv[] )
 			ncnt++;			
 		}
 
-		NandCFG->NandCnt = ncnt-1;
+		NandCFG->NandCnt = ncnt;
 		f_lseek( &fil, 0 );
 		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
 		f_close( &fil );
