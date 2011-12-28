@@ -157,7 +157,7 @@ void FFS_Ioctl(struct IPCMessage *msg)
 	//	dbgprintf("FFS:in:0x%p\tout:0x%p\n", bufin, bufout );
 	//}
 #ifdef EDEBUG
-	dbgprintf("FFS:IOS_Ioctl( %d 0x%x 0x%p 0x%x 0x%p 0x%x )\n", msg->fd, msg->ioctl.command, bufin, lenin, bufout, lenout);
+	//dbgprintf("FFS:IOS_Ioctl( %d 0x%x 0x%p 0x%x 0x%p 0x%x )\n", msg->fd, msg->ioctl.command, bufin, lenin, bufout, lenout);
 #endif
 	
 	ret = FS_SUCCESS;
@@ -344,57 +344,28 @@ void FFS_Ioctl(struct IPCMessage *msg)
 
 	mqueue_ack( (void *)msg, ret);
 }
-s32 FS_IsNandFolder(char* whichpath)
+
+bool FS_IsNandFolder( char *whichpath )
 {
-	//this are all the nand files to my knowledge
-	//they should be ordered most used first and least used last
-	//I don't think it will make much difference
-	//dbgprintf("checking folder %s\n",whichpath);
-	
-	if (strnccmp(whichpath,"/ticket/",8) == 0)
+	if ( strnccmp( whichpath, "/ticket\0" , 7 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/shared1/",9) == 0)
+	if ( strnccmp( whichpath, "/shared1\0", 8 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/title/",7) == 0)
+	if ( strnccmp( whichpath, "/title\0", 6 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/sys/",5) == 0)
+	if ( strnccmp( whichpath, "/sys\0", 4 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/wfs/",5) == 0)
+	if ( strnccmp( whichpath, "/wfs\0", 4 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/shared2/",9) == 0)
+	if ( strnccmp( whichpath, "/shared2\0", 8 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/import/",8) == 0)
+	if ( strnccmp( whichpath, "/import\0", 7 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/meta/",6) == 0)
+	if ( strnccmp( whichpath, "/meta\0", 5 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/tmp/",5) == 0)
+	if ( strnccmp( whichpath, "/tmp\0", 4 ) == 0)
 		return true;
-	if (strnccmp(whichpath,"/sneekcache/",12) == 0)
-		return true;
-
-//	the argument of FS_CreateDir and probably others doesn't have a trailing slash
-//	it can be a nand subfolder as well. 
-
-
-	if (strnccmp(whichpath,"/ticket\0",8) == 0)
-		return true;
-	if (strnccmp(whichpath,"/shared1\0",9) == 0)
-		return true;
-	if (strnccmp(whichpath,"/title\0",7) == 0)
-		return true;
-	if (strnccmp(whichpath,"/sys\0",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/wfs\0",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/shared2\0",9) == 0)
-		return true;
-	if (strnccmp(whichpath,"/import\0",8) == 0)
-		return true;
-	if (strnccmp(whichpath,"/meta\0",6) == 0)
-		return true;
-	if (strnccmp(whichpath,"/tmp\0",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/sneekcache\0",12) == 0)
+	if ( strnccmp( whichpath, "/sneekcache\0", 11 ) == 0)
 		return true;
 
 	return false;
@@ -402,23 +373,15 @@ s32 FS_IsNandFolder(char* whichpath)
 
 void FS_AdjustNpath(char* path)
 {
-	//we should do this for every nand folder
-	size_t nplen;	
-	s32 isnand = false;	
-	isnand = FS_IsNandFolder(path);
-	if (isnand == false)
+	bool isnand = FS_IsNandFolder( path );
+	if ( !isnand )
 	{
-		strcpy(nandpath,path);
-		//dbgprintf("folder is now %s\n",nandpath);
-
+		strcpy( nandpath, path );
 	}
 	else
 	{
-		strcpy(nandpath,nandroot);
-		nplen = strlen(nandpath);
-		strcpy(nandpath+nplen,path);
-		//dbgprintf("nand folder is now %s\n",nandpath);
-
+		strcpy( nandpath, nandroot );
+		strcat(	nandpath, path );
 	}
 }
 
@@ -427,14 +390,14 @@ u32 FS_CheckHandle( s32 fd )
 	if( fd < 0 || fd >= MAX_FILE)
 	{
 #ifdef EDEBUG
-		dbgprintf("FFS:Handle is invalid! %d < 0 || %d >= %d!\n", fd, fd, MAX_FILE);
+		//dbgprintf("FFS:Handle is invalid! %d < 0 || %d >= %d!\n", fd, fd, MAX_FILE);
 #endif
 		return 0;
 	}
 	if( fd_stack[fd].fs == NULL )
 	{
 #ifdef EDEBUG
-		dbgprintf("FFS:Handle %d is invalid! FS == NULL!\n", fd);
+		//dbgprintf("FFS:Handle %d is invalid! FS == NULL!\n", fd);
 #endif
 		return 0;
 	}

@@ -765,16 +765,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r67 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r68 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r67 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r68 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r67 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r68 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r67 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r68 %s",__DATE__);					
 			}
 		}
 
@@ -911,7 +911,7 @@ void SMenuDraw( void )
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*11, "save config" );
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*12, "recreate game cache(restarts!!)" );
 				if( fnnd ) 
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+0x40 );
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+NANDDESC_OFF );
 				else
 					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: Root nand" );
 				
@@ -1705,6 +1705,8 @@ void SMenuReadPad ( void )
 					} break;
 					case 13:
 					{
+						Save_Nand_Cfg( NandCfg );
+						NANDWriteFileSafe( "/sneek/nandcfg.bin", NandCfg , NandCfg->NandCnt * NANDINFO_SIZE + NANDCFG_SIZE );
 						LaunchTitle( 0x0000000100000002LL );
 					} break;
 					case 14:			
@@ -1833,11 +1835,10 @@ void SMenuReadPad ( void )
 					{
 						if( fnnd )
 						{
-							if( NandCfg->NandSel == NandCfg->NandCnt - 1 )
+							if( NandCfg->NandSel == NandCfg->NandCnt )
 								NandCfg->NandSel = 0;
 							else
 								NandCfg->NandSel++;
-							Save_Nand_Cfg( NandCfg );
 						}
 					} break;
 				}
@@ -1908,11 +1909,9 @@ void SMenuReadPad ( void )
 						if( fnnd )
 						{
 							if( NandCfg->NandSel == 0 )
-								NandCfg->NandSel = NandCfg->NandCnt - 1;
+								NandCfg->NandSel = NandCfg->NandCnt;
 							else
 								NandCfg->NandSel--;
-							
-							Save_Nand_Cfg( NandCfg );
 						}
 					} break;
 					

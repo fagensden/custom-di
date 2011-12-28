@@ -8,7 +8,7 @@ typedef struct{
 	u32 width;
 	u32 height;
 	u32 imageData[];
-}ImageStruct;
+} ImageStruct;
 
 void DrawImage(u32 frameBuffer, u32 x, u32 y, ImageStruct* Image);
 ImageStruct* LoadImage(char* str);

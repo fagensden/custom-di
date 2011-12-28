@@ -13,3 +13,4 @@ int memcmp(const void *s1, const void *s2, size_t n);
 int sprintf(char *str, const char *fmt, ...);
 char * strstr (   const char * str1,  const char * str2   );
 void hexdump(void *d, int len);
+char *strcat( char *str1, const char *str2 );

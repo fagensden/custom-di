@@ -4,7 +4,6 @@
 #define __iomem
 
 typedef unsigned long uint32_t;
-typedef char bool;
 
 #if 0
 typedef unsigned long u32;

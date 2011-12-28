@@ -124,3 +124,16 @@ char *strchr(const char *s, int c)
 	} while(*s++ != 0);
 	return NULL;
 }
+
+char *strcat( char *str1, const char *str2 )
+{
+	char *res = str1;
+	
+	while( *str1 )
+		str1++;
+		
+	while( ( *str1++ = *str2++ ) )
+		;
+		
+	return res;
+}

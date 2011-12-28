@@ -150,23 +150,7 @@ void Save_Nand_Cfg( NandConfig* NandCfg )
 		ISFS_Delete(path);
 		NANDWriteFileSafe(path,nand, nlen+1);
 	}
-	
-	strcpy(path, "/sneek/NandCfg.bin");
-	
-	fd = IOS_Open( path, 2 );
-	if( fd < 0 )
-	{
-		heap_free( 0, path );
-		return ;
-	}
-	s32 r = IOS_Write( fd, NandCfg, 0x10 );
-	if( r < 0 || r != 0x10 )
-	{
-		IOS_Close( fd );
-		heap_free( 0, path );
-		return;
-	}
-	IOS_Close( fd );
+
 	free(nand);
 	heap_free( 0, path );
 	return;
