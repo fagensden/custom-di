@@ -118,7 +118,7 @@ typedef struct {
 
 void FFS_Ioctl(struct IPCMessage *msg);
 void FFS_Ioctlv(struct IPCMessage *msg);
-s32 FS_IsNandFolder(char* whichpath);
+bool FS_IsNandFolder(char* whichpath);
 void FS_AdjustNpath(char* path);
 u32 FS_CheckHandle( s32 fd );
 s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize );

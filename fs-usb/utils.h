@@ -7,3 +7,6 @@
                 (((u16)(x) & (u16)0x00ffU) << 8) |          \
                 (((u16)(x) & (u16)0xff00U) >> 8)))
 
+extern void *memset8( void *dst, int w, size_t length );
+extern void *memset16( void *dst, int w, size_t length );
+extern void *memset32( void *dst, int w, size_t length ); 

@@ -57,6 +57,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define VI_DEBUG_PAL		4
 #define VI_EUR60			5
 
+#define NANDCFG_SIZE 	0x10
+#define NANDDESC_OFF	0x80
+#define NANDDI_OFF		0xC0
+#define NANDINFO_SIZE	0x100
+
 enum {
 	AREA_JPN = 0,
 	AREA_USA,

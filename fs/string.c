@@ -157,4 +157,17 @@ void hexdump(void *d, int len)
     dbgprintf("\n");
   }
 }
+
+char *strcat( char *str1, const char *str2 )
+{
+	char *res = str1;
+	
+	while( *str1 )
+		str1++;
+		
+	while( ( *str1++ = *str2++ ) )
+		;
+		
+	return res;
+}
 #endif

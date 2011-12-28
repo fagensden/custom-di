@@ -163,18 +163,19 @@ void FFS_Ioctl(struct IPCMessage *msg)
 		case IOCTL_GET_DI_PATH:
 		{	
 			if( lenout < 0x20 )
+			{
 				ret = -1017;
-			else {
+			}
+			else 
+			{
 				memcpy( bufout, (void*)(diroot), 0x20 );
 				ret = FS_SUCCESS;
 			}	
-		 	break;
-		 }
+		 	
+		} break;
 		case IOCTL_SUPPORT_SD_DI:
 		{
-			ret = FS_SUCCESS;
-			//ret = FS_NO_ENTRY;
-		
+			ret = FS_SUCCESS;		
 		}break;
 		case IOCTL_IS_USB:
 		{
@@ -215,8 +216,8 @@ void FFS_Ioctl(struct IPCMessage *msg)
 				char *path = (char*)heap_alloc_aligned( 0, 0x40, 32 );
 			
 				FS_AdjustNpath(bufin+6);
-//				_sprintf( path, "%s.attr", (char*)(bufin+6) );
-				_sprintf( path, "%s.attr", (char*)(nandpath) );
+//				_sprintf( path, "%s.attr", (char*)( bufin+6 ) );
+				_sprintf( path, "%s.attr", (char*)( nandpath ) );
 
 				if( f_open( &fil, path, FA_CREATE_ALWAYS | FA_WRITE ) == FR_OK )
 				{
@@ -311,7 +312,9 @@ void FFS_Ioctl(struct IPCMessage *msg)
 					if( f_opendir( &d, s ) == FR_OK )
 					{
 						ret = FS_SUCCESS;
-					} else {
+					} 
+					else 
+					{
 						ret = FS_ENOENT2;
 					}
 				}
@@ -447,81 +450,44 @@ void FFS_Ioctl(struct IPCMessage *msg)
 	mqueue_ack( (void *)msg, ret);
 }
 
-s32 FS_IsNandFolder(char* whichpath)
+bool FS_IsNandFolder(char* whichpath)
 {
-	//this are all the nand files to my knowledge
-	//they should be ordered most used first and least used last
-	//I don't think it will make much difference
-	//dbgprintf("checking folder %s\n",whichpath);
-	
-	if (strnccmp(whichpath,"/ticket/",8) == 0)
-		return true;
-	if (strnccmp(whichpath,"/shared1/",9) == 0)
-		return true;
-	if (strnccmp(whichpath,"/title/",7) == 0)
-		return true;
-	if (strnccmp(whichpath,"/sys/",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/wfs/",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/shared2/",9) == 0)
-		return true;
-	if (strnccmp(whichpath,"/import/",8) == 0)
-		return true;
-	if (strnccmp(whichpath,"/meta/",6) == 0)
-		return true;
-	if (strnccmp(whichpath,"/tmp/",5) == 0)
-		return true;
-	if (strnccmp(whichpath,"/sneekcache/",12) == 0)
-		return true;
 
-//	the argument of FS_CreateDir and probably others doesn't have a trailing slash
-//	it can be a nand subfolder as well. 
-
-
-	if (strnccmp(whichpath,"/ticket\0",8) == 0)
+	if( strnccmp( whichpath, "/ticket\0", 7 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/shared1\0",9) == 0)
+	if( strnccmp( whichpath, "/shared1\0", 8 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/title\0",7) == 0)
+	if( strnccmp( whichpath, "/title\0", 6 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/sys\0",5) == 0)
+	if( strnccmp( whichpath, "/sys\0", 4 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/wfs\0",5) == 0)
+	if( strnccmp( whichpath, "/wfs\0", 4 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/shared2\0",9) == 0)
+	if( strnccmp( whichpath, "/shared2\0", 8 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/import\0",8) == 0)
+	if( strnccmp( whichpath, "/import\0", 7 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/meta\0",6) == 0)
+	if( strnccmp( whichpath, "/meta\0", 5 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/tmp\0",5) == 0)
+	if( strnccmp( whichpath, "/tmp\0",4 ) == 0 )
 		return true;
-	if (strnccmp(whichpath,"/sneekcache\0",12) == 0)
+	if( strnccmp( whichpath, "/sneekcache\0", 11 ) == 0 )
 		return true;
 
 	return false;
 }
 
-void FS_AdjustNpath(char* path)
-{
-	//we should do this for every nand folder
-	size_t nplen;	
-	s32 isnand = false;	
-	isnand = FS_IsNandFolder(path);
-	if (isnand == false)
+void FS_AdjustNpath( char *path )
+{			
+	bool isnand = FS_IsNandFolder( path );
+	if ( !isnand )
 	{
-		strcpy(nandpath,path);
-		//dbgprintf("folder is now %s\n",nandpath);
-
+		strcpy( nandpath, path );
 	}
 	else
 	{
-		strcpy(nandpath,nandroot);
-		nplen = strlen(nandpath);
-		strcpy(nandpath+nplen,path);
-		//dbgprintf("nand folder is now %s\n",nandpath);
-
+		strcpy( nandpath, nandroot );
+		strcat(	nandpath, path );
 	}
 }
 
@@ -1169,7 +1135,7 @@ s32 FS_DeleteFile( char *Path )
 
 	//dbgprintf("Running FS_DeleteFile \n");
 
-	FS_AdjustNpath(Path);
+	FS_AdjustNpath( Path );
 
 #ifdef USEATTR
 	//delete attribute file
@@ -1202,13 +1168,13 @@ s32 FS_DeleteFile( char *Path )
 s32 FS_Move( char *sPath, char *dPath )
 {
 
-	char *LSPath = (char*)heap_alloc_aligned( 0, 0x80, 0x40 );
+	char *LSPath = (char *)heap_alloc_aligned( 0, 0x80, 0x40 );
 
 	//dbgprintf("Running FS_Move \n");
 	
-	FS_AdjustNpath(sPath);
-	strcpy(LSPath,nandpath);
-	FS_AdjustNpath(dPath);
+	FS_AdjustNpath( sPath );
+	strcpy( LSPath, nandpath );
+	FS_AdjustNpath( dPath );
 	
 	switch( f_rename( LSPath, nandpath ) )
 	{

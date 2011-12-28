@@ -33,7 +33,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 u8 *NANDLoadFile( char * path, u32 *Size );
 s32 NANDWriteFileSafe( char *pathdst, void *data, u32 size );
-s32 Create_Nand_Cfg(char* from); 
 void Save_Nand_Cfg(NandConfig *NandCfg);
 
 #endif
