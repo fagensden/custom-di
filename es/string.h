@@ -22,5 +22,6 @@ extern void memcpy(void *dst, void *src, u32 size);
 
 int _sprintf( char *buf, const char *fmt, ... );
 void hexdump(void *d, int len);
+char *strcat( char *str1, const char *str2 );
 
 #endif

@@ -849,32 +849,6 @@ s32 DVDSelectGame( int SlotID )
 					DVDClose( fd_sf );
 				}
 				
-				strcpy( str, "/title/mom.bin" );
-				s32 fd_mom = DVDOpen( str, FA_READ );
-				if( fd_mom < 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 )
-				{
-					fd_mom = DVDOpen( str, FA_CREATE_ALWAYS | FA_READ | FA_WRITE );
-					DVDWrite( fd_mom, buf2, sizeof(u32) );
-					ISFS_Rename( "/title/00010000", "/title/10010000" );
-					if( DVDOpenDir( "/title/20010000" ) == FR_OK )
-						ISFS_Rename( "/title/20010000", "/title/00010000" );
-					else
-						DVDCreateDir( "/title/00010000" );
-						
-					DVDClose( fd_mom );
-				}
-				else if( fd_mom >= 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) != 0 )
-				{					
-					ISFS_Rename( "/title/00010000", "/title/20010000" );
-					ISFS_Rename( "/title/10010000", "/title/00010000" );
-					DVDClose( fd_mom );
-					DVDDelete( str );
-				}
-				else if( fd_mom >= 0 && strncmp( WBFSFile, "R3Oxxx", 3 ) == 0 )
-				{					
-					DVDClose( fd_mom );					
-				}
-				
 				free( WBFSInf );
 				free( WBFSFInf );				
 				wii_sector_size_s = size_to_shift(0x8000);

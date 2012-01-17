@@ -43,7 +43,7 @@ u64 *TTitlesO;
 u32 TOCount;
 u32 TOCountDirty;
 
-u32 LoadDI;
+bool LoadDI;
 
 HacksConfig *PL;
 
@@ -185,6 +185,11 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 			*TitleID = 0x100000002LL;			
 		else if	( PL->Autoboot == 1 )	
 			*TitleID = PL->TitleID;
+		else if( PL ->Autoboot == 2 )
+		{
+			LoadDOLToMEM( (char *)PL->DOLName );
+			*TitleID = 0x100084f4a4e4bLL;
+		}
 	}
 
 
@@ -195,8 +200,9 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		IOSVersion = (u32)(*TitleID);
 		LaunchDisc = 1;
 
-	} else {
-
+	} 
+	else 
+	{
 		//get required IOS version from title TMD
 		_sprintf( path, "/title/%08x/%08x/content/title.tmd", (u32)(*TitleID>>32), (u32)(*TitleID) );
 
@@ -233,7 +239,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	*KernelVersion|= IOSVersion<<16;
 	SetKernelVersion( *KernelVersion );
 
-	u32 version = GetKernelVersion();
+	//u32 version = GetKernelVersion();
 	//dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
 
 	free( TMD );
@@ -942,7 +948,7 @@ s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char 
 
 	u8 *DiscSys = (u8*)malloca( aSize, 0x40 );
 	
-	iES_GetTicketView( tik, DiscSys+8 );
+	iES_GetTicketView( (u8 *)tik, DiscSys+8 );
 	
 	memcpy( DiscSys, TitleID, sizeof(u64) );
 	memcpy( DiscSys+0xE0, TMD, aSize-0xE0 );
@@ -1577,7 +1583,6 @@ s32 ES_LoadModules( u32 KernelVersion )
 	////u32 LoadDI = false;
 	s32 r=0;
 	int i;
-	size_t slen;
 
 	LoadDI = false;
 	//load TMD
@@ -1606,9 +1611,8 @@ s32 ES_LoadModules( u32 KernelVersion )
 	//Check if di.bin is present
    
     //	_sprintf( path, "/sneek/di.bin" );
-	strcpy(path, diroot);
-	slen = strlen(path);
-	strcpy (path+slen,"/di.bin");
+	strcpy( path, diroot );
+	strcat ( path, "/di.bin");
 	
 	//dbgprintf("GS: Searching for %s\n",path);
 
@@ -1637,11 +1641,12 @@ s32 ES_LoadModules( u32 KernelVersion )
 		if( TMD->Contents[i].Index == 1 && LoadDI )
 		{
 			//_sprintf( path, "/sneek/di.bin" );
-			strcpy(path, diroot);
-			slen = strlen(path);
-			strcpy (path+slen,"/di.bin");
+			strcpy( path, diroot );
+			strcat( path, "/di.bin" );
 
-		} else {
+		} 
+		else 
+		{
 			//check if shared!
 			if( TMD->Contents[i].Type & CONTENT_SHARED )
 			{
@@ -1676,7 +1681,7 @@ s32 ES_LoadModules( u32 KernelVersion )
 		{
 			//dbgprintf("ES:Waiting for DI to init device...");
 
-			while(DVDConnected() !=1 )
+			while( DVDConnected() !=1 )
 				udelay(50000);
 
 			//dbgprintf("done!\n");
@@ -1684,7 +1689,7 @@ s32 ES_LoadModules( u32 KernelVersion )
 	}
 
 //obcd
-	if (KernelVersion != 253)
+	if ( KernelVersion != 253 )
 	{
 		//dbgprintf( "ES:Waiting for network module...\n" );
 
@@ -1803,6 +1808,7 @@ s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 
 	return 1;
 }
+
 s32 ES_LaunchSYS( u64 *TitleID )
 {
 	char *path	= (char *)malloca( 0x70, 32 );

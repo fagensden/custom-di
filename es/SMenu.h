@@ -42,6 +42,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define MAX_HITS			64
 #define MAX_FB				3
+//#define MAX_APPS            50
+#define MAX_PATH_SIZE		128
 
 #define MENU_POS_X			20
 #define MENU_POS_Y			54
@@ -90,7 +92,7 @@ typedef struct
 	u32 Config;
 	u32 Autoboot;	
 	u32 ChNbr;
-	u32 Padding;
+	u32 DolNr;
 	u64 TitleID;
 	u8 bootapp[256];
 	u8 DOLName[40];

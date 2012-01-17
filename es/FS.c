@@ -62,7 +62,7 @@ s32 ISFS_Init( void )
 	r = ISFS_CreateDir( path, 0, 3, 3, 3 );
 	//if( r >= 0 )
 	//{
-		dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
+	//	dbgprintf("ES:ISFS_CreateDir(\"%s\"):%d\n", path, r );
 	//}
 
 	_sprintf( path, "/tmp" );
@@ -205,9 +205,10 @@ s32 ISFS_GetUsage( const char* filepath, u32* usage1, u32* usage2 )
 		if( ((u32)(usage1)&3) == 0 )
 		{
 			*usage1 = *FileCount;
-		} else {
-			dbgprintf("ES:Warning unaligned memory access:%p\n", usage1 );
-		}
+		} 
+		//else {
+		//	dbgprintf("ES:Warning unaligned memory access:%p\n", usage1 );
+		//}
 	}
 
 	if( usage2 != NULL )
@@ -215,9 +216,10 @@ s32 ISFS_GetUsage( const char* filepath, u32* usage1, u32* usage2 )
 		if( ((u32)(usage2)&3) == 0 )
 		{
 			*usage2 = *FileSize;
-		} else {
-			dbgprintf("ES:Warning unaligned memory access:%p\n", usage2 );
-		}
+		} 
+		//else {
+		//	dbgprintf("ES:Warning unaligned memory access:%p\n", usage2 );
+		//}
 	}
 
 	free( vec );

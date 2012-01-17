@@ -503,3 +503,13 @@ s32 Force_Internet_Test( void )
 	}	
 	return 0;	
 }
+
+void LoadDOLToMEM( char *path )
+{
+	s32 fd = IOS_Open( path, 1 );
+	fstats *status = (fstats*)heap_alloc_aligned( 0, sizeof(fstats), 0x40 );
+	ISFS_GetFileStats( fd, status );
+	IOS_Read( fd, (void *)0x12000000, status->Size );
+	heap_free( 0, status );
+	IOS_Close( fd );
+}

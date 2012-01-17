@@ -1044,44 +1044,15 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 		case 0x50:
 		{
-//			u32 KeyIDT ALIGNED(32) = 0;
 			u32* pKeyIDT ALIGNED(32);
-
 			pKeyIDT = &KeyIDT;
-
 			ret = CreateKey( pKeyIDT, 0, 0 );
-			//if( ret < 0 )
-			//{
-				//dbgprintf("CreateKey( %p, %d, %d ):%d\n",&KeyIDT, 0, 0, ret );
-				//dbgprintf("KeyID:%d\n", KeyIDT );
-			//}
-			//else
-			//{
+			syscall_71( KeyIDT, 8 );				
+			ret = syscall_5d( KeyIDT, 0, 4, 1, 0, (void *)( v[0].data ), (void *)( v[1].data ) );
 
-				s32 r = syscall_71( KeyIDT, 8 );
-				//if( r < 0 )
-				//{
-				//	dbgprintf("ES:keyid:%p:%08x\n",&KeyIDT, KeyIDT );
-				//	dbgprintf("ES:syscall_71():%d\n", r);
-				//}
-				
-				//dbgprintf(" ES key setting parameters \n");
-				hexdump (v[0].data,0x10);
-				hexdump (v[1].data,0x10); 
-				
-				
-				ret = syscall_5d( KeyIDT, 0, 4, 1, 0, (void *)(v[0].data), (void *)(v[1].data) );
-				//if( ret < 0 )
-				//	dbgprintf("syscall_5d( %d, %d, %d, %d, %d, %p, %p ):%d\n", KeyIDT, 0, 4, 1, ret, (void *)(v[0].data), (void *)(v[1].data), ret );
-				
-			//}
-//we will recycle pKeyIDT and use it to transfer the KeyIDT to DI
-			pKeyIDT = (u32*)(v[2].data);
-			*pKeyIDT = KeyIDT;				
-//			memcpy(v[2].data,&KeyIDT,4);
-
+			pKeyIDT = (u32*)( v[2].data );
+			*pKeyIDT = KeyIDT;
 		} break;
-
 		default:
 		{
 			for( i=0; i<InCount+OutCount; ++i)
@@ -1301,12 +1272,16 @@ int _main( int argc, char *argv[] )
 			{
 				//dbgprintf("ES:mqueue_recv(%d):%d cmd:%d device:\"%s\":%d\n", queueid, ret, message->command, message->open.device, message->open.mode );
 				// Is it our device?
-				if( strncmp( message->open.device, "/dev/es", 7 ) == 0 )
+				if( memcmp( message->open.device, "/dev/es", 8 ) == 0 )
 				{
 					ret = ES_FD;
-				} else if( strncmp( message->open.device, "/dev/sdio/slot", 14 ) == 0 ) {
+				} 
+				else if( memcmp( message->open.device, "/dev/sdio/slot", 15 ) == 0 ) 
+				{
 					ret = SD_FD;
-				} else  {
+				} 
+				else  
+				{
 					ret = FS_ENOENT;
 				}
 				
@@ -1320,12 +1295,10 @@ int _main( int argc, char *argv[] )
 				dbgprintf("ES:IOS_Close(%d)\n", message->fd );
 #endif
 				if( message->fd == ES_FD || message->fd == SD_FD )
-				{
-					mqueue_ack( (void *)message, ES_SUCCESS );
-					break;
-				} else 
+					mqueue_ack( (void *)message, ES_SUCCESS ); 
+				else
 					mqueue_ack( (void *)message, FS_EINVAL );
-
+					
 			} break;
 
 			case IOS_READ:
