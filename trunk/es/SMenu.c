@@ -214,6 +214,7 @@ void __configloadcfg( void )
 		PL->Config 		= 0;
 		PL->Autoboot	= 0;
 		PL->ChNbr 		= 0;
+		PL->DolNr       = 0;
 		PL->TitleID 	= 0x0000000100000002LL;
 	}
 	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
@@ -308,11 +309,10 @@ u32 SMenuFindOffsets( void *ptr, u32 SearchSize )
 	}
 	return 0;
 }
+
 void SMenuInit( u64 TitleID, u16 TitleVersion )
 {
 	int i;
-	u32 size;
-
 	value	= 0;
 	Freeze	= 0;
 	ShowMenu= 0;
@@ -451,7 +451,6 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 						//No System Menu sounds AT ALL
 						*(u32*)0x0136B438 = 0x4E800020;
 					}
-
 					
 					//Autoboot disc
 					//*(u32*)0x0137AEF4 = 0x48000020;
@@ -765,16 +764,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r69 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r70 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r69 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r70 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r69 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r70 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r69 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r70 %s",__DATE__);					
 			}
 		}
 
@@ -1167,7 +1166,7 @@ void SMenuDraw( void )
 			} break;
 			case 3:
 			{
-				memcpy( FB[i], PICBuffer, FBSize );
+				memcpy( (void *)FB[i], PICBuffer, FBSize );
 			} break;
 			case 5:
 			{				
@@ -1191,7 +1190,7 @@ void SMenuDraw( void )
 				if( PL->Autoboot == 1 )					
 					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB Channel: %.20s", channelCache->channels[PL->ChNbr].name );				
 				else if( PL->Autoboot == 2 )
-					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB DOL: %.20s", PL->bootapp );
+					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB DOL: %.20s", (char *)PL->DOLName );
 					
 				
 				
@@ -1265,7 +1264,6 @@ void SMenuReadPad ( void )
 {
 	s32 EntryCount=0;
 	u32 Gameidx;
-	//size_t slen;
 
 	memcpy( &GCPad, (u32*)0xD806404, sizeof(u32) * 2 );
 
@@ -2005,7 +2003,7 @@ void SMenuReadPad ( void )
 					} break;
 					case 9:
 					{
-						PL->Config ^=CONFIG_REGION_CHANGE;
+						PL->Config ^= CONFIG_REGION_CHANGE;
 					} break;
 					case 10:
 					{
@@ -2026,7 +2024,7 @@ void SMenuReadPad ( void )
 					case 12:
 					{
 						if( nisp )
-							PL->Config ^=CONFIG_FORCE_EuRGB60;
+							PL->Config ^= CONFIG_FORCE_EuRGB60;
 					} break;
 					case 16:
 					{
@@ -2045,6 +2043,15 @@ void SMenuReadPad ( void )
 								PL->ChNbr++;
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
+						}
+						if( PL->Autoboot == 2 )
+						{
+							//if( PL->DolNr == *Cnt )
+							//	PL->DolNr = 0;
+							//else
+							//	PL->DolNr++;
+							
+
 						}
 						
 					} break;
@@ -2180,6 +2187,14 @@ void SMenuReadPad ( void )
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
 						}
+						else if( PL->Autoboot == 2 )
+						{
+							//if( PL->DolNr == *Cnt )
+							//	PL->DolNr = 0;
+							//else
+							//	PL->DolNr++;
+
+						}
 						
 					} break;
 				}
@@ -2259,6 +2274,14 @@ void SMenuReadPad ( void )
 								PL->ChNbr--;
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
+						}
+						if( PL->Autoboot == 2 )
+						{
+							//if( PL->DolNr == 0 )
+							//	PL->DolNr = *Cnt;
+							//else
+							//	PL->DolNr--;
+
 						}
 						
 					} break;

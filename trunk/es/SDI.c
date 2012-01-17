@@ -9,9 +9,9 @@ extern int FFSHandle;
 void SD_Ioctl( struct ipcmessage *msg )
 {
 	u8  *bufin  = (u8*)msg->ioctl.buffer_in;
-	u32 lenin   = msg->ioctl.length_in;
+	//u32 lenin   = msg->ioctl.length_in;
 	u8  *bufout = (u8*)msg->ioctl.buffer_io;
-	u32 lenout  = msg->ioctl.length_io;
+	//u32 lenout  = msg->ioctl.length_io;
 	s32 ret = -1;
 
 	switch( msg->ioctl.command )
@@ -32,14 +32,14 @@ void SD_Ioctl( struct ipcmessage *msg )
 			}
 
 			ret = 0;
-			dbgprintf("SD:SetHCRegister(%02X:%02X):%d\n", reg, HCR[reg], ret );
+			//dbgprintf("SD:SetHCRegister(%02X:%02X):%d\n", reg, HCR[reg], ret );
 		} break;
 		case 0x02:	// Read HC Register
 		{
 			*(u32*)(bufout) = HCR[*(u32*)(bufin)];
 
 			ret = 0;
-			dbgprintf("SD:GetHCRegister(%02X:%02X):%d\n", *(u32*)(bufin), HCR[*(u32*)(bufin)], ret );
+			//dbgprintf("SD:GetHCRegister(%02X:%02X):%d\n", *(u32*)(bufin), HCR[*(u32*)(bufin)], ret );
 		} break;
 		case 0x04:	// sd_reset_card
 		{
@@ -53,7 +53,7 @@ void SD_Ioctl( struct ipcmessage *msg )
 		{
 			SDClock = *(u32*)(bufin);
 			ret=0;
-			dbgprintf("SD:SetClock(%d):%d\n", *(u32*)(bufin), ret );
+			//dbgprintf("SD:SetClock(%d):%d\n", *(u32*)(bufin), ret );
 		} break;
 		case 0x07:
 		{
@@ -64,18 +64,18 @@ void SD_Ioctl( struct ipcmessage *msg )
 			{
 				case 0:
 					ret = 0;
-					dbgprintf("SD:GoIdleState():%d\n", ret);
+					//dbgprintf("SD:GoIdleState():%d\n", ret);
 				break;
 				case 3:
 					*(u32*)(bufout) = 0x9f62;
 					ret = 0;
-					dbgprintf("SD:SendRelAddress():%d\n", ret);
+					//dbgprintf("SD:SendRelAddress():%d\n", ret);
 				break;
 				case SD_APP_SET_BUS_WIDTH:		// 6	ACMD_SETBUSWIDTH
 				{
 					*(u32*)(bufout) = 0x920;
 					ret=0;
-					dbgprintf("SD:SetBusWidth(%d):%d\n", scmd->arg, ret );
+					//dbgprintf("SD:SetBusWidth(%d):%d\n", scmd->arg, ret );
 				} break;
 				case MMC_SELECT_CARD:			// 7
 				{
@@ -85,13 +85,13 @@ void SD_Ioctl( struct ipcmessage *msg )
 						*(u32*)(bufout) = 0x900;
 
 					ret=0;
-					dbgprintf("SD:SelectCard(%08x):%d\n", *(u32*)(bufout), ret);
+					//dbgprintf("SD:SelectCard(%08x):%d\n", *(u32*)(bufout), ret);
 				} break;
 				case 8:
 				{
 					*(u32*)(bufout) = scmd->arg;
 					ret=0;
-					dbgprintf("SD:SendIFCond(%08x):%d\n", *(u32*)(bufout), ret);
+					//dbgprintf("SD:SendIFCond(%08x):%d\n", *(u32*)(bufout), ret);
 				} break;
 				case MMC_SEND_CSD:
 				{
@@ -100,7 +100,7 @@ void SD_Ioctl( struct ipcmessage *msg )
 					*(u32*)(bufout+8)	= 0x325b5a83;
 					*(u32*)(bufout+12)	= 0x00002e00;
 					ret=0;
-					dbgprintf("SD:SendCSD():%d\n", ret );
+					//dbgprintf("SD:SendCSD():%d\n", ret );
 				} break;
 				case MMC_ALL_SEND_CID:	// 2
 				case 10:				// SEND_CID
@@ -110,19 +110,19 @@ void SD_Ioctl( struct ipcmessage *msg )
 					*(u32*)(bufout+8)	= 0x8007b520;
 					*(u32*)(bufout+12)	= 0x80080000;			
 					ret=0;
-					dbgprintf("SD:SendCID():%d\n", ret );
+					//dbgprintf("SD:SendCID():%d\n", ret );
 				} break;
 				case MMC_SET_BLOCKLEN:	// 16 0x10
 				{
 					*(u32*)(bufout) = 0x900;
 					ret=0;
-					dbgprintf("SD:SetBlockLen(%d):%d\n", scmd->arg, ret );
+					//dbgprintf("SD:SetBlockLen(%d):%d\n", scmd->arg, ret );
 				} break;
 				case MMC_APP_CMD:	// 55 0x37
 				{
 					*(u32*)(bufout) = 0x920;
 					ret=0;
-					dbgprintf("SD:AppCMD(%08x):%d\n", *(u32*)(bufout), ret);
+					//dbgprintf("SD:AppCMD(%08x):%d\n", *(u32*)(bufout), ret);
 				} break;
 				case SDHC_CAPABILITIES:
 				{
@@ -139,22 +139,22 @@ void SD_Ioctl( struct ipcmessage *msg )
 				{
 					*SDStatus &= ~0x10000;
 					ret=0;
-					dbgprintf("SD:Unmount(%02X):%d\n", scmd->command, ret );
+					//dbgprintf("SD:Unmount(%02X):%d\n", scmd->command, ret );
 				} break;
 				case 4:
 				{
 					ret=0;
-					dbgprintf("SD:Command(%02X):%d\n", scmd->command, ret );
+					//dbgprintf("SD:Command(%02X):%d\n", scmd->command, ret );
 				} break;
 				case 12:	// STOP_TRANSMISSION
 				{
-					dbgprintf("SD:StopTransmission()\n");
+					//dbgprintf("SD:StopTransmission()\n");
 				} break;
 				case SDHC_POWER_CTL:
 				{
 					*(u32*)(bufout) = 0x80ff8000;
 					ret=0;
-					dbgprintf("SD:SendOPCond(%04X):%d\n", *(u32*)(bufout), ret);
+					//dbgprintf("SD:SendOPCond(%04X):%d\n", *(u32*)(bufout), ret);
 				} break;
 				case 0x19:	// CMD25 WRITE_MULTIPLE_BLOCK
 				{
@@ -165,27 +165,27 @@ void SD_Ioctl( struct ipcmessage *msg )
 
 					ret = IOS_Ioctlv( FFSHandle, 0x21, 1, 0, vec );
 
-					if( ret < 0 )
-					{
-						SDCommand *scmd = (SDCommand *)bufin;
-						dbgprintf("SD:WriteMultipleBlock( 0x%p, 0x%x, 0x%x):%d\n", scmd->addr, scmd->arg, scmd->blocks, ret );
-					}
+					//if( ret < 0 )
+					//{
+					//	SDCommand *scmd = (SDCommand *)bufin;
+						//dbgprintf("SD:WriteMultipleBlock( 0x%p, 0x%x, 0x%x):%d\n", scmd->addr, scmd->arg, scmd->blocks, ret );
+					//}
 					free( vec );
 
 				} break;
 				default:
 				{
-					dbgprintf("Command:%08X\n", *(u32*)(bufin) );
-					dbgprintf("CMDType:%08X\n", *(u32*)(bufin+4) );
-					dbgprintf("ResType:%08X\n", *(u32*)(bufin+8) );
-					dbgprintf("Argumen:%08X\n", *(u32*)(bufin+0x0C) );
-					dbgprintf("BlockCn:%08X\n", *(u32*)(bufin+0x10) );
-					dbgprintf("SectorS:%08X\n", *(u32*)(bufin+0x14) );
-					dbgprintf("Buffer :%08X\n", *(u32*)(bufin+0x18) );
-					dbgprintf("unkown :%08X\n", *(u32*)(bufin+0x1C) );
-					dbgprintf("unknown:%08X\n", *(u32*)(bufin+0x20) );
+					//dbgprintf("Command:%08X\n", *(u32*)(bufin) );
+					//dbgprintf("CMDType:%08X\n", *(u32*)(bufin+4) );
+					//dbgprintf("ResType:%08X\n", *(u32*)(bufin+8) );
+					//dbgprintf("Argumen:%08X\n", *(u32*)(bufin+0x0C) );
+					//dbgprintf("BlockCn:%08X\n", *(u32*)(bufin+0x10) );
+					//dbgprintf("SectorS:%08X\n", *(u32*)(bufin+0x14) );
+					//dbgprintf("Buffer :%08X\n", *(u32*)(bufin+0x18) );
+					//dbgprintf("unkown :%08X\n", *(u32*)(bufin+0x1C) );
+					//dbgprintf("unknown:%08X\n", *(u32*)(bufin+0x20) );
 
-					dbgprintf("Unhandled command!\n");
+					//dbgprintf("Unhandled command!\n");
 				} break;
 			}
 
@@ -201,11 +201,11 @@ void SD_Ioctl( struct ipcmessage *msg )
 		{
 			*(u32*)(bufout) = 0x80ff8000;
 			ret = 0;
-			dbgprintf("SD:GetOCRegister(%08X):%d\n", *(u32*)(bufout), ret);
+			//dbgprintf("SD:GetOCRegister(%08X):%d\n", *(u32*)(bufout), ret);
 		} break;
 		default:
 			ret = -1;
-			dbgprintf("SD:IOS_Ioctl( %d 0x%x 0x%p 0x%x 0x%p 0x%x )\n", msg->fd, msg->ioctl.command, bufin, lenin, bufout, lenout);
+			//dbgprintf("SD:IOS_Ioctl( %d 0x%x 0x%p 0x%x 0x%p 0x%x )\n", msg->fd, msg->ioctl.command, bufin, lenin, bufout, lenout);
 			break;
 	}
 
@@ -213,11 +213,11 @@ void SD_Ioctl( struct ipcmessage *msg )
 }
 void SD_Ioctlv( struct ipcmessage *msg )
 {
-	u32 InCount		= msg->ioctlv.argc_in;
-	u32 OutCount	= msg->ioctlv.argc_io;
+	//u32 InCount		= msg->ioctlv.argc_in;
+	//u32 OutCount	= msg->ioctlv.argc_io;
 	vector *v		= (vector*)(msg->ioctlv.argv);
 	s32 ret=-1017;
-	u32 i;
+	//u32 i;
 
 	switch(msg->ioctl.command)
 	{
@@ -226,26 +226,26 @@ void SD_Ioctlv( struct ipcmessage *msg )
 			ret = IOS_Ioctlv( FFSHandle, 0x20, msg->ioctlv.argc_in, msg->ioctlv.argc_io, msg->ioctlv.argv );
 			memset32( (u32*)(v[2].data), 0, v[2].len );
 
-			if( ret < 0 )
-			{
-				SDCommand *scmd = (SDCommand *)(v[0].data);
-				dbgprintf("SD:ReadMultipleBlocks( 0x%p, 0x%x, 0x%x):%d\n", scmd->addr, scmd->arg, scmd->blocks, ret );
+			//if( ret < 0 )
+			//{
+			//	SDCommand *scmd = (SDCommand *)(v[0].data);
+			//	dbgprintf("SD:ReadMultipleBlocks( 0x%p, 0x%x, 0x%x):%d\n", scmd->addr, scmd->arg, scmd->blocks, ret );
 
-				dbgprintf("cmd    :%08X\n", scmd->command );
-				dbgprintf("type   :%08X\n", scmd->type );
-				dbgprintf("resp   :%08X\n", scmd->rep );
-				dbgprintf("arg    :%08X\n", scmd->arg );
-				dbgprintf("blocks :%08X\n", scmd->blocks );
-				dbgprintf("bsize  :%08X\n", scmd->bsize );
-				dbgprintf("addr   :%08X\n", scmd->addr );
-				dbgprintf("isDMA  :%08X\n", scmd->isDMA );
-			}
+			//	dbgprintf("cmd    :%08X\n", scmd->command );
+			//	dbgprintf("type   :%08X\n", scmd->type );
+			//	dbgprintf("resp   :%08X\n", scmd->rep );
+			//	dbgprintf("arg    :%08X\n", scmd->arg );
+			//	dbgprintf("blocks :%08X\n", scmd->blocks );
+			//	dbgprintf("bsize  :%08X\n", scmd->bsize );
+			//	dbgprintf("addr   :%08X\n", scmd->addr );
+			//	dbgprintf("isDMA  :%08X\n", scmd->isDMA );
+			//}
 		} break;
 		default:
-			for( i=0; i<InCount+OutCount; ++i)
-			{
-				dbgprintf("data:%p len:%d(0x%X)\n", v[i].data, v[i].len, v[i].len );
-			}
+			//for( i=0; i<InCount+OutCount; ++i)
+			//{
+			//	dbgprintf("data:%p len:%d(0x%X)\n", v[i].data, v[i].len, v[i].len );
+			//}
 			dbgprintf("SD:IOS_Ioctlv( %d 0x%x %d %d 0x%p )\n", msg->fd, msg->ioctlv.command, msg->ioctlv.argc_in, msg->ioctlv.argc_io, msg->ioctlv.argv);
 			while(1);
 		break;

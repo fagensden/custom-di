@@ -30,20 +30,20 @@ u8 *NANDLoadFile( char *path, u32 *Size )
 	s32 fd = IOS_Open( path, 1 );
 	if( fd < 0 )
 	{
-		dbgprintf("ES:NANDLoadFile->IOS_Open(\"%s\", 1 ):%d\n", path, fd );
+		//dbgprintf("ES:NANDLoadFile->IOS_Open(\"%s\", 1 ):%d\n", path, fd );
 		*Size = fd;
 		return NULL;
 	}
 
-	dbgprintf("ES:NANDLoadFile->IOS_Open(\"%s\", 1 ):%d\n", path, fd );
+	//dbgprintf("ES:NANDLoadFile->IOS_Open(\"%s\", 1 ):%d\n", path, fd );
 
 	fstats *status = (fstats*)heap_alloc_aligned( 0, sizeof(fstats), 0x40 );
 
 	s32 r = ISFS_GetFileStats( fd, status );
-	dbgprintf("ES:NANDLoadFile->ISFS_GetFileStats(\"%s\", 1 ):%d\n", path, r );
+	//dbgprintf("ES:NANDLoadFile->ISFS_GetFileStats(\"%s\", 1 ):%d\n", path, r );
 	if( r < 0 )
 	{
-		dbgprintf("ES:NANDLoadFile->ISFS_GetFileStats(%d, %p ):%d\n", fd, status, r );
+		//dbgprintf("ES:NANDLoadFile->ISFS_GetFileStats(%d, %p ):%d\n", fd, status, r );
 		heap_free( 0, status );
 		*Size = r;
 		IOS_Close( fd );
@@ -51,22 +51,22 @@ u8 *NANDLoadFile( char *path, u32 *Size )
 	}
 
 	*Size = status->Size;
-	dbgprintf("ES:NANDLoadFile->Size:%d\n", *Size );
+	//dbgprintf("ES:NANDLoadFile->Size:%d\n", *Size );
 
 	u8 *data = (u8*)heap_alloc_aligned( 0, status->Size, 0x40 );
 	if( data == NULL )
 	{
-		dbgprintf("ES:NANDLoadFile(\"%s\")->Failed to alloc %d bytes!\n", path, status->Size );
+		//dbgprintf("ES:NANDLoadFile(\"%s\")->Failed to alloc %d bytes!\n", path, status->Size );
 		heap_free( 0, status );
 		IOS_Close( fd );
 		return NULL;
 	}
 
 	r = IOS_Read( fd, data, status->Size );
-	dbgprintf("ES:NANDLoadFile->IOS_Read():%d\n", r );
+	//dbgprintf("ES:NANDLoadFile->IOS_Read():%d\n", r );
 	if( r < 0 )
 	{
-		dbgprintf("ES:NANDLoadFile->IOS_Read():%d\n", r );
+		//dbgprintf("ES:NANDLoadFile->IOS_Read():%d\n", r );
 		heap_free( 0, status );
 		*Size = r;
 		IOS_Close( fd );
@@ -138,20 +138,20 @@ void Save_Nand_Cfg( NandConfig* NandCfg )
 	char *path = (char*)heap_alloc_aligned( 0, 0x40, 32 );
 	char* nand = malloca( 0x40, 0x40 );
 	
-	strcpy(path, "/sneek/NandPath.bin");
+	strcpy( path, "/sneek/NandPath.bin" );
 	s32 fd = IOS_Open( path, 1 );
 	if( fd >= 0 )
 	{
 		IOS_Close( fd );		
 		nlen = strlen((const char*)(NandCfg->NandInfo[NandCfg->NandSel]));
-		nlen &= 0x3f;
+		nlen &= 0x7f;
 		memcpy(nand,NandCfg->NandInfo[NandCfg->NandSel],nlen+1);
-		nand[0x3f] = 0;
+		nand[0x7f] = 0;
 		ISFS_Delete(path);
 		NANDWriteFileSafe(path,nand, nlen+1);
 	}
 
-	free(nand);
+	free( nand );
 	heap_free( 0, path );
 	return;
 }

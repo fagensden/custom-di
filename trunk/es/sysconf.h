@@ -94,5 +94,6 @@ typedef struct _netconfig
 void DoGameRegion( u64 TitleID );
 void DoSMRegion( u64 TitleID, u16 TitleVersion );
 s32 Force_Internet_Test( void );
+void LoadDOLToMEM( char *path );
 
 #endif

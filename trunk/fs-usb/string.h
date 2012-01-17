@@ -17,5 +17,6 @@ extern void memcpy(void *dst, void *src, u32 size);
 
 int memcmp(const void *s1, const void *s2, size_t n);
 char *strcat( char *str1, const char *str2 );
+char *strstr ( const char *str1, const char *str2 );
 
 #endif
