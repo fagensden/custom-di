@@ -7,29 +7,18 @@ __stack_size = 32;
 
 MEMORY {
 
-	code		: ORIGIN = 0x20100000,	LENGTH = 0xC120
+	code		: ORIGIN = 0x20100000,	LENGTH = 0xD000
 	ram			: ORIGIN = 0x2010E000,	LENGTH = 0x46AC
-	table		: ORIGIN = 0x100,		LENGTH = 16K
 }
 
 PHDRS
 {
-	phdrs PT_PHDR PHDRS AT ( 0x0 ) FLAGS ( 0 );
-
-	table PT_NOTE FLAGS ( 0 );
-	table PT_LOAD PHDRS AT ( 0x0 ) FLAGS ( 0 );
-
 	code PT_LOAD AT ( 0x139F0000 ) ;
-	ram PT_LOAD AT ( 0x139FE000 ) ;
+	ram  PT_LOAD AT ( 0x139FE000 ) ;
 }
 
 SECTIONS
 {
-	.ios_info_table :
-	{
-		KEEP(*(.ios_info_table))
-	} > table :table
-
 	.init :
 	{
 		*(.init)
