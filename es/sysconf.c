@@ -103,14 +103,9 @@ s32 __configread( void )
 	configloaded = configloaded ? false : true;
 	
 	if( tbdec && configloaded )
-	{
-		hexdump( txtbuffer, 0x20 );
 		ret = ES_SUCCESS;
-	}
 	else
-	{
 		ret = ES_FATAL;	
-	}
 	
 	return ret;	
 }
@@ -118,11 +113,9 @@ s32 __configread( void )
 s32 __configwrite( void )
 {
 	s32 ret = ES_ENOTINIT;
-	hexdump( txtbuffer, 0x20 );
 	if( configloaded )
 	{
 		__Dec_Enc_TB();
-		hexdump( txtbuffer, 0x20 );
 		
 		if( !tbdec )
 		{
@@ -366,7 +359,6 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 		{
 			if( TitleID == 0x0000000100000002LL )
 			{
-				dbgprintf( "Asked region: %d\n", TitleVersion&0xF );
 				switch( TitleVersion&0xF )
 				{
 					case AREA_JPN:

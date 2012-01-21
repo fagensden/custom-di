@@ -117,6 +117,7 @@ enum ContentType
 {
 	CONTENT_REQUIRED=	(1<<0),
 	CONTENT_SHARED	=	(1<<15),
+	CONTENT_OPTIONAL=	(1<<14),
 };
 
 typedef struct
@@ -214,7 +215,7 @@ void ES_Fatal( char *name, u32 line, char *file, s32 error, char *msg );
 s32 ES_LoadModules( u32 KernelVersion );
 s32 ES_LaunchSYS( u64 *TitleID );
 s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD );
-s32 ES_AddContentData(s32 cfd, void *data, u32 data_size);
+s32 ES_AddContentData( u32 cfd, void *data, u32 data_size );
 s32 ES_AddTitleFinish( TitleMetaData *TMD );
 u8 *NANDLoadFile( char * path, u32 *Size );
 s32 doTicketMagic( Ticket *iTIK );

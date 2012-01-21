@@ -764,16 +764,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r70 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r71 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r70 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r71 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r70 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r71 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r70 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r71 %s",__DATE__);					
 			}
 		}
 
@@ -838,7 +838,6 @@ void SMenuDraw( void )
 					if (curDVDCover)
 					{
 						DrawImage( FB[i], MENU_POS_X, MENU_POS_Y+(j+2)*16, curDVDCover );
-						//PrintFormat(FB[i],MENU_POS_X,MENU_POS_Y+12*16,(char*) curDVDCover);
 					} else
 						PrintFormat( FB[i], MENU_POS_X+6*12, MENU_POS_Y+(j+6)*16, "no cover image found!" );
 				}
@@ -882,37 +881,37 @@ void SMenuDraw( void )
 			{
 				PrintFormat( FB[i], MENU_POS_X+80, 56, "NEEK Config:" );
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*0, "Game Region     :%s", RegionStr[DICfg->Region] );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*1, "__fwrite patch  :%s", (DICfg->Config&CONFIG_PATCH_FWRITE) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*2, "MotionPlus video:%s", (DICfg->Config&CONFIG_PATCH_MPVIDEO) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*3, "Video mode patch:%s", (DICfg->Config&CONFIG_PATCH_VIDEO) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*4, "Error skipping  :%s", (DICfg->Config&CONFIG_DUMP_ERROR_SKIP) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*1, "__fwrite Patch  :%s", (DICfg->Config&CONFIG_PATCH_FWRITE) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*2, "MotionPlus Video:%s", (DICfg->Config&CONFIG_PATCH_MPVIDEO) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*3, "Video Mode Patch:%s", (DICfg->Config&CONFIG_PATCH_VIDEO) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*4, "Error Skipping  :%s", (DICfg->Config&CONFIG_DUMP_ERROR_SKIP) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*5, "Display Covers  :%s", (DICfg->Config&CONFIG_SHOW_COVERS) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+80, 104+16*6, "AutoUpdate Games:%s", (DICfg->Config&CONFIG_AUTO_UPDATE_LIST) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Game debugging  :%s", (DICfg->Config&CONFIG_DEBUG_GAME) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Debugger wait   :%s", (DICfg->Config&CONFIG_DEBUG_GAME_WAIT) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Game Debugging  :%s", (DICfg->Config&CONFIG_DEBUG_GAME) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Debugger Wait   :%s", (DICfg->Config&CONFIG_DEBUG_GAME_WAIT) ? "On" : "Off" );
 				
 				switch( (DICfg->Config&HOOK_TYPE_MASK) )
 				{
 					case HOOK_TYPE_VSYNC:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook type       :%s", "VIWaitForRetrace" );
+						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :%s", "VIWaitForRetrace" );
 					break;
 					case HOOK_TYPE_OSLEEP:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook type       :%s", "OSSleepThread" );
+						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :%s", "OSSleepThread" );
 					break;
 					//case HOOK_TYPE_AXNEXT:
 					//	PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook type       :%s", "__AXNextFrame" );
 					//break;
 					default:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook type       :Invalid Type:%d", (DICfg->Config&HOOK_TYPE_MASK)>>28 );
+						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :Invalid Type:%d", (DICfg->Config&HOOK_TYPE_MASK)>>28 );
 					break;
 				}
 
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*11, "save config" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*12, "recreate game cache(restarts!!)" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*11, "Save Config" );
+				PrintFormat( FB[i], MENU_POS_X+80, 104+16*12, "Recreate Game Cache(restarts!!)" );
 				if( fnnd ) 
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+NANDDESC_OFF );
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select Emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+NANDDESC_OFF );
 				else
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select emunand: Root nand" );
+					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select Emunand: Root Nand" );
 				
 				if( FSUSB )
 					PrintFormat( FB[i], MENU_POS_X+80, 104+16*14, "Boot NMM" );
