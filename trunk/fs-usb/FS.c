@@ -895,11 +895,6 @@ s32 FS_Open( char *Path, u8 Mode )
 		{
 			obcd_trig[i] = 0;
 
-//			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
-//			{
-//				memset32( &fd_stack[i], 0, sizeof(FIL) );
-//				return FS_ENOENT2;
-//			}
 			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
 			{
 				switch( *(vu32*)0x0 >> 8 )

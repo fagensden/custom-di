@@ -95,24 +95,25 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 		
 		case IOCTL_GETUSAGE:
 		{
-			if( memcmp( (char*)(v[0].data), "/title/00010001", 16 ) == 0 )
+			char *path = (char *)v[0].data;
+			u32 *blocks = (u32 *)v[1].data;
+			u32 *inodes = (u32 *)v[2].data;
+		
+			*blocks = 0;
+			*inodes = 1;
+				
+			ret = FS_GetUsage( path, inodes, blocks );
+				
+			if( ret >= 0 )
 			{
-				*(u32*)(v[1].data) = 23;			// size is size/0x4000
-				*(u32*)(v[2].data) = 42;			// empty folders return a FileCount of 1
-			} else if( memcmp( (char*)(v[0].data), "/title/00010005", 16 ) == 0 )		// DLC
-			{
-				*(u32*)(v[1].data) = 23;			// size is size/0x4000
-				*(u32*)(v[2].data) = 42;			// empty folders return a FileCount of 1
-			} else {
-
-				*(u32*)(v[1].data) = 0;			// size is size/0x4000
-				*(u32*)(v[2].data) = 1;			// empty folders return a FileCount of 1
-
-				ret = FS_GetUsage( (char*)(v[0].data), (u32*)(v[2].data), (u32*)(v[1].data) );
-
-				//Size is returned in BlockCount
-				*(u32*)(v[1].data) = *(u32*)(v[1].data) / 0x4000;
+				*blocks = *blocks / 0x4000;
+					
+				if( *blocks > 0x2000 )
+					*blocks = 0x1000 + ( *blocks & 0xFFF );
 			}
+			
+			sync_after_write( blocks, sizeof(u32) );
+			sync_after_write( inodes, sizeof(u32) );
 
 #ifdef DEBUG
 			dbgprintf("FFS:FS_GetUsage(\"%s\"):%d FileCount:%d FileSize:%d\n", (char*)(v[0].data), ret, *(u32*)(v[2].data), *(u32*)(v[1].data) );
@@ -383,6 +384,17 @@ void FS_AdjustNpath(char* path)
 		strcpy( nandpath, nandroot );
 		strcat(	nandpath, path );
 	}
+	
+	if( *(vu32*)0x0 >> 8 == 0x52334f )
+	{
+		char *ptz = (char *)NULL;
+		ptz = strstr( nandpath, "/00010000/" );
+		if( ptz != NULL )
+		{
+			if( FS_CreateDir( "/title/20010000" ) != FS_NO_ENTRY )				
+				strncpy( ptz, "/20010000/", 10 );
+		}
+	}
 }
 
 u32 FS_CheckHandle( s32 fd )
@@ -407,6 +419,13 @@ u32 FS_CheckHandle( s32 fd )
 
 s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 {
+	if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' )
+	{
+		*FileCount = 20;
+		*TotalSize = 0x400000;
+		return FS_SUCCESS;
+	}
+
 	char *file = heap_alloc_aligned( 0, 0x40, 0x40 );
 
 	DIR d;
@@ -703,43 +722,39 @@ s32 FS_Open( char *Path, u8 Mode )
 		else
 		{
 			obcd_trig[i] = 0;
-//sneek rev. 172
 
 			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
 			{
-				memset32( &fd_stack[i], 0, sizeof(FIL) );
-				return FS_NO_ENTRY;
-			}
-
-//sneek rev. 172
-//simplified
-/*
-			switch ( f_open( &fd_stack[i], nandpath, Mode ) )
-			{
-				case FR_OK:
-					return i;
-					break;
-				case FR_NO_FILE:
-				{
-					if( Mode & FA_WRITE )
+				switch( *(vu32*)0x0 >> 8 )
+				{							
+					/*** Add games that need this hack for game saves here ***/
+					case 0x525559:
 					{
-						if( f_open( &fd_stack[i], nandpath, Mode | FA_CREATE_ALWAYS ) == FR_OK )
+						if( ( strstr( nandpath, "/data/" ) != NULL ) )
 						{
-							return i;
+							if( f_open( &fd_stack[i], nandpath, Mode | FA_CREATE_ALWAYS ) != FR_OK )
+							{
+								memset32( &fd_stack[i], 0, sizeof( FIL ) );
+								return FS_NO_ENTRY;
+							}
 						}
-					} 
-				} 
-				break;
-				default:
-					break;
+						else
+						{
+							memset32( &fd_stack[i], 0, sizeof( FIL ) );
+							return FS_NO_ENTRY;
+						}
+					} break;
+					default:
+					{
+						/*** All other requests should return NO ENTRY ***/
+						memset32( &fd_stack[i], 0, sizeof( FIL ) );
+						return FS_NO_ENTRY;
+					} break;					
+				}
 			}
-			memset32( &fd_stack[i], 0, sizeof(FIL) );
-			return FS_NO_ENTRY;
-*/
+			return i;
 		}
-		return i;
 	}
-
 	return FS_FATAL;
 }
 s32 FS_Write( s32 FileHandle, u8 *Data, u32 Length )

@@ -1,3 +1,6 @@
+#ifndef _STRING_H_
+#define _STRING_H_
+
 #include "global.h"
 
 char *strcpy(char *, const char *);
@@ -14,3 +17,5 @@ int sprintf(char *str, const char *fmt, ...);
 char * strstr (   const char * str1,  const char * str2   );
 void hexdump(void *d, int len);
 char *strcat( char *str1, const char *str2 );
+
+#endif
