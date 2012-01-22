@@ -35,7 +35,7 @@ char nandroot[0x40] ALIGNED(32);
 char diroot[0x40] ALIGNED(32);
 
 //#define USEATTR
-#undef DEBUG
+//#undef DEBUG
 //#define EDEBUG
 
 typedef struct
@@ -107,28 +107,19 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 			char *path = (char *)v[0].data;
 			u32 *blocks = (u32 *)v[1].data;
 			u32 *inodes = (u32 *)v[2].data;
-			
-			//if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' )
-			//{
-			//	*blocks = 5;
-			//	*inodes = 6;
-			//	ret = 0;
-			//}
-			//else
-			//{
-				*blocks = 0;
-				*inodes = 1;
+		
+			*blocks = 0;
+			*inodes = 1;
 				
-				ret = FS_GetUsage( path, inodes, blocks );
+			ret = FS_GetUsage( path, inodes, blocks );
 				
-				if( ret >= 0 )
-				{
-					*blocks = *blocks / 0x4000;
+			if( ret >= 0 )
+			{
+				*blocks = *blocks / 0x4000;
 					
-					if( *blocks > 0x2000 )
-						*blocks = 0x1000 + ( *blocks & 0xFFF );
-				}
-			//}
+				if( *blocks > 0x2000 )
+					*blocks = 0x1000 + ( *blocks & 0xFFF );
+			}
 			
 			sync_after_write( blocks, sizeof(u32) );
 			sync_after_write( inodes, sizeof(u32) );
@@ -533,6 +524,13 @@ u32 FS_CheckHandle( s32 fd )
 
 s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 {
+	if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' )
+	{
+		*FileCount = 20;
+		*TotalSize = 0x400000;
+		return FS_SUCCESS;
+	}
+	
 	char *file = heap_alloc_aligned( 0, 0x40, 0x40 );
 
 	DIR d;
@@ -547,7 +545,7 @@ s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 	{
 		case FR_INVALID_NAME:
 		case FR_NO_FILE:
-		case FR_NO_PATH:
+		case FR_NO_PATH:			
 			return FS_ENOENT2;
 		default:
 			return FS_EFATAL;
@@ -907,7 +905,6 @@ s32 FS_Open( char *Path, u8 Mode )
 				switch( *(vu32*)0x0 >> 8 )
 				{							
 					/*** Add games that need this hack for game saves here ***/
-					case 0x574d37:
 					case 0x525559:
 					{
 						if( ( strstr( nandpath, "/data/" ) != NULL ) )
