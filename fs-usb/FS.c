@@ -924,8 +924,9 @@ s32 FS_Open( char *Path, u8 Mode )
 					} break;					
 				}
 			}
-			return i;
-		}		
+//			return i;
+		}
+		return i;		
 	}
 	return FS_EFATAL;
 }
