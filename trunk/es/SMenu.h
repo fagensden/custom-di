@@ -92,7 +92,8 @@ typedef struct
 	u32 Config;
 	u32 Autoboot;	
 	u32 ChNbr;
-	u32 DolNr;
+	u16 Shop1;
+	u16 DolNr;
 	u64 TitleID;
 	u8 bootapp[256];
 	u8 DOLName[40];

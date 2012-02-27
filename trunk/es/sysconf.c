@@ -23,6 +23,8 @@
 #include "SMenu.h"
 
 u8 *confbuffer;
+u8 CCode[0x1008];
+char SCode[4];
 char *txtbuffer;
 static char configpath[] ALIGNED(32) = "/shared2/sys/SYSCONF";
 static char txtpath[] ALIGNED(32) = "/title/00000001/00000002/data/setting.txt";
@@ -194,6 +196,20 @@ u32	__configgetlong( char * item )
 	return ES_ENOENT;
 }
 
+u32 __configsetbigarray( char *item, void *val, u32 size )
+{
+	u32 i;
+	for( i=0; i<cfg_hdr->ncnt; ++i )
+	{
+		if( memcmp( confbuffer+( cfg_hdr->noff[i] + 1), item, strlen( item ) ) == 0 )
+		{
+			memcpy( confbuffer+cfg_hdr->noff[i] + 3 + strlen( item ), val, size);
+			break;
+		}
+	}
+	return ES_ENOENT;
+}
+
 u32 __configsetlong( char *item, u32 val )
 {
 	u32 i;
@@ -207,6 +223,7 @@ u32 __configsetlong( char *item, u32 val )
 	}
 	return ES_ENOENT;
 }
+
 
 u32 __configgetsetting( char *item, char *val )
 {
@@ -286,8 +303,10 @@ void DoGameRegion( u64 TitleID )
 							__configsetbyte( "IPL.E60", 1 );
 						else	
 							__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
-						__configsetbyte( "IPL.LNG", 0 );				
+						//__configsetbyte( "IPL.PGS", 1 );
+						__configsetbyte( "IPL.LNG", 0 );
+						CCode[0] = 1;
+						__configsetbigarray( "SADR.LNG", CCode, 0x1007 );
 						__configsetsetting( "AREA", "JPN" );
 						__configsetsetting( "MODEL", "RVL-001(JPN)" );
 						__configsetsetting( "CODE", "LJM" );
@@ -301,8 +320,10 @@ void DoGameRegion( u64 TitleID )
 							__configsetbyte( "IPL.E60", 1 );
 						else
 							__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
+						//__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->USLang );
+						CCode[0] = 31;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "USA" );
 						__configsetsetting( "MODEL", "RVL-001(USA)" );
 						__configsetsetting( "CODE", "LU" );
@@ -319,8 +340,10 @@ void DoGameRegion( u64 TitleID )
 					case 'U':					
 					{
 						__configsetbyte( "IPL.E60", 1 );
-						__configsetbyte( "IPL.PGS", 0 );
+						//__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
+						CCode[0] = 94;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "EUR" );
 						__configsetsetting( "MODEL", "RVL-001(EUR)" );
 						__configsetsetting( "CODE", "LEH" );
@@ -334,8 +357,10 @@ void DoGameRegion( u64 TitleID )
 							__configsetbyte( "IPL.E60", 1 );
 						else
 							__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
+						//__configsetbyte( "IPL.PGS", 1 );
 						__configsetbyte( "IPL.LNG", 9 );
+						CCode[0] = 137;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "KOR" );
 						__configsetsetting( "MODEL", "RVL-001(KOR)" );
 						__configsetsetting( "CODE", "LKM" );
@@ -353,10 +378,43 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 {
 	__configloadcfg();
 	
+	if( TitleID == 0x0001000248414241LL || TitleID == 0x000100024841424BLL )
+	{
+		if( PL->Shop1 != 0 )
+		{
+			if( __configread() == ES_SUCCESS )
+			{
+				if( PL->Shop1 == NTSCJ )
+				{
+					CCode[0] = 1;
+					strcpy(SCode, "LJM");
+				}
+				else if( PL->Shop1 == NTSCU ) 
+				{
+					CCode[0] = 31;
+					strcpy(SCode, "LU");
+				}
+				else if( PL->Shop1 == PAL )
+				{
+					CCode[0] = 110;
+					strcpy(SCode, "LEH");
+				}
+				else if( PL->Shop1 == NTSCK )
+				{
+					CCode[0] = 136;
+					strcpy(SCode, "LKM");
+				}
+				__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
+				__configsetsetting( "CODE", SCode );
+				__configwrite();
+			}
+		}
+	}
+	
 	if( PL->Config&CONFIG_REGION_CHANGE )
 	{	
 		if( __configread() == ES_SUCCESS )
-		{
+		{			
 			if( TitleID == 0x0000000100000002LL )
 			{
 				switch( TitleVersion&0xF )
@@ -365,7 +423,9 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					{
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
-						__configsetbyte( "IPL.LNG", 0 );				
+						__configsetbyte( "IPL.LNG", 0 );
+						CCode[0] = 1;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "JPN" );
 						__configsetsetting( "MODEL", "RVL-001(JPN)" );
 						__configsetsetting( "CODE", "LJM" );
@@ -377,10 +437,12 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					{
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
-						__configsetbyte( "IPL.LNG", PL->USLang );				
-						__configsetsetting( "AREA", "USA" );
-						__configsetsetting( "MODEL", "RVL-001(USA)" );
+						__configsetbyte( "IPL.LNG", PL->USLang );						
+						CCode[0] = 31;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "CODE", "LU" );
+						__configsetsetting( "AREA", "USA" );
+						__configsetsetting( "MODEL", "RVL-001(USA)" );						
 						__configsetsetting( "VIDEO", "NTSC" );
 						__configsetsetting( "GAME", "US" );				
 						__configwrite();				
@@ -389,7 +451,9 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					{	
 						__configsetbyte( "IPL.E60", 1 );
 						__configsetbyte( "IPL.PGS", 0 );
-						__configsetbyte( "IPL.LNG", PL->EULang );				
+						__configsetbyte( "IPL.LNG", PL->EULang );
+						CCode[0] = 110;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "EUR" );
 						__configsetsetting( "MODEL", "RVL-001(EUR)" );
 						__configsetsetting( "CODE", "LEH" );
@@ -402,6 +466,8 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
 						__configsetbyte( "IPL.LNG", 9 );
+						CCode[0] = 137;
+						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "KOR" );
 						__configsetsetting( "MODEL", "RVL-001(KOR)" );
 						__configsetsetting( "CODE", "LKM" );
@@ -504,4 +570,13 @@ void LoadDOLToMEM( char *path )
 	IOS_Read( fd, (void *)0x12000000, status->Size );
 	heap_free( 0, status );
 	IOS_Close( fd );
+}
+
+void KillEULA()
+{
+	if( __configread() == ES_SUCCESS )
+	{
+		__configsetbyte( "IPL.EULA", 1 );
+		__configwrite();
+	}
 }
