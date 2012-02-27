@@ -99,6 +99,15 @@ char *BootStr[] =
 	"Installed DOL",
 };
 
+char *RegStr[] =
+{
+	"No Patch",
+	"NTSC-U",
+	"NTSC-J",
+	"NTSC-K",
+	"PAL",
+};
+
 unsigned char VISetFB[] =
 {
     0x7C, 0xE3, 0x3B, 0x78,		//	mr      %r3, %r7
@@ -764,16 +773,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r72 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r76 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r72 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r76 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r72 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r76 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r72 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r76 %s",__DATE__);					
 			}
 		}
 
@@ -1174,7 +1183,7 @@ void SMenuDraw( void )
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*1, "No System Menu Background Music           :%s", ( PL->Config&CONFIG_NO_BG_MUSIC ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*2, "No System Menu Sounds At All              :%s", ( PL->Config&CONFIG_NO_SOUND ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*3, "Move Disc Channel                         :%s", ( PL->Config&CONFIG_MOVE_DISC_CHANNEL ) ? "On" : "Off" );				
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Bypass WIFI Connection Test               :%s", ( PL->Config&CONFIG_FORCE_INET ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Patch Shop Channel For Region: %s", RegStr[PL->Shop1] );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*6, "Region Free Hacks:" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*8, "System Region Free Hack                   :%s", ( PL->Config&CONFIG_REGION_FREE ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Temp Region Change                        :%s", ( PL->Config&CONFIG_REGION_CHANGE ) ? "On" : "Off" );
@@ -1992,8 +2001,11 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						PL->Config ^= CONFIG_FORCE_INET;
-						rebreq = 1;
+						if( PL->Shop1 == 4 )
+							PL->Shop1 = 0;
+						else
+							PL->Shop1++;
+							
 					} break;
 					case 8:
 					{
@@ -2135,8 +2147,11 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						PL->Config ^= CONFIG_FORCE_INET;
-						rebreq = 1;
+						if( PL->Shop1 == 4 )
+							PL->Shop1 = 0;
+						else
+							PL->Shop1++;
+							
 					} break;
 					case 8:
 					{
@@ -2223,8 +2238,11 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						PL->Config ^= CONFIG_FORCE_INET;
-						rebreq = 1;
+						if( PL->Shop1 == 0 )
+							PL->Shop1 = 4;
+						else
+							PL->Shop1--;
+							
 					} break;
 					case 8:
 					{

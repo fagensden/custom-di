@@ -27,6 +27,14 @@
 #include "string.h"
 #include "common.h"
 
+enum Region
+{
+	NTSCU = 1,
+	NTSCJ,
+	NTSCK,
+	PAL,
+};
+
 typedef struct _config_header 
 {
 	u8		magic[4];
@@ -95,5 +103,6 @@ void DoGameRegion( u64 TitleID );
 void DoSMRegion( u64 TitleID, u16 TitleVersion );
 s32 Force_Internet_Test( void );
 void LoadDOLToMEM( char *path );
+void KillEULA();
 
 #endif
