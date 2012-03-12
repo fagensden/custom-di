@@ -1,3 +1,4 @@
+#labels Featured
  
 = Recent Commits to trunk =
  
