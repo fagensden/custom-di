@@ -218,13 +218,14 @@ void __configloadcfg( void )
 	if( PL == NULL )
 	{
 		PL = (HacksConfig *)malloca( sizeof(HacksConfig), 32);
-		PL->EULang 		= 1;
-		PL->USLang 		= 1;
-		PL->Config 		= 0;
-		PL->Autoboot	= 0;
-		PL->ChNbr 		= 0;
-		PL->DolNr       = 0;
-		PL->TitleID 	= 0x0000000100000002LL;
+		PL->EULang   = 1;
+		PL->USLang   = 1;
+		PL->Shop1    = 0;
+		PL->Config   = 0;
+		PL->Autoboot = 0;
+		PL->ChNbr    = 0;
+		PL->DolNr    = 0;
+		PL->TitleID  = 0x0000000100000002LL;
 	}
 	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
 }
@@ -773,16 +774,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r76 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r80 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r76 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r80 %s",__DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r76 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r80 %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r76 %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r80 %s",__DATE__);					
 			}
 		}
 
