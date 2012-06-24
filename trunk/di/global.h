@@ -21,6 +21,7 @@ void udelay(int us);
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
+typedef unsigned long ulong;
 typedef unsigned long long u64;
 
 typedef signed char s8;
@@ -31,6 +32,7 @@ typedef signed long long s64;
 typedef volatile unsigned char vu8;
 typedef volatile unsigned short vu16;
 typedef volatile unsigned int vu32;
+typedef volatile unsigned long vulong;
 typedef volatile unsigned long long vu64;
 
 typedef volatile signed char vs8;

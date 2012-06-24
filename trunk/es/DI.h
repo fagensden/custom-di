@@ -46,14 +46,45 @@ enum SNEEKConfig
 	CONFIG_PATCH_FWRITE		= (1<<0),
 	CONFIG_PATCH_MPVIDEO	= (1<<1),
 	CONFIG_PATCH_VIDEO		= (1<<2),
-
 	CONFIG_DUMP_ERROR_SKIP	= (1<<3),
-
 	CONFIG_DEBUG_GAME		= (1<<4),
-	CONFIG_DEBUG_GAME_WAIT	= (1<<5),
-	
+	CONFIG_DEBUG_GAME_WAIT	= (1<<5),	
 	CONFIG_SHOW_COVERS		= (1<<6),
 	CONFIG_AUTO_UPDATE_LIST	= (1<<7),
+	DML_CHEATS				= (1<<8),
+	DML_DEBUGGER			= (1<<9),
+	DML_DEBUGWAIT			= (1<<10),
+	DML_NMM					= (1<<11),
+	DML_NMM_DEBUG			= (1<<12),
+	DML_ACTIVITY_LED		= (1<<13),
+	DML_PADHOOK				= (1<<14),
+	DML_NODISC				= (1<<15),
+	DML_BOOT_DISC			= (1<<16),
+	DML_BOOT_DOL			= (1<<17),	
+};
+
+enum DMLLang
+{
+	DML_LANG_CONF		= (0xF<<20),
+	
+	DML_LANG_ENGLISH	= (1<<20),
+	DML_LANG_GERMAN		= (2<<20),
+	DML_LANG_FRENCH		= (3<<20),
+	DML_LANG_SPANISH	= (4<<20),
+	DML_LANG_ITALIAN	= (5<<20),
+	DML_LANG_DUTCH		= (6<<20),
+};
+
+enum DMLVideo
+{
+	DML_VIDEO_CONF		= (0xF<<24),
+	
+	DML_VIDEO_GAME		= (1<<24),
+	DML_VIDEO_PAL50		= (2<<24),
+	DML_VIDEO_NTSC		= (3<<24),
+	DML_VIDEO_PAL60		= (4<<24),
+	DML_VIDEO_PROG		= (5<<24),
+	DML_VIDEO_PROGP		= (6<<24),
 };
 
 enum HookTypes

@@ -61,25 +61,7 @@ void DVDInit( void )
 		HardDriveConnected = 0;
 		while(!HardDriveConnected)
 		{
-//			while(1)
-//			{
-//				fres = f_mount(0, &fatfs );
-//				dbgprintf("DIP:f_mount():%d\n", fres );
-//				if( fres == FR_OK )
-//					break;
-//				else
-//					MountFail++;
-
-//				if( MountFail == 10 )
-//				{
-//					dbgprintf("DIP:too much fail! looping now!\n");
-//					while(1);
-//				}
-				f_mount(0, &fatfs );
-
-//				udelay(500000);
-//			}
-
+			f_mount(0, &fatfs );
 			//try to open a file, it doesn't have to exist, just testing if FS works
 			FIL f;
 			fres = f_open( &f, "/randmb.in", FA_READ|FA_OPEN_EXISTING );
@@ -100,10 +82,8 @@ void DVDInit( void )
 					f_mount(0,0);
 					MountFail++;
 					if( MountFail == 10 )
-					{
-						//dbgprintf("DIP:too much fail! looping now!\n");
 						while(1);
-					}
+						
 					udelay(500000);
 				} break;
 			}

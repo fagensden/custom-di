@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+Copyright (C) 2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -18,6 +19,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
+
 #ifndef _DIP_
 #define _DIP_
 
@@ -34,26 +36,46 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define DI_SUCCESS		1
 #define DI_ERROR		2
 #define DI_FATAL		64
-#define WBFS_FATAL		0
-#define WBFS_OK			1
+
 #define IS_FST			0
 #define IS_WBFS			1
-#define PAR_READ		0
-#define FST_READ		1
-#define FST_EXTR		2
-#define WBFS_CONF		3
-#define DEBUG_READ		4
-#define EXTRACT_OBNR	5
 
 #define FILECACHE_MAX	5
 #define BLOCKCACHE_MAX	5
 #define FILESPLITS_MAX	10
+
+#define DVD_CONFIG_SIZE		0x10
+#define DVD_REAL_NAME_OFF	0x20
+#define DVD_GAMEINFO_SIZE	0x100
+#define DVD_GAME_NAME_OFF	0x60
+#define WII_MAGIC_OFF		0x18
+#define DI_MAGIC_OFF		0x1c
+
+enum fstmodes
+{
+	PAR_READ 	= 0,
+	FST_READ,
+	FST_EXTR,
+	WBFS_CONF,
+	DEBUG_READ,
+	EXTRACT_OBNR,
+};
 
 enum disctypes
 {
 	DISC_REV	= 0,
 	DISC_DOL	= 1,
 	DISC_INV	= 2,
+};
+
+enum GameRegion 
+{
+	JAP			= 0,
+	USA,
+	EUR,
+	KOR,
+	ASN,
+	LTN,
 };
 
 enum opcodes
@@ -72,7 +94,6 @@ enum opcodes
 	DVD_READ_UNENCRYPTED	= 0x8D,
 	DVD_REPORTKEY			= 0xA4,
 	DVD_LOW_SEEK			= 0xAB,
-	//DVD_READ				= 0xD0,
 	DVD_READ_CONFIG			= 0xD1,
 	DVD_READ_BCA			= 0xDA,
 	DVD_GET_ERROR			= 0xE0,
@@ -95,17 +116,10 @@ enum opcodes
 	DVD_CLOSE				= 0x43,
 	
 	DVD_EXTRACT_OBNR		= 0x44,
+	DVD_CREATEDIR			= 0x45,
+	DVD_SEEK				= 0x46,
+	DVD_LOAD_DISC			= 0x25,
 
-};
-
-enum GameRegion 
-{
-	JAP=0,
-	USA,
-	EUR,
-	KOR,
-	ASN,
-	LTN,
 };
 
 enum SNEEKConfig
@@ -113,31 +127,94 @@ enum SNEEKConfig
 	CONFIG_PATCH_FWRITE		= (1<<0),
 	CONFIG_PATCH_MPVIDEO	= (1<<1),
 	CONFIG_PATCH_VIDEO		= (1<<2),
-
 	CONFIG_DUMP_ERROR_SKIP	= (1<<3),
-
 	CONFIG_DEBUG_GAME		= (1<<4),
 	CONFIG_DEBUG_GAME_WAIT	= (1<<5),
-	
 	CONFIG_SHOW_COVERS		= (1<<6),
 	CONFIG_AUTO_UPDATE_LIST	= (1<<7),
+	DML_CHEATS				= (1<<8),
+	DML_DEBUGGER			= (1<<9),
+	DML_DEBUGWAIT			= (1<<10),
+	DML_NMM					= (1<<11),
+	DML_NMM_DEBUG			= (1<<12),
+	DML_ACTIVITY_LED		= (1<<13),
+	DML_PADHOOK				= (1<<14),
+	DML_NODISC				= (1<<15),
+	DML_BOOT_DISC			= (1<<16),
+	DML_BOOT_DOL			= (1<<17),
+};
+
+enum DMLLang
+{
+	DML_LANG_CONF			= (0xF<<20),
+	
+	DML_LANG_ENGLISH		= (1<<20),
+	DML_LANG_GERMAN			= (2<<20),
+	DML_LANG_FRENCH			= (3<<20),
+	DML_LANG_SPANISH		= (4<<20),
+	DML_LANG_ITALIAN		= (5<<20),
+	DML_LANG_DUTCH			= (6<<20),
+};
+
+enum DMLVideo
+{
+	DML_VIDEO_CONF			= (0xF<<24),
+	
+	DML_VIDEO_GAME			= (1<<24),
+	DML_VIDEO_PAL50			= (2<<24),
+	DML_VIDEO_NTSC			= (3<<24),
+	DML_VIDEO_PAL60			= (4<<24),
+	DML_VIDEO_PROG			= (5<<24),
+	DML_VIDEO_PROGP			= (6<<24),
 };
 
 enum HookTypes
 {
-	HOOK_TYPE_MASK		= (0xF<<28),
+	HOOK_TYPE_MASK			= (0xF<<28),
 	
-	HOOK_TYPE_VSYNC		= (1<<28),
-	HOOK_TYPE_OSLEEP	= (2<<28),
-	//HOOK_TYPE_AXNEXT	= (3<<28),
-
+	HOOK_TYPE_VSYNC			= (1<<28),
+	HOOK_TYPE_OSLEEP		= (2<<28),
+	//HOOK_TYPE_AXNEXT		= (3<<28),
 };
 
-#define DVD_CONFIG_SIZE		0x10
-#define DVD_GAMEINFO_SIZE	0x100
-#define DVD_GAME_NAME_OFF	0x60
-#define DI_MAGIC_OFF		0x1c
-#define DVD_REAL_NAME_OFF	0x20
+enum dmlconfig
+{
+	DML_CFG_CHEATS			= (1<<0),
+	DML_CFG_DEBUGGER		= (1<<1),
+	DML_CFG_DEBUGWAIT		= (1<<2),
+	DML_CFG_NMM				= (1<<3),
+	DML_CFG_NMM_DEBUG		= (1<<4),
+	DML_CFG_GAME_PATH		= (1<<5),
+	DML_CFG_CHEAT_PATH		= (1<<6),
+	DML_CFG_ACTIVITY_LED	= (1<<7),
+	DML_CFG_PADHOOK			= (1<<8),
+	DML_CFG_NODISC			= (1<<9),
+	DML_CFG_BOOT_DISC		= (1<<10),
+	DML_CFG_BOOT_DOL		= (1<<11),
+};
+
+enum dmlvideomode
+{
+	DML_VID_DML_AUTO		= (0<<16),
+	DML_VID_FORCE			= (1<<16),
+	DML_VID_NONE			= (2<<16),
+
+	DML_VID_FORCE_PAL50		= (1<<0),
+	DML_VID_FORCE_PAL60		= (1<<1),
+	DML_VID_FORCE_NTSC		= (1<<2),
+	DML_VID_FORCE_PROG		= (1<<3),
+	DML_VID_PROG_PATCH		= (1<<4),
+};
+
+typedef struct DML_CFG
+{
+	u32 Magicbytes;
+	u32 CfgVersion;
+	u32 VideoMode;
+	u32 Config;
+	char GamePath[255];
+	char CheatPath[255];
+} DML_CFG;
 
 typedef struct
 {

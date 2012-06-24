@@ -23,5 +23,7 @@ static inline void write32(u32 addr, u32 data)
 	__asm__ volatile ("str\t%0, [%1]" : : "l" (data), "l" (addr));
 }
 
+void *memset32(void *, int, size_t);
+
 #endif
 
