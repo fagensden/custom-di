@@ -453,25 +453,25 @@ void FFS_Ioctl(struct IPCMessage *msg)
 bool FS_IsNandFolder(char* whichpath)
 {
 
-	if( strnccmp( whichpath, "/ticket\0", 7 ) == 0 )
+	if(!strnccmp(whichpath, "/ticket", 7))
 		return true;
-	if( strnccmp( whichpath, "/shared1\0", 8 ) == 0 )
+	if(!strnccmp(whichpath, "/shared1", 8))
 		return true;
-	if( strnccmp( whichpath, "/title\0", 6 ) == 0 )
+	if(!strnccmp(whichpath, "/title", 6))
 		return true;
-	if( strnccmp( whichpath, "/sys\0", 4 ) == 0 )
+	if(!strnccmp(whichpath, "/sys", 4))
 		return true;
-	if( strnccmp( whichpath, "/wfs\0", 4 ) == 0 )
+	if(!strnccmp(whichpath, "/wfs", 4))
 		return true;
-	if( strnccmp( whichpath, "/shared2\0", 8 ) == 0 )
+	if(!strnccmp(whichpath, "/shared2", 8))
 		return true;
-	if( strnccmp( whichpath, "/import\0", 7 ) == 0 )
+	if(!strnccmp(whichpath, "/import", 7))
 		return true;
-	if( strnccmp( whichpath, "/meta\0", 5 ) == 0 )
+	if(!strnccmp(whichpath, "/meta", 5))
 		return true;
-	if( strnccmp( whichpath, "/tmp\0",4 ) == 0 )
+	if(!strnccmp(whichpath, "/tmp",4))
 		return true;
-	if( strnccmp( whichpath, "/sneekcache\0", 11 ) == 0 )
+	if(!strnccmp(whichpath, "/sneekcache", 11))
 		return true;
 
 	return false;
@@ -479,25 +479,25 @@ bool FS_IsNandFolder(char* whichpath)
 
 void FS_AdjustNpath( char *path )
 {			
-	bool isnand = FS_IsNandFolder( path );
-	if ( !isnand )
+	bool isnand = FS_IsNandFolder(path);
+	if(!isnand)
 	{
-		strcpy( nandpath, path );
+		strcpy(nandpath, path);
 	}
 	else
 	{
-		strcpy( nandpath, nandroot );
-		strcat(	nandpath, path );
+		strcpy(nandpath, nandroot);
+		strcat(nandpath, path);
 	}
 	
-	if( *(vu32*)0x0 >> 8 == 0x52334f )
+	if(*(vu32*)0x0 >> 8 == 0x52334f)
 	{
 		char *ptz = (char *)NULL;
-		ptz = strstr( nandpath, "/00010000/" );
-		if( ptz != NULL )
+		ptz = strstr(nandpath, "/00010000/");
+		if(ptz != NULL)
 		{
-			if( FS_CreateDir( "/title/20010000" ) != FS_ENOENT2 )				
-				strncpy( ptz, "/20010000/", 10 );
+			if(FS_CreateDir("/title/20010000") != FS_ENOENT2)				
+				strncpy(ptz, "/20010000/", 10);
 		}
 	}
 }
@@ -524,7 +524,7 @@ u32 FS_CheckHandle( s32 fd )
 
 s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 {
-	if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' )
+	if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && *(u8*)0x0 != 'G')
 	{
 		*FileCount = 20;
 		*TotalSize = 0x400000;
@@ -536,8 +536,6 @@ s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 	DIR d;
 	FILINFO FInfo;
 	s32 res=0;
-
-//	dbgprintf("Running FS_GetUsage \n");
 
 	FS_AdjustNpath(path);
 	
@@ -612,8 +610,6 @@ s32 FS_ReadDir( char *Path, u32 *FileCount, char *FileNames )
 	FIL f;
 	FILINFO FInfo;
 	s32 res = FS_EFATAL;
-		
-//	dbgprintf("Running FS_ReadDir \n");
 
 	FS_AdjustNpath(Path);
 
@@ -706,8 +702,6 @@ s32 FS_CreateFile( char *Path )
 {
 	FIL fil;
 
-//	dbgprintf("Running FS_CreateFile \n");
-
 	FS_AdjustNpath(Path);
 
 	switch( f_open(&fil, nandpath, FA_CREATE_NEW ) )
@@ -730,9 +724,7 @@ s32 FS_CreateFile( char *Path )
 }
 s32 FS_Delete( char *Path )
 {
-//	dbgprintf("FS_Delete(\"%s\")\n", Path );
-	
-//	dbgprintf("Running FS_Delete \n");
+	dbgprintf("FS_Delete(\"%s\")\n", Path );
 
 	FS_AdjustNpath(Path);
 
@@ -837,12 +829,7 @@ s32 FS_Open( char *Path, u8 Mode )
 	
 	if( strncmp( Path, "/AX", 3 ) == 0 )
 		return HAXHandle;
-/*
-	if( strncmp( Path, "/sneek/obcd.txt", 15 ) == 0 ){
-		dbgprintf("opening /sneek/obcd.txt detected\n");
-		return UN_FS;
-	}
-*/
+
 	// Is it a device?
 	if( strncmp( Path, "/dev/", 5 ) == 0 )
 	{
@@ -1013,10 +1000,9 @@ s32 FS_Read( s32 FileHandle, u8 *Data, u32 Length )
 	}
 	else
 	{
-//		u32 read = 0;
-//		s32 r = f_read( &fd_stack[FileHandle], Data, Length, &read );
 		r = f_read( &fd_stack[FileHandle], Data, Length, &read );
 	}
+	
 	switch( r )
 	{
 		case FR_OK:
@@ -1042,14 +1028,11 @@ s32 FS_Seek( s32 FileHandle, s32 Where, u32 Whence )
 
 	if (obcd_trig[FileHandle] == 1)
 	{
-//		dbgprintf("Special seek /sneek/obcd.txt detected\n");
 		fd_stack[FileHandle].fptr = (u32)Where;
 		if (Whence & SEEK_CUR)
 			fd_stack[FileHandle].fptr |= 0x80000000;
-//		dbgprintf("Seek location = %x \n",fd_stack[FileHandle].fptr);
 		
 		return Where;
-
 	}
 	else
 	{
@@ -1097,9 +1080,6 @@ s32 FS_GetStats( s32 FileHandle, FDStat *Stats )
 }
 s32 FS_CreateDir( char *Path )
 {
-
-	//dbgprintf("Running FS_CreateDir \n");
-
 	FS_AdjustNpath(Path);
 	switch( f_mkdir( nandpath ) )
 	{
@@ -1123,10 +1103,7 @@ s32 FS_CreateDir( char *Path )
 }
 s32 FS_SetAttr( char *Path )
 {		
-	FIL fil;
-
-	//dbgprintf("Running FS_SetAttr \n");
-	
+	FIL fil;	
 	FS_AdjustNpath(Path);
 	
 	if( f_open( &fil, nandpath, FA_OPEN_EXISTING ) == FR_OK )
@@ -1145,9 +1122,6 @@ s32 FS_SetAttr( char *Path )
 }
 s32 FS_DeleteFile( char *Path )
 {
-
-	//dbgprintf("Running FS_DeleteFile \n");
-
 	FS_AdjustNpath( Path );
 
 #ifdef USEATTR
@@ -1182,8 +1156,6 @@ s32 FS_Move( char *sPath, char *dPath )
 {
 
 	char *LSPath = (char *)heap_alloc_aligned( 0, 0x80, 0x40 );
-
-	//dbgprintf("Running FS_Move \n");
 	
 	FS_AdjustNpath( sPath );
 	strcpy( LSPath, nandpath );
