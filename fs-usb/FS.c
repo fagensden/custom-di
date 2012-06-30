@@ -530,7 +530,7 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 {
 	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && *(u8*)0x0 != 'G' && *(vu32*)0x0 >> 8 != 0x484142)
 	{
-		if(strstr(path, "/tmp") == NULL && strstr(path, "/48") == NULL)
+		if(strstr(path, "/tmp") == NULL && strstr(path, "/48") == NULL && strstr(path, "/ticket") == NULL)
 		{
 			*FileCount = 20;
 			*TotalSize = 0x400000;
