@@ -1,4 +1,5 @@
 #include "SMenu.h"
+#include "svn.h"
 
 
 u32 FrameBuffer	= 0;
@@ -777,16 +778,16 @@ void SMenuDraw( void )
 			if( FSUSB )
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r81a %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r%s %s Games:%d Region:%s", SVN_REV, __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r81a %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r%s %s", SVN_REV, __DATE__);					
 			} 
 			else 
 			{
 				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r81a %s Games:%d Region:%s", __DATE__, *GameCount, RegionStr[DICfg->Region] );
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r%s %s Games:%d Region:%s", SVN_REV, __DATE__, *GameCount, RegionStr[DICfg->Region] );
 				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r81a %s",__DATE__);					
+					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r%s %s", SVN_REV, __DATE__);					
 			}
 		}
 
@@ -833,7 +834,9 @@ void SMenuDraw( void )
 					if( j+ScrollX >= *GameCount )
 						break;
 
-					if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d )
+					if(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d && *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x4d414d45)
+						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (MAME)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+					else if(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d)
 						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (GC)", DICfg->GameInfo[ScrollX+j] + 0x20 );
 					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x57424653 )
 						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
@@ -1183,7 +1186,7 @@ void SMenuDraw( void )
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*1, "No System Menu Background Music           :%s", ( PL->Config&CONFIG_NO_BG_MUSIC ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*2, "No System Menu Sounds At All              :%s", ( PL->Config&CONFIG_NO_SOUND ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*3, "Move Disc Channel                         :%s", ( PL->Config&CONFIG_MOVE_DISC_CHANNEL ) ? "On" : "Off" );				
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Patch Shop Channel For Region: %s", RegStr[PL->Shop1] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Patch Shop Channel For Country: %d", PL->Shop1 );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*6, "Region Free Hacks:" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*8, "System Region Free Hack                   :%s", ( PL->Config&CONFIG_REGION_FREE ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Temp Region Change                        :%s", ( PL->Config&CONFIG_REGION_CHANGE ) ? "On" : "Off" );
@@ -1810,7 +1813,7 @@ void SMenuReadPad ( void )
 					}
 					else {
 						if( FSUSB )
-							PosX  = 14;
+							PosX  = 13;
 						else
 							PosX = 13;
 					}
@@ -1825,7 +1828,7 @@ void SMenuReadPad ( void )
 				{
 					if( FSUSB )
 					{
-						if( PosX >= 14 )
+						if( PosX >= 13 )
 						{
 							PosX=0;
 						} 
@@ -2078,8 +2081,20 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 4 )
-							PL->Shop1 = 0;
+						if( PL->Shop1 == 1 )
+							PL->Shop1 = 8;
+						else if( PL->Shop1 == 52 )
+							PL->Shop1 = 64;
+						else if( PL->Shop1 == 121 )
+							PL->Shop1 = 136;
+						else if( PL->Shop1 == 136 )
+							PL->Shop1 = 148;
+						else if( PL->Shop1 == 148 )
+							PL->Shop1 = 150;
+						else if( PL->Shop1 == 157 )
+							PL->Shop1 = 168;
+						else if( PL->Shop1 == 177 )
+							PL->Shop1 = 1;
 						else
 							PL->Shop1++;
 							
@@ -2224,8 +2239,20 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 4 )
-							PL->Shop1 = 0;
+						if( PL->Shop1 == 1 )
+							PL->Shop1 = 8;
+						else if( PL->Shop1 == 52 )
+							PL->Shop1 = 64;
+						else if( PL->Shop1 == 121 )
+							PL->Shop1 = 136;
+						else if( PL->Shop1 == 136 )
+							PL->Shop1 = 148;
+						else if( PL->Shop1 == 148 )
+							PL->Shop1 = 150;
+						else if( PL->Shop1 == 157 )
+							PL->Shop1 = 168;
+						else if( PL->Shop1 == 177 )
+							PL->Shop1 = 1;
 						else
 							PL->Shop1++;
 							
@@ -2315,8 +2342,20 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 0 )
-							PL->Shop1 = 4;
+						if( PL->Shop1 == 8 )
+							PL->Shop1 = 1;
+						else if( PL->Shop1 == 64 )
+							PL->Shop1 = 52;
+						else if( PL->Shop1 == 136 )
+							PL->Shop1 = 121;
+						else if( PL->Shop1 == 148 )
+							PL->Shop1 = 136;
+						else if( PL->Shop1 == 150 )
+							PL->Shop1 = 148;
+						else if( PL->Shop1 == 168 )
+							PL->Shop1 = 157;
+						else if( PL->Shop1 == 1 )
+							PL->Shop1 = 177;
 						else
 							PL->Shop1--;
 							

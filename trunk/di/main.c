@@ -112,7 +112,7 @@ void _main(void)
 
 	HeapInit();
 
-	void *QueueSpace = halloc( 0x20 );
+	void *QueueSpace = malloc( 0x20 );
 //	int QueueID = RegisterDevices( QueueSpace );
 	QueueID = RegisterDevices( QueueSpace );
 

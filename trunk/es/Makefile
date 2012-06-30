@@ -13,6 +13,8 @@ OBJECTS	=	start.o image.o font.o common.o alloc.o gecko.o DI.o SDI.o SMenu.o sys
 
 .PHONY: FORCE
 
+SVNREV		:=	$(shell bash ./svn.sh)
+
 all: $(TARGET)
 
 $(TARGET) : esmodule.ld $(OBJECTS)

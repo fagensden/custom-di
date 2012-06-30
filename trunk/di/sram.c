@@ -42,14 +42,14 @@ struct _sramst
 
 void __BuildChecksum(u16 *buffer, u16 *c1, u16 *c2) 
 { 
-	u32 i; 
-    *c1 = 0; 
+	u32 i;
+	*c1 = 0; 
 	*c2 = 0; 
-    for(i = 0; i < 4; ++i) 
-    { 
-        *c1 += buffer[6 + i]; 
-        *c2 += (buffer[6 + i] ^ -1); 
-    }
+	for(i = 0; i < 4; ++i) 
+	{ 
+		*c1 += buffer[6 + i]; 
+		*c2 += (buffer[6 + i] ^ -1); 
+	}
 }
 
 static u32 __SRAM_Read(void *buffer)
@@ -145,44 +145,4 @@ void SRAM_Init(void)
 	sramst.Locked = 0;
 	sramst.Sync = __SRAM_Read(sramst.Buffer);
 	sramst.Offset = 64;
-	SRAM_Print();
-}
-
-void SRAM_Print(void)
-{
-	//hexdump(sramst.Buffer, 64);
-	//SysSRAM *SRAM = (SysSRAM*)sramst.Buffer;
-	//dbgprintf("SRAM: Settings\n");
-	/*if(SRAM->Flags & 0x01)
-	{
-		if(SRAM->NTD & 0x40)
-			dbgprintf("SRAM: Video = PAL60\n");
-		else
-			dbgprintf("SRAM: Video = PAL50\n");
-	}
-	else
-	{
-		dbgprintf("SRAM: Video = NTSC\n");
-	}
-	switch(SRAM->Lang)
-	{
-		case 0:
-			dbgprintf("SRAM: Language = English\n");
-		break;
-		case 1:
-			dbgprintf("SRAM: Language = German\n");
-		break;
-		case 2:
-			dbgprintf("SRAM: Language = French\n");
-		break;
-		case 3:
-			dbgprintf("SRAM: Language = Spanish\n");
-		break;
-		case 4:
-			dbgprintf("SRAM: Language = Italian\n");
-		break;
-		case 5:
-			dbgprintf("SRAM: Language = Dutch\n");
-		break;
-	}	*/
 }

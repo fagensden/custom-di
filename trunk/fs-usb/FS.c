@@ -419,7 +419,7 @@ void FFS_Ioctl(struct IPCMessage *msg)
 			ret = FS_GetStats( msg->fd, (FDStat*)bufout );
 
 #ifdef DEBUG
-			dbgprintf("FFS:GetStats( %d, %d, %d ):%d\n", msg->fd, ((FDStat*)bufout)->file_length, ((FDStat*)bufout)->file_length, ret );
+			dbgprintf("FFS:GetStats( %d, %d, %d ):%d\n", msg->fd, ((FDStat*)bufout)->file_length, ((FDStat*)bufout)->file_pos, ret );
 #endif
 		} break;
 
@@ -488,6 +488,10 @@ void FS_AdjustNpath( char *path )
 	{
 		strcpy(nandpath, nandroot);
 		strcat(nandpath, path);
+#ifdef EDEBUG
+		//dbgprintf("FFS:Adjusted path to: \"%s\"\n", nandpath);
+#endif
+		
 	}
 	
 	if(*(vu32*)0x0 >> 8 == 0x52334f)
@@ -522,16 +526,19 @@ u32 FS_CheckHandle( s32 fd )
 	return 1;
 }
 
-s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
+s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 {
-	if( *(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && *(u8*)0x0 != 'G')
+	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && *(u8*)0x0 != 'G' && *(vu32*)0x0 >> 8 != 0x484142)
 	{
-		*FileCount = 20;
-		*TotalSize = 0x400000;
-		return FS_SUCCESS;
+		if(strstr(path, "/tmp") == NULL && strstr(path, "/48") == NULL)
+		{
+			*FileCount = 20;
+			*TotalSize = 0x400000;
+			return FS_SUCCESS;
+		}
 	}
 	
-	char *file = heap_alloc_aligned( 0, 0x40, 0x40 );
+	char *file = heap_alloc_aligned(0, 0x40, 0x40);
 
 	DIR d;
 	FILINFO FInfo;
@@ -539,7 +546,7 @@ s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 
 	FS_AdjustNpath(path);
 	
-	switch( f_opendir( &d, nandpath ) )
+	switch(f_opendir(&d, nandpath ))
 	{
 		case FR_INVALID_NAME:
 		case FR_NO_FILE:
@@ -551,7 +558,7 @@ s32 FS_GetUsage( char *path, u32 *FileCount, u32 *TotalSize )
 			break;
 	}
 
-	while( (res = f_readdir( &d, &FInfo )) == FR_OK )
+	while( (res = f_readdir(&d, &FInfo)) == FR_OK)
 	{
 #ifdef USEATTR
 		if( FInfo.lfsize )
