@@ -57,6 +57,5 @@ SysSRAM *SYS_LockSram(void);
 u32 SYS_UnlockSram(u32 write);
 u32 SYS_SyncSram(void);
 void SRAM_Init(void);
-void SRAM_Print(void);
 
 #endif

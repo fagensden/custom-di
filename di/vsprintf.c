@@ -355,7 +355,7 @@ int dbgprintf( const char *fmt, ...)
 	va_list args;
 	int i;
 
-	char *buffer = (char*)halloca( 0x400, 0x40 );
+	char *buffer = (char*)malloca( 0x400, 0x40 );
 
 	va_start(args, fmt);
 	i = vsprintf(buffer, fmt, args);
@@ -402,7 +402,7 @@ int dbgprintf( const char *fmt, ...)
 			//sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
 			//OSReport(buffer);
 			IOS_Close(fd);
-			hfree(buffer);
+			free(buffer);
 			return i;
 		}
 	
@@ -421,7 +421,7 @@ int dbgprintf( const char *fmt, ...)
 //			hfree( status );
 			IOS_Close(fd);
 //			*Size = r;
-			hfree(buffer);
+			free(buffer);
 			return i;
 		}
 	
@@ -438,7 +438,7 @@ int dbgprintf( const char *fmt, ...)
 	//GeckoSendBuffer( buffer );
 	OSReport( buffer );
 #endif
-	hfree(buffer);
+	free(buffer);
 	return i;
 }
 

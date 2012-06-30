@@ -81,6 +81,14 @@ char *path=NULL;
 u32 *size=NULL;
 u64 *iTitleID=NULL;
 
+unsigned char gc_banner[16] =
+{
+	0x41, 0x53, 0x48, 0x30,
+	0x00, 0x03, 0x68, 0x60,
+	0x00, 0x00, 0xCF, 0x30,
+	0xF4, 0x07, 0xE0, 0x28, 
+};
+
 unsigned char sig_fwrite[32] =
 {
 	0x94, 0x21, 0xFF, 0xD0,
@@ -786,11 +794,35 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			int i;
 			for( i=0; i < v[1].len; i+=4 )
-			{
+			{				
 				if( memcmp( (void*)((u8*)(v[1].data)+i), sig_fwrite, sizeof(sig_fwrite) ) == 0 )
 				{
 					dbgprintf("ES:[patcher] Found __fwrite pattern:%08X\n",  (u32)((u8*)(v[1].data)+i) | 0x80000000 );
 					memcpy( (void*)((u8*)(v[1].data)+i), patch_fwrite, sizeof(patch_fwrite) );
+				}
+				
+				if( *(vu32*)((u8*)(v[1].data)+i) == (0x2c20a0+0x1f240))
+				{
+					if( *(vu32*)((u8*)(v[1].data)+i+4) == 0x11310 )
+					{
+						dbgprintf("ES:Patch FST entry\n");
+						*(vu32*)((u8*)(v[1].data)+i+4) = 0x6ddd0;
+					}
+				}
+				
+				if( memcmp( (void*)((u8*)(v[1].data)+i), gc_banner, sizeof(gc_banner) ) == 0 )
+				{
+					char cbpath[256];
+					_sprintf( cbpath, "/sneek/bnr/%c%c%c.bnr", *(vu32*)0x0 >> 24, *(vu32*)0x0 >> 16, *(vu32*)0x0 >> 8);
+					
+					dbgprintf("ES:Check for custom GC banner \"%s\"\n", cbpath);
+					
+					u8 *data = NANDLoadFile(cbpath, size);
+					if(data != NULL)
+					{
+						memcpy((void*)((u8*)(v[1].data)+i), data, v[1].len > (u32)size ? (u32)size : v[1].len);						
+						free(data);
+					}
 				}
 				//if( *(vu32*)((u8*)(v[1].data)+i) == 0x3C608000 )
 				//{

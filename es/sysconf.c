@@ -322,7 +322,10 @@ void DoGameRegion( u64 TitleID )
 							__configsetbyte( "IPL.E60", 0 );
 						//__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->USLang );
-						CCode[0] = 31;
+						if( PL->Shop1 >= 8 &&  PL->Shop1 <= 52 )
+							CCode[0] = PL->Shop1;
+						else
+							CCode[0] = 31;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "USA" );
 						__configsetsetting( "MODEL", "RVL-001(USA)" );
@@ -342,7 +345,10 @@ void DoGameRegion( u64 TitleID )
 						__configsetbyte( "IPL.E60", 1 );
 						//__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
-						CCode[0] = 94;
+						if( PL->Shop1 >= 64 &&  PL->Shop1 <= 121 )
+							CCode[0] = PL->Shop1;
+						else
+							CCode[0] = 110;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "EUR" );
 						__configsetsetting( "MODEL", "RVL-001(EUR)" );
@@ -359,7 +365,7 @@ void DoGameRegion( u64 TitleID )
 							__configsetbyte( "IPL.E60", 0 );
 						//__configsetbyte( "IPL.PGS", 1 );
 						__configsetbyte( "IPL.LNG", 9 );
-						CCode[0] = 137;
+						CCode[0] = 136;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "KOR" );
 						__configsetsetting( "MODEL", "RVL-001(KOR)" );
@@ -383,26 +389,26 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 		if( PL->Shop1 != 0 )
 		{
 			if( __configread() == ES_SUCCESS )
-			{
-				if( PL->Shop1 == NTSCJ )
+			{				
+				if( PL->Shop1 >= 8 &&  PL->Shop1 <= 52 ) 
 				{
-					CCode[0] = 1;
-					strcpy(SCode, "LJM");
-				}
-				else if( PL->Shop1 == NTSCU ) 
-				{
-					CCode[0] = 31;
+					CCode[0] = PL->Shop1;
 					strcpy(SCode, "LU");
 				}
-				else if( PL->Shop1 == PAL )
+				else if( PL->Shop1 >= 64 &&  PL->Shop1 <= 121 )
 				{
-					CCode[0] = 110;
+					CCode[0] = PL->Shop1;
 					strcpy(SCode, "LEH");
 				}
-				else if( PL->Shop1 == NTSCK )
+				else if( PL->Shop1 == 136 )
 				{
-					CCode[0] = 136;
+					CCode[0] = PL->Shop1;
 					strcpy(SCode, "LKM");
+				}
+				else
+				{
+					CCode[0] = PL->Shop1;
+					strcpy(SCode, "LJM");
 				}
 				__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 				__configsetsetting( "CODE", SCode );
@@ -437,8 +443,11 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					{
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
-						__configsetbyte( "IPL.LNG", PL->USLang );						
-						CCode[0] = 31;
+						__configsetbyte( "IPL.LNG", PL->USLang );
+						if( PL->Shop1 >= 8 &&  PL->Shop1 <= 52 )
+							CCode[0] = PL->Shop1;
+						else
+							CCode[0] = 31;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "CODE", "LU" );
 						__configsetsetting( "AREA", "USA" );
@@ -452,7 +461,10 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetbyte( "IPL.E60", 1 );
 						__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
-						CCode[0] = 110;
+						if( PL->Shop1 >= 64 &&  PL->Shop1 <= 121 )
+							CCode[0] = PL->Shop1;
+						else
+							CCode[0] = 110;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "EUR" );
 						__configsetsetting( "MODEL", "RVL-001(EUR)" );
@@ -466,7 +478,7 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 						__configsetbyte( "IPL.E60", 0 );
 						__configsetbyte( "IPL.PGS", 1 );
 						__configsetbyte( "IPL.LNG", 9 );
-						CCode[0] = 137;
+						CCode[0] = 136;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "KOR" );
 						__configsetsetting( "MODEL", "RVL-001(KOR)" );

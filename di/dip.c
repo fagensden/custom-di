@@ -27,7 +27,8 @@ static u32 PartitionSize ALIGNED(32);
 /*** this being 1 forces an eject disk ***/
 static u32 DICover ALIGNED(32);
 static u32 ChangeDisc ALIGNED(32);
-static u32 isASEnabled ALIGNED(32);
+static u32 isASEnabled = 0;
+
 DIConfig *DICfg;
 WBFSInfo *WBFSInf;
 WBFSFileInfo *WBFSFInf;
@@ -82,7 +83,7 @@ u32 game_part_offset=0;
 u32 disc_part_offset=0;
 
 static u32 bufcache_init=0;
-u8* bufrb ALIGNED(32);
+u8 *bufrb ALIGNED(32);
 
 extern u32 FSMode;
 u32 FMode = IS_FST;
@@ -104,9 +105,9 @@ static void Set_key2( void )
 
 	WBFS_Read( game_part_offset, 0x2a4, TIK ); /*** Read the ticket ***/
 	
-	memset( TitleID, 0, 0x10 );
-	memset( EncTitleKey, 0, 0x10 );
-	memset( KeyIDT2, 0, 0x10);
+	memset32( TitleID, 0, 0x10 );
+	memset32( EncTitleKey, 0, 0x10 );
+	memset32( KeyIDT2, 0, 0x10);
 
 	memcpy( TitleID, TIK+0x1DC, 8 );
 	memcpy( EncTitleKey, TIK+0x1BF, 16 );
@@ -749,6 +750,13 @@ s32 DVDUpdateCache( u32 ForceUpdate )
 u32 DMLite = 0;
 s32 DVDSelectGame( int SlotID )
 {
+	if(bufcache_init)
+	{
+		//dbgprintf("DEBUG:Free memory\n");					
+		free(bufrb);
+		bufcache_init = 0;
+	}
+	
 	GameHook = 0;		
 	InitCache();
 	if(SlotID < 0 || SlotID >= DICfg->Gamecount)
@@ -765,58 +773,52 @@ s32 DVDSelectGame( int SlotID )
 		switch (*(vu32*)(DICfg->GameInfo[SlotID]+DI_MAGIC_OFF))
 		{	
 			case 0xc2339f3d: /*** Gamecube DML ***/
-				FMode = IS_FST;
-				isASEnabled = 0;
+				FMode = IS_FST;				
 				fd = 1;
 				sprintf(GamePath, "/games/%.63s/", &DICfg->GameInfo[SlotID][0x60]);
 				sprintf(str, "%sgame.iso", GamePath);
 			
 				DML_CFG *DMLCfg = (DML_CFG *)0x01200000;
-			
-				memset32(DMLCfg, 0, sizeof(DML_CFG));
+				memset32(DMLCfg, 0, sizeof(DML_CFG));				
 			
 				DMLCfg->CfgVersion = 0x00000001;
 				DMLCfg->Magicbytes = 0xD1050CF6;
 				
-				DMLCfg->VideoMode |= DML_VID_NONE;
+				DMLCfg->VideoMode |= DML_VID_FORCE;
 				
 				SRAM_Init();
 				
 				SysSRAM *Sram;				
-				int Flag = 0;
 				Sram = SYS_LockSram();
-				SRAM_Print();
+				
+				Sram->Flags &= 0x7F;
+				Sram->Flags &= 0xFE;
+				Sram->NTD &= 0xBF;
 				
 				switch(DICfg->Config&DML_VIDEO_CONF)
 				{
-					case DML_VIDEO_PAL50:		
-						Flag = 1;
-						Sram->Flags &= 0x7F;
+					case DML_VIDEO_PAL50:							
 						Sram->Flags |= 0x01;
-						Sram->NTD &= 0xBF;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
 					break;
-					case DML_VIDEO_NTSC:		
-						Sram->Flags &= 0x7F;
-						Sram->Flags &= 0xFE;
-						Sram->NTD &= 0xBF;						
+					case DML_VIDEO_NTSC:						
+						DMLCfg->VideoMode |= DML_VID_FORCE_NTSC;						
 					break;
 					case DML_VIDEO_PAL60:		
-						Flag = 5;
-						Sram->Flags |= 0x80;;
+						Sram->Flags |= 0x80;
 						Sram->Flags |= 0x01;
 						Sram->NTD |= 0x40;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PAL60;
 					break;
 					case DML_VIDEO_PROG:		
-						Sram->Flags |= 0x80;;
-						Sram->Flags &= 0xFE;
-						Sram->NTD &= 0xBF;
+						Sram->Flags |= 0x80;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PROG;
 						DMLCfg->VideoMode |= DML_VID_PROG_PATCH;						
 					break;
 					case DML_VIDEO_PROGP:
-						Flag = 5;
-						Sram->Flags |= 0x80;;
-						Sram->Flags &= 0xFE;
-						Sram->NTD &= 0xBF;
+						Sram->Flags |= 0x80;
+						Sram->NTD |= 0x40;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PROG;
 						DMLCfg->VideoMode |= DML_VID_PROG_PATCH;						
 					break;
 					default:
@@ -826,7 +828,7 @@ s32 DVDSelectGame( int SlotID )
 							case 'J':
 							case 'E':
 							case 'K':
-								DMLCfg->VideoMode |= DML_VID_FORCE_PROG;
+								DMLCfg->VideoMode |= DML_VID_FORCE_NTSC;
 							break;
 							case 'D':
 							case 'F':
@@ -835,6 +837,9 @@ s32 DVDSelectGame( int SlotID )
 							case 'P':
 							case 'S':
 							case 'U':
+								Sram->Flags |= 0x80;;
+								Sram->Flags |= 0x01;
+								Sram->NTD |= 0x40;
 								DMLCfg->VideoMode |= DML_VID_FORCE_PAL60;
 							break;
 						}						
@@ -861,13 +866,9 @@ s32 DVDSelectGame( int SlotID )
 						Sram->Lang = 5;
 					break;
 				}
-				
-				SRAM_Print();
-				
+
 				SYS_UnlockSram(1);
 				SYS_SyncSram();
-				
-				*(vu32*)0x000000CC = Flag;
 			
 				memcpy(DMLCfg->GamePath, str, strlen(str));			
 				DMLCfg->Config |= DML_CFG_GAME_PATH;
@@ -890,17 +891,12 @@ s32 DVDSelectGame( int SlotID )
 				if(DICfg->Config & DML_ACTIVITY_LED)
 					DMLCfg->Config |= DML_CFG_ACTIVITY_LED;
 				if(DICfg->Config & DML_PADHOOK)
-					DMLCfg->Config |= DML_CFG_PADHOOK;
-				//if(DICfg->Config & DML_BOOT_DISC)
-				//	DMLCfg->Config |= DML_CFG_BOOT_DISC;
-				//if(DICfg->Config & DML_BOOT_DOL)
-					DMLCfg->Config |= DML_CFG_BOOT_DOL;	
-				//DMLCfg->Config |= DML_CFG_NODISC;		
+					DMLCfg->Config |= DML_CFG_PADHOOK;	
 			
 				free(str);			
 			break;
 			case 0x44534358: /*** FST Extracted ***/		
-				FMode = IS_FST;				
+				FMode = IS_FST;	
 				sprintf( GamePath, "/games/%.63s/", &DICfg->GameInfo[SlotID][0x60] );
 			
 				sprintf( str, "%ssys/apploader.img", GamePath );
@@ -1395,6 +1391,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 				fd = DVDOpen( cdiconfig, FA_WRITE|FA_CREATE_ALWAYS );
 				if( fd < 0 )
 				{
+					hfree(name);
 					ret = DI_FATAL;
 					break;
 				}
@@ -1404,7 +1401,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			DVDClose( fd );					
 
 			ret = DI_SUCCESS;
-			hfree( name );
+			hfree(name);
 		} break;
 
 		case DVD_READ_INFO:
@@ -1485,27 +1482,16 @@ int DIP_Ioctl( struct ipcmessage *msg )
 				write32( 0x0D806008, 0xA8000040 );
 				write32( 0x0D80600C, 0 );
 				write32( 0x0D806010, 0x20 );
-				write32( 0x0D806018, 0x20 );
-        
+				write32( 0x0D806018, 0x20 );        
 				write32( 0x0D806014, (u32)0 );
-
-				write32( 0x0D806000, 0x3A );
-        
+				write32( 0x0D806000, 0x3A );        
 				write32( 0x0D80601C, 3 );
 				while( (read32( 0x0D806000 ) & 0x14) == 0 );
-
-				//dbgprintf("DIP:RealLowReadDiscID(%02X)\n", read32( 0x0D806000 ) & 0x54 );
-
 				write32( 0x0D806004, read32( 0x0D806004 ) );
-
-				write32( 0x0D806008, 0xE4000000 | 0x10000 | 0x0A );
-        
+				write32( 0x0D806008, 0xE4000000 | 0x10000 | 0x0A );        
 				write32( 0x0D80601C, 1 );
-
 				while( read32(0x0D80601C) & 1 );
-                        
-				//dbgprintf("DIP:RealEnableAudioStreaming(%02X)\n", read32( 0x0D806000 ) & 0x54 );
-				
+                        				
 				isASEnabled = 1;
 			}
 
@@ -1885,10 +1871,11 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 				free( KeyID );
 			}
 
-			hfree( buffer );
-			hfree( TIK );
-			hfree( CRT );
-			hfree( TMD );
+			hfree(buffer);
+			hfree(TIK);
+			hfree(CRT);
+			hfree(TMD);
+			hfree(hashes);
 			
 			ret = DI_SUCCESS;
 
