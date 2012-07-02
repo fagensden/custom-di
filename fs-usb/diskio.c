@@ -27,7 +27,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define MEM2_BSS
 #endif
 
-DSTATUS disk_initialize (BYTE drv)
+u32 s_size;
+
+DSTATUS disk_initialize(BYTE drv, WORD *ss)
 {
 	udelay( 50000 );
 
@@ -41,10 +43,11 @@ DSTATUS disk_initialize (BYTE drv)
 
 	dbgprintf("done\n");
 	
-	s32 r = USBStorage_Init();
+	s32 r = USBStorage_Init();	
 	
-	u32 s_size;
 	u32 s_cnt = USBStorage_Get_Capacity(&s_size);
+	
+	*ss = s_size;
 	
 	dbgprintf("FS: Drive size: %dMB SectorSize:%d\n", s_cnt / 1024 * s_size / 1024, s_size);
 
@@ -59,15 +62,15 @@ DSTATUS disk_status (BYTE drv)
 
 DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
-	u32 *buffer = malloca( count*512, 0x40 );
+	u32 *buffer = malloca( count*s_size, 0x40 );
 
 	if( USBStorage_Read_Sectors( sector, count, buffer ) != 1 )
 	{
-		dbgprintf("DIP: Failed to read disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
+		dbgprintf("FS: Failed to read disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
 		return RES_ERROR;
 	}
 
-	memcpy( buff, buffer, count*512 );
+	memcpy( buff, buffer, count*s_size );
 	free( buffer );
 
 	return RES_OK;
@@ -76,12 +79,12 @@ DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 {
 	int i;
-	u32 *buffer = malloca( count*512, 0x40 );
-	memcpy( buffer, buff, count*512 );
+	u32 *buffer = malloca( count*s_size, 0x40 );
+	memcpy( buffer, buff, count*s_size );
 
 	if( USBStorage_Write_Sectors( sector, count, buffer ) != 1 )
 	{
-		dbgprintf("DIP: Failed to read disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
+		dbgprintf("FS: Failed to read disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
 		return RES_ERROR;
 	}
 	free( buffer );

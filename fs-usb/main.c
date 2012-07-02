@@ -265,8 +265,7 @@ void _main(void)
 			heap_free( 0, NandCFG );
 			
 		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
-		f_open( &fil, path, FA_READ );
-		f_read( &fil, NandCFG, fil.fsize, &read );
+		f_read( &fil, NandCFG, fil.fsize, &read );		
 		f_close(&fil);
 		__sprintf( tempnroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel] );
 		f_unlink( path );

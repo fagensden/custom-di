@@ -20,7 +20,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 */
 #include "diskio.h"
 
-DSTATUS disk_initialize (BYTE drv)
+u32 s_size;
+
+DSTATUS disk_initialize (BYTE drv, WORD *ss)
 {
 	udelay( 50000 );
 
@@ -30,6 +32,10 @@ DSTATUS disk_initialize (BYTE drv)
 		udelay( 4000 );
 
 	s32 r = USBStorage_Init();
+	
+	USBStorage_Get_Capacity(&s_size);
+	
+	*ss = s_size;
 	
 	return r;
 }
@@ -42,10 +48,10 @@ DSTATUS disk_status (BYTE drv)
 
 DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
-	u32 *buffer = malloca( count*512, 0x40 );
+	u32 *buffer = malloca( count*s_size, 0x40 );
 	
 	USBStorage_Read_Sectors( sector, count, buffer );
-	memcpy( buff, buffer, count*512 );
+	memcpy( buff, buffer, count*s_size );
 	free( buffer );
 
 	return RES_OK;
@@ -53,8 +59,8 @@ DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 
 DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 {
-	u32 *buffer = malloca( count*512, 0x40 );
-	memcpy( buffer, buff, count*512 );
+	u32 *buffer = malloca( count*s_size, 0x40 );
+	memcpy( buffer, buff, count*s_size );
 
 	USBStorage_Write_Sectors( sector, count, buffer );
 	free( buffer );

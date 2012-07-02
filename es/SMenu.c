@@ -1785,7 +1785,7 @@ void SMenuReadPad ( void )
 					case 12:
 					{
 						DICfg->Gamecount = 0;
-						DICfg->Config	|= CONFIG_AUTO_UPDATE_LIST;
+						//DICfg->Config	|= CONFIG_AUTO_UPDATE_LIST;
 						DVDWriteDIConfig( DICfg );
 						LaunchTitle( 0x0000000100000002LL );	
 					} break;

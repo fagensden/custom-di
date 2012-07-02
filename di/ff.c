@@ -200,7 +200,7 @@ void unlock_fs (
 {
 	if (res != FR_NOT_ENABLED &&
 		res != FR_INVALID_DRIVE &&
-		ree != FR_INVALID_OBJECT &&
+		res != FR_INVALID_OBJECT &&
 		res != FR_TIMEOUT) {
 		ReleaseMutex(fs->h_mutex);
 	}
@@ -595,7 +595,7 @@ FRESULT dir_next (	/* FR_OK:Succeeded, FR_NO_FILE:End of table, FR_DENIED:EOT an
 					if (clst == 0xFFFFFFFF) return FR_DISK_ERR;
 					/* Clean-up streached table */
 					if (move_window(dj->fs, 0)) return FR_DISK_ERR;	/* Flush active window */
-					MemSet(dj->fs->win, 0, SS(fs));				/* Clear window buffer */
+					MemSet(dj->fs->win, 0, dj->fs->s_size);				/* Clear window buffer */
 					dj->fs->winsect = clust2sect(dj->fs, clst);	/* Cluster start sector */
 					for (c = 0; c < dj->fs->csize; c++) {		/* Fill the new cluster with 0 */
 						dj->fs->wflag = 1;
@@ -1439,12 +1439,12 @@ FRESULT auto_mount (	/* FR_OK(0): successful, !=0: any error occured */
 
 	fs->fs_type = 0;					/* Clear the file system object */
 	fs->drive = LD2PD(drv);				/* Bind the logical drive and a physical drive */
-	stat = disk_initialize(fs->drive);	/* Initialize low level disk I/O layer */
+	stat = disk_initialize(fs->drive, &SS(fs));	/* Initialize low level disk I/O layer */
 	if (stat & STA_NOINIT)				/* Check if the drive is ready */
 		return FR_NOT_READY;
 #if S_MAX_SIZ > 512						/* Get disk sector size if needed */
-	if (disk_ioctl(drv, GET_SECTOR_SIZE, &SS(fs)) != RES_OK || SS(fs) > S_MAX_SIZ)
-		return FR_NO_FILESYSTEM;
+	//if (disk_ioctl(drv, GET_SECTOR_SIZE, &SS(fs)) != RES_OK || SS(fs) > S_MAX_SIZ)
+	//	return FR_NO_FILESYSTEM;
 #endif
 #if !_FS_READONLY
 	if (chk_wp && (stat & STA_PROTECT))	/* Check write protection if needed */
