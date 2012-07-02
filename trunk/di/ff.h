@@ -138,7 +138,7 @@
 
 /* Definitions corresponds to multiple sector size (Not tested) */
 
-#define	MAX_SS	512U	/* Do not change */
+#define	MAX_SS	4096U	/* Do not change */
 #if MAX_SS > 512U
 #define	SS(fs)	((fs)->s_size)
 #else
@@ -161,7 +161,7 @@ typedef struct _FATFS {
 #if _FS_REENTRANT
 	HANDLE	h_mutex;	/* Handle to the mutex (Platform dependent) */
 #endif
-#if MAX_SS > 512U
+#if MAX_SS != 512U
 	WORD	s_size;		/* Sector size */
 #endif
 #if !_FS_READONLY

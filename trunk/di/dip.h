@@ -118,7 +118,7 @@ enum opcodes
 	DVD_EXTRACT_OBNR		= 0x44,
 	DVD_CREATEDIR			= 0x45,
 	DVD_SEEK				= 0x46,
-	DVD_LOAD_DISC			= 0x25,
+	//DVD_LOAD_DISC			= 0x25,
 
 };
 
