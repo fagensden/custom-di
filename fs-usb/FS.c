@@ -528,13 +528,22 @@ u32 FS_CheckHandle( s32 fd )
 
 s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 {
-	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && *(u8*)0x0 != 'G' && *(vu32*)0x0 >> 8 != 0x484142)
+	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
 	{
 		if(strstr(path, "/tmp") == NULL && strstr(path, "/48") == NULL && strstr(path, "/ticket") == NULL)
 		{
-			*FileCount = 20;
-			*TotalSize = 0x400000;
-			return FS_SUCCESS;
+			if(*(u8*)0x0 == 0 && strstr(path, "/title/00010001/") != NULL)
+			{
+#ifdef DEBUG
+				dbgprintf("FFS:Don't fake vallues for: \"%s\"\n", path);
+#endif
+			}
+			else
+			{
+				*FileCount = 20;
+				*TotalSize = 0x400000;
+				return FS_SUCCESS;
+			}
 		}
 	}
 	
