@@ -2,7 +2,7 @@
 ***																					***
 *** neek2o - sysconf.c																***
 ***																					***
-*** Copyright (C) 2011	OverjoY														***
+*** Copyright (C) 2011-2012 OverjoY													***
 *** 																				***
 *** This program is free software; you can redistribute it and/or					***
 *** modify it under the terms of the GNU General Public License						***
@@ -345,7 +345,7 @@ void DoGameRegion( u64 TitleID )
 						__configsetbyte( "IPL.E60", 1 );
 						//__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
-						if( PL->Shop1 >= 64 &&  PL->Shop1 <= 121 )
+						if( PL->Shop1 >= 64 && PL->Shop1 <= 121 )
 							CCode[0] = PL->Shop1;
 						else
 							CCode[0] = 110;

@@ -56,9 +56,9 @@ enum fstmodes
 	PAR_READ 	= 0,
 	FST_READ,
 	FST_EXTR,
-	WBFS_CONF,
 	DEBUG_READ,
-	EXTRACT_OBNR,
+	NII_READ,
+	NII_PARSE_FST,
 };
 
 enum disctypes
@@ -115,10 +115,9 @@ enum opcodes
 	DVD_WRITE				= 0x42,
 	DVD_CLOSE				= 0x43,
 	
-	DVD_EXTRACT_OBNR		= 0x44,
 	DVD_CREATEDIR			= 0x45,
 	DVD_SEEK				= 0x46,
-	//DVD_LOAD_DISC			= 0x25,
+	DVD_LOAD_DISC			= 0x25,
 
 };
 
