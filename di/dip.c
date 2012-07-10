@@ -41,25 +41,26 @@ static u32 *KeyID ALIGNED(32);
 static u32 KeyIDT ALIGNED(32) = 0;
 static u8 *FSTable ALIGNED(32);
 
-u32 ApploaderSize=0;
-u32 DolSize=0;
-u32 DolOffset=0;
-u32 FSTableSize=0;
-u32 FSTableOffset=0;
-u32 TMDOffset=0;
-u32 TMDSize=0;
-u32 DataOffset=0;
-u32 DataSize=0;
-u32 CertOffset=0;
-u32 CertSize=0;
-u32 DiscType=0;
+u32 ApploaderSize = 0;
+u32 DolSize = 0;
+u32 DolOffset = 0;
+u32 FSTableSize = 0;
+u32 FSTableOffset = 0;
+u32 TMDOffset = 0;
+u32 TMDSize = 0;
+u32 DataOffset = 0;
+u32 DataSize = 0;
+u32 CertOffset = 0;
+u32 CertSize = 0;
+u32 DiscType = 0;
 
-u32 FCEntry=0;
+u32 FCEntry = 0;
 FileCache FC[FILECACHE_MAX];
 
 u32 Partition = 0;
 u32 Disc = 0;
-u32 GameHook=0;
+u32 GameHook = 0;
+u32 isparsed = 0;
 
 /*** WBFS cache vars ***/
 BlockCache BC[BLOCKCACHE_MAX];
@@ -627,6 +628,8 @@ s32 DVDSelectGame(int SlotID)
 		bufcache_init = 0;
 	}
 	
+	isparsed = 0;
+	
 	GameHook = 0;		
 	InitCache();
 	if(SlotID < 0 || SlotID >= DICfg->Gamecount)
@@ -785,6 +788,11 @@ s32 DVDSelectGame(int SlotID)
 				char WBFSsFile[128];
 		
 				sprintf(WBFSFile, "%s", DICfg->GameInfo[SlotID]);
+				
+				sprintf(WBFSPath, "/custom/%s", WBFSFile);
+				
+				if(DVDOpenDir(WBFSPath) == FR_OK)
+					isparsed = 1;
 			
 				if(strncmp((char *)&DICfg->GameInfo[SlotID][0x60]+strlen( (char *)( &DICfg->GameInfo[SlotID][0x60])) - 5, ".wbfs", 5) == 0)
 				{
@@ -973,6 +981,13 @@ s32 DVDLowRead( u32 Offset, u32 Length, void *ptr )
 #ifdef DEBUG_PRINT_FILES							
 		Search_FST( woffset, wlength, NULL, DEBUG_READ );
 #endif
+		if(isparsed == 1)
+			Search_FST(0, 0, NULL, NII_PARSE_FST);
+		
+		if(isparsed == 2)
+			if(Search_FST( Offset, Length, ptr, NII_READ ) == DI_SUCCESS)
+				return DI_SUCCESS;
+		
 		while( wlength ) 
 		{
 
@@ -1315,7 +1330,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			ret = DI_SUCCESS;
 
 		} break;
-		/*case DVD_LOAD_DISC:
+		case DVD_LOAD_DISC:
 		{
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
 						
@@ -1330,19 +1345,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			switchtimer = TimerCreate( 500000, 0, QueueID, 0xDEADDEAE );
 			ret = i;
 
-		} break;*/
-		case DVD_EXTRACT_OBNR:
-		{
-			char bpath[128];
-			sprintf( bpath, "/sneek/cache/banners/%s.bnr", WBFSFile );
-			fd = DVDOpen( bpath, FA_READ );
-			if( fd >= 0 )
-				DVDClose( fd );
-			else
-				Search_FST( 0, 0, NULL, EXTRACT_OBNR );
-				
-			ret = DI_SUCCESS;
-		}
+		} break;
 		case DVD_SET_AUDIO_BUFFER:
 		{
 			memset32( bufout, 0, lenout );
@@ -1764,20 +1767,20 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 	return ret;
 }
 
-s32 WBFS_Read( u64 offset, u32 length, void *ptr ) 
+s32 WBFS_Read(u64 offset, u32 length, void *ptr) 
 {
-	if( !splitcount )
+	if(!splitcount)
 	{
-		if( !( strcmp( WBFSPath, FS[0].Path ) == 0 ) ) 
+		if(!(strcmp(WBFSPath, FS[0].Path) == 0)) 
 		{
-			if( FC[0].File != 0xdeadbeef )
+			if(FC[0].File != 0xdeadbeef)
 			{
-				DVDClose( FC[0].File );
+				DVDClose(FC[0].File);
 				FC[0].File = 0xdeadbeef;
 			}
 			
-			FC[0].File = DVDOpen( WBFSPath, DREAD );
-			if( FC[0].File < 0 )
+			FC[0].File = DVDOpen(WBFSPath, DREAD);
+			if(FC[0].File < 0)
 			{
 				FC[0].File = 0xdeadbeef;
 
@@ -1786,19 +1789,19 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 			}
 			else 
 			{
-				FC[0].Size = DVDGetSize( FC[0].File );
+				FC[0].Size = DVDGetSize(FC[0].File);
 				FC[0].Offset = 0;
-				strcpy( FS[0].Path, WBFSFile );
+				strcpy(FS[0].Path, WBFSFile);
 						
-				DVDSeek( FC[0].File, offset, 0 );
-				DVDRead( FC[0].File, ptr, length );
+				DVDSeek(FC[0].File, offset, 0);
+				DVDRead(FC[0].File, ptr, length);
 				return DI_SUCCESS;
 			}
 		}
 		else 
 		{
-			DVDSeek( FC[0].File, offset, 0 );
-			DVDRead( FC[0].File, ptr, length );
+			DVDSeek(FC[0].File, offset, 0);
+			DVDRead(FC[0].File, ptr, length);
 			return DI_SUCCESS;
 		}
 		error = 0x31100;
@@ -1808,53 +1811,52 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 		
 	while(length)
 	{
-		for( i=0; i<FILESPLITS_MAX; ++i )
+		for(i=0; i<FILESPLITS_MAX; ++i)
 		{
-			if( FS[i].Offset == 0xdeadbeef )
+			if(FS[i].Offset == 0xdeadbeef)
 				continue;
 				
-			if( offset < FS[i].Offset && offset > ( FS[i].Offset - FS[i].Size ) )
+			if(offset < FS[i].Offset && offset > (FS[i].Offset - FS[i].Size))
 			{
 				u32 doread = 0;
-				for( j=0; j<FILECACHE_MAX; ++j )
+				for(j=0; j<FILECACHE_MAX; ++j)
 				{
-					if( FC[j].File == 0xdeadbeef )
-					continue;						
+					if(FC[j].File == 0xdeadbeef)
+						continue;						
 					
-					if( offset >= FC[j].Offset && offset < ( FC[j].Offset + FC[j].Size ) )
+					if(offset >= FC[j].Offset && offset < (FC[j].Offset + FC[j].Size))
 					{
 						u32 readsize = length;
 						u64 nOffset = offset-FC[j].Offset;
 	
-						if( nOffset + readsize > FS[i].Offset )
+						if(nOffset + readsize > FS[i].Offset)
 							readsize = FS[i].Size - nOffset;
 							
-						DVDSeek( FC[j].File, nOffset, 0 );
-						DVDRead( FC[j].File, ptr, readsize );
+						DVDSeek(FC[j].File, nOffset, 0);
+						DVDRead(FC[j].File, ptr, readsize);
 						
 						offset += readsize;
 						ptr += readsize;
 						length -= readsize;	
 						doread = 1;
 
-						if( length <= 0 )
-							return DI_SUCCESS;
-							
+						if(length <= 0)
+							return DI_SUCCESS;							
 					}					
 				}
 				
-				if( !doread )
+				if(!doread)
 				{
-					if( FCEntry >= FILECACHE_MAX )
+					if(FCEntry >= FILECACHE_MAX)
 						FCEntry = 0;
 
-					if( FC[FCEntry].File != 0xdeadbeef )
+					if(FC[FCEntry].File != 0xdeadbeef)
 					{
-						DVDClose( FC[FCEntry].File );
+						DVDClose(FC[FCEntry].File);
 						FC[FCEntry].File = 0xdeadbeef;
 					}
 					
-					FC[FCEntry].File = DVDOpen( FS[i].Path, DREAD );
+					FC[FCEntry].File = DVDOpen(FS[i].Path, DREAD);
 					if( FC[FCEntry].File < 0 )
 					{
 						FC[FCEntry].File = 0xdeadbeef;
@@ -1870,11 +1872,11 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 
 						u64 nOffset = offset-FC[FCEntry].Offset;
 
-						if( nOffset + readsize > FS[i].Offset )
+						if(nOffset + readsize > FS[i].Offset)
 							readsize = FS[i].Size - nOffset;						
 						
-						DVDSeek( FC[FCEntry].File, nOffset, 0 );
-						DVDRead( FC[FCEntry].File, ptr, length );
+						DVDSeek(FC[FCEntry].File, nOffset, 0);
+						DVDRead(FC[FCEntry].File, ptr, length);
 						
 						offset += readsize;
 						ptr += readsize;
@@ -1882,7 +1884,7 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 						
 						FCEntry++;
 						
-						if( length <= 0 )
+						if(length <= 0)
 							return DI_SUCCESS;
 					}
 				}				
@@ -1893,50 +1895,49 @@ s32 WBFS_Read( u64 offset, u32 length, void *ptr )
 	return DI_FATAL;
 }
 
-s32 WBFS_Read_Block( u64 block, u32 bl_num ) 
+s32 WBFS_Read_Block(u64 block, u32 bl_num) 
 {
-	if (bufcache_init == 0)
+	if(bufcache_init == 0)
 	{
-		bufrb = (u8 *)malloca( wii_sector_size * BLOCKCACHE_MAX, 0x40 );
+		bufrb = (u8 *)malloca(wii_sector_size * BLOCKCACHE_MAX, 0x40);
 		bufcache_init = 1;
 	}
 	u8 *iv = (u8 *)malloca( 0x10, 0x40 );
 	u64 offset;
 
-	if( KeyIDT == 0 )
+	if(KeyIDT == 0)
 		Set_key2();		
 
 	u8* u8ptr = bufrb + (bl_num * wii_sector_size); 
 
-	offset = game_part_offset + DataOffset + ( wii_sector_size * block );
+	offset = game_part_offset + DataOffset + (wii_sector_size * block);
 	
-	WBFS_Read( offset, wii_sector_size, u8ptr );
-	memcpy( iv, u8ptr + 0x3d0, 16 );
-
+	WBFS_Read(offset, wii_sector_size, u8ptr);
+	memcpy(iv, u8ptr + 0x3d0, 16);
 	
-	aes_decrypt_( KeyIDT, iv, u8ptr + 0x400 , 0x7c00, u8ptr );	
+	aes_decrypt_(KeyIDT, iv, u8ptr + 0x400 , 0x7c00, u8ptr);	
 	free(iv);
 	
 	return DI_SUCCESS;
 }
 
-s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr )  
+s32 WBFS_Encrypted_Read(u32 offset, u32 length, void *ptr)  
 {
 	u32 bl_offset, bl_length;
 
 	u16 blloc, valblloc;
 
-	while( length ) {
+	while(length) {
 		bl_offset = offset % (0x7c00 >> 2);
 		bl_length = 0x7c00 - (bl_offset << 2);
 		
-		blloc = ( offset+disc_part_offset )>>( WBFSFInf->wbfs_sector_size_s-2 );		
+		blloc = (offset+disc_part_offset)>>(WBFSFInf->wbfs_sector_size_s-2);		
 		valblloc = WBFSInf->disc_usage_table[blloc];
 		
-		if (bl_length > length) 
+		if(bl_length > length) 
 			bl_length = length;
 		
-		WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
+		WBFS_Read_Block((offset / (0x7c00 >> 2)) - (valblloc * 0x10), 0);
 		memcpy(ptr, bufrb + (bl_offset << 2), bl_length);		
 
 		ptr += bl_length;
@@ -1946,64 +1947,64 @@ s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr )
 	return DI_SUCCESS;
 }
 
-s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length )
+/*s32 WBFS_Decrypted_Write(char *path, char *filename, u32 offset, u32 length)
 {
 	u32 bl_offset, bl_length;
-	char *str = (char *)malloca( 128, 32 );
-	sprintf( str, "%s/%s", path, filename );
-	DVDCreateDir( path );
+	char *str = (char *)malloca(128, 32);
+	sprintf(str, "%s/%s", path, filename);
+	DVDCreateDir(path);
 	s32 writefd = DVDOpen( str, FA_WRITE|FA_READ|FA_CREATE_ALWAYS );
 	
-	while( length ) 
+	while(length) 
 	{		
-		bl_offset = offset % ( 0x7c00 >> 2 );
-		bl_length = 0x7c00 - ( bl_offset << 2 );
+		bl_offset = offset % (0x7c00 >> 2);
+		bl_length = 0x7c00 - (bl_offset << 2);
 		
-		if ( bl_length > length ) 
+		if(bl_length > length) 
 			bl_length = length;
 
 		u16 blloc, valblloc;
 	
-		blloc = ( offset+disc_part_offset )>>( WBFSFInf->wbfs_sector_size_s-2 );		
+		blloc = (offset+disc_part_offset )>>( WBFSFInf->wbfs_sector_size_s-2);		
 		valblloc = WBFSInf->disc_usage_table[blloc];
 
 		BC[0].bl_num = 0xdeadbeef;
-		WBFS_Read_Block( ( offset / (0x7c00 >> 2) ) - (valblloc * 0x10), 0 );
-		DVDWrite( writefd, bufrb + ( bl_offset << 2 ), bl_length);					
+		WBFS_Read_Block((offset / (0x7c00 >> 2)) - (valblloc * 0x10), 0);
+		DVDWrite(writefd, bufrb + (bl_offset << 2), bl_length);					
 
 		offset += bl_length >> 2;
 		length -= bl_length;
 	}
 	
-	DVDClose( writefd );
-	free( str );
+	DVDClose(writefd);
+	free(str);
 	return DI_SUCCESS;
-}
+}*/
 
-s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
+s32 Search_FST(u32 Offset, u32 Length, void *ptr, u32 mode)
 {
 	char Path[256];
 	char File[64];
 	
 	u32 i,j;
 
-	if( FSTable == NULL )
-		FSTable	= (u8 *)( ( *(vu32 *)0x38 )&0x7FFFFFFF );	
+	if(FSTable == NULL)
+		FSTable	= (u8 *)((*(vu32 *)0x38)&0x7FFFFFFF);	
 
-	if( mode == FST_READ )
+	if(mode == FST_READ)
 	{
-		for( i=0; i < FILECACHE_MAX; ++i )
+		for(i=0; i < FILECACHE_MAX; ++i)
 		{
-			if( FC[i].File == 0xdeadbeef )
+			if(FC[i].File == 0xdeadbeef)
 				continue;
 
-			if( Offset >= FC[i].Offset )
+			if(Offset >= FC[i].Offset)
 			{
 				u64 nOffset = ((u64)(Offset-FC[i].Offset)) << 2;
-				if( nOffset < FC[i].Size )
+				if(nOffset < FC[i].Size)
 				{
-					DVDSeek( FC[i].File, nOffset, 0 );
-					DVDRead( FC[i].File, ptr, ((Length)+31)&(~31) );
+					DVDSeek(FC[i].File, nOffset, 0);
+					DVDRead(FC[i].File, ptr, ((Length)+31)&(~31));
 					return DI_SUCCESS;
 				}
 			}
@@ -2018,138 +2019,117 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 	u32 LEntry[16];
 	u32 level=0;
 
-	for( i=1; i < Entries; ++i )
+	for(i=1; i < Entries; ++i)
 	{
-		if( level )
+		if(level)
 		{
-			while( LEntry[level-1] == i )
+			while(LEntry[level-1] == i)
 			{
 				level--;
 			}
 		}
 
-		if( fe[i].Type )
+		if(fe[i].Type)
 		{
-			if( fe[i].NextOffset == i+1 )
+			if(fe[i].NextOffset == i+1)
 				continue;
 
 			Entry[level] = i;
 			LEntry[level++] = fe[i].NextOffset;
-			if( level > 15 )
+			if(level > 15)
 				break;
-		} else {
-		
-			switch( mode )
-			{				
-				/*case WBFS_CONF:
+		} 
+		else 
+		{		
+			switch(mode)
+			{	
+				case NII_PARSE_FST:
 				{
-					memset( Path, 0, 256 );	
-					memset( File, 0, 64 );
-					
-					sprintf( Path, "/games/%s/files", WBFSFile );
-					if( DVDOpenDir( Path ) != FR_OK )
-						DVDCreateDir( Path );
+					memset(Path, 0, 256);	
+					memset(File, 0, 64);					
 						
-					if( level )
-						sprintf( Path, "/games/%s/files/", WBFSFile );
+					memcpy(File, NameOff + fe[i].NameOffset, strlen(NameOff + fe[i].NameOffset));				
 					
-					for( j=0; j<level; ++j )
+					sprintf(Path, "/custom/%s/%s", WBFSFile, File);
+					s32 niifd = DVDOpen(Path, DREAD);
+					if(niifd >= 0)
 					{
-						if( j )
-							Path[strlen(Path)] = '/';
-
-						memcpy( Path+strlen(Path), NameOff + fe[Entry[j]].NameOffset, strlen(NameOff + fe[Entry[j]].NameOffset ) );
-						if( DVDOpenDir( Path ) != FR_OK )
-							DVDCreateDir( Path );
+						dbgprintf("CDI:Found: %s (%d)\n", File, fe[i].FileLength);
+						fe[i].FileLength = DVDGetSize(niifd);
+						DVDClose(niifd);
+						isparsed = 2;
+						dbgprintf("CDI:Changed size: %s (%d)\n", File, fe[i].FileLength);
 					}
-
-					memcpy( File, NameOff + fe[i].NameOffset, strlen(NameOff + fe[i].NameOffset) );
-
-					if( WBFS_Decrypted_Write( Path, File, fe[i].FileOffset, fe[i].FileLength ) )
-						continue;
-						
-				} break;*/
-				case EXTRACT_OBNR:
-				{
-					memset( Path, 0, 256 );	
-					memset( File, 0, 64 );
-					strcpy( Path, "/sneek/cache" );					
-					
-					if( DVDOpenDir( Path ) != FR_OK )
-						DVDCreateDir( Path );
-						
-					memcpy( File, NameOff + fe[i].NameOffset, strlen(NameOff + fe[i].NameOffset) );
-						
-					if( strcmp( File, "opening.bnr" ) != 0 )
-					{
-						continue;
-					}
-					else
-					{
-						strcpy( Path, "/sneek/cache/banners" );	
-						sprintf( File, "%s.bnr", WBFSFile );
-							
-						if( WBFS_Decrypted_Write( Path, File, fe[i].FileOffset, fe[i].FileLength ) )
-							return DI_SUCCESS;
-						else
-							return DI_FATAL;
-					}
-					
+					continue;					
 				} break;
 				case DEBUG_READ:
 				case FST_READ:
+				case NII_READ:
 				{	
-					if( Offset >= fe[i].FileOffset )
+					if(Offset >= fe[i].FileOffset)
 					{
 						u64 nOffset = ((u64)(Offset-fe[i].FileOffset)) << 2;
-						if( nOffset < fe[i].FileLength )
+						if(nOffset < fe[i].FileLength)
 						{
-							memset( Path, 0, 256 );					
-							sprintf( Path, "%sfiles/", GamePath );
+							memset(Path, 0, 256);							
+							sprintf(Path, "%sfiles/", GamePath);
 
-							for( j=0; j<level; ++j )
+							for(j=0; j<level; ++j)
 							{
-								if( j )
+								if(j)
 									Path[strlen(Path)] = '/';
 
 								memcpy( Path+strlen(Path), NameOff + fe[Entry[j]].NameOffset, strlen(NameOff + fe[Entry[j]].NameOffset ) );
 							}
-							if( level )
-								Path[strlen(Path)] = '/';						
-						
-							memcpy( Path+strlen(Path), NameOff + fe[i].NameOffset, strlen(NameOff + fe[i].NameOffset) );
+							if(level)
+								Path[strlen(Path)] = '/';
 
-							if( mode == FST_READ )
+							if(mode == NII_READ)
+							{
+								memset(Path, 0, 256);
+								sprintf(Path, "/custom/%s/", WBFSFile);
+							}
+						
+							memcpy(Path+strlen(Path), NameOff + fe[i].NameOffset, strlen(NameOff + fe[i].NameOffset));
+													
+#ifdef DEBUG_PRINT_FILES
+								dbgprintf("Checking file: %s (%d)\n", Path, Length);
+#endif
+							
+							if(mode == FST_READ || mode == NII_READ)
 							{
 							
-								if( FCEntry >= FILECACHE_MAX )
-								FCEntry = 0;
+								if(FCEntry >= FILECACHE_MAX)
+									FCEntry = 0;
 
-								if( FC[FCEntry].File != 0xdeadbeef )
+								if(FC[FCEntry].File != 0xdeadbeef)
 								{
-									DVDClose( FC[FCEntry].File );
+									DVDClose(FC[FCEntry].File);
 									FC[FCEntry].File = 0xdeadbeef;
 								}
 							
-								Asciify( Path );
+								Asciify(Path);							
 							
-							
-								FC[FCEntry].File = DVDOpen( Path, DREAD );
-								if( FC[FCEntry].File < 0 )
+								FC[FCEntry].File = DVDOpen(Path, DREAD);
+								if(FC[FCEntry].File < 0)
 								{
 									FC[FCEntry].File = 0xdeadbeef;
 
-									error = 0x031100;
+									if(mode == FST_READ)
+										error = 0x031100;
+										
 									return DI_FATAL;
 								} 
 								else 
 								{
-
+#ifdef DEBUG_PRINT_FILES
+								dbgprintf("Found file: %s (%d)\n", Path, Length);
+#endif
 									FC[FCEntry].Size	= fe[i].FileLength;
 									FC[FCEntry].Offset	= fe[i].FileOffset;
 
-									DVDSeek( FC[FCEntry].File, nOffset, 0 );
-									DVDRead( FC[FCEntry].File, ptr, Length );
+									DVDSeek(FC[FCEntry].File, nOffset, 0);
+									DVDRead(FC[FCEntry].File, ptr, Length);
 							
 									FCEntry++;
 
@@ -2159,7 +2139,7 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 							else
 							{
 #ifdef DEBUG_PRINT_FILES
-								dbgprintf( "DEBUG:Reading file: %s\n", Path );
+								dbgprintf("Reading file: %s (%d)\n", Path, Length);
 #endif
 								return DI_SUCCESS;
 							}
@@ -2172,11 +2152,10 @@ s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode )
 			}
 		}
 	}
-	if( mode == WBFS_CONF )
+	if(mode == NII_PARSE_FST)		
 		return DI_SUCCESS;
-		
-	else
-	 return DI_FATAL;
+
+	return DI_FATAL;
 }
 
 s32 Do_Dol_Patches( u32 Length, void *ptr )

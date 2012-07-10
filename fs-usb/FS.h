@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -35,20 +36,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define B2_FD			0x98		// 152	
 #define FL_FD			0x97		// 151
 #define SD_FD			0x96		// 153
+#define USB_FD			0x95
 
-enum FSError
-{
-        FS_SUCCESS              =       0,
-        FS_INVALID              =       -4,
-        FS_NO_DEVICE    		=       -6,
-        FS_FATAL                =       -101,
-        FS_NO_ACCESS    		=       -102,
-        FS_FILE_EXIST   		=       -105,
-        FS_NO_ENTRY             =       -106,
-        FS_NO_HANDLE    		=       -109,
-};
-
-
+#define UMS_BASE					(('U'<<24)|('M'<<16)|('S'<<8))
+#define USB_IOCTL_UMS_INIT			(UMS_BASE+0x1)
+#define USB_IOCTL_UMS_GET_CAPACITY	(UMS_BASE+0x2)
+#define USB_IOCTL_UMS_READ_SECTORS	(UMS_BASE+0x3)
+#define USB_IOCTL_UMS_WRITE_SECTORS	(UMS_BASE+0x4)
+#define USB_IOCTL_UMS_READ_STRESS	(UMS_BASE+0x5)
 
 
 // error codes

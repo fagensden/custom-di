@@ -245,6 +245,8 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 		IOSVersion = 35;
 	if( IOSVersion == 58 )
 		IOSVersion = 56;
+	if( IOSVersion > 200 )
+		IOSVersion = 56;
 
 	s32 r = ES_LoadModules( IOSVersion );
 	dbgprintf("ES:ES_LoadModules(%d):%d\n", IOSVersion, r );

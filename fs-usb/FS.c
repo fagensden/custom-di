@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -33,6 +34,9 @@ static u32 obcd_trig[MAX_FILE] ALIGNED(32);
 char nandpath[0x60] ALIGNED(32);
 char nandroot[0x40] ALIGNED(32);
 char diroot[0x40] ALIGNED(32);
+
+extern u32 s_size;
+extern u32 s_cnt;
 
 //#define USEATTR
 //#undef DEBUG
@@ -68,6 +72,54 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 
 	switch(msg->ioctl.command)
 	{
+		case USB_IOCTL_UMS_INIT:
+		{
+			ret = FS_SUCCESS;
+		} break;
+		case USB_IOCTL_UMS_GET_CAPACITY:
+		{
+			u32 *ss = (u32*)(v[0].data);
+			
+			*ss = s_size;
+			ret = s_cnt;
+
+		} break;
+		case USB_IOCTL_UMS_READ_SECTORS:
+		{
+			void *buf = v[2].data;
+
+			u32 sec = *(u32 *)v[0].data;
+			u32 cnt  = *(u32 *)v[1].data;
+
+			if(USBStorage_Read_Sectors(sec, cnt, buf))
+				ret = FR_OK;
+			else				
+				ret = FR_DENIED;
+		} break;
+		case USB_IOCTL_UMS_WRITE_SECTORS:
+		{
+			void *buf = v[2].data;
+
+			u32 sec = *(u32 *)v[0].data;
+			u32 cnt  = *(u32 *)v[1].data;
+
+			if(USBStorage_Write_Sectors(sec, cnt, buf))
+				ret = FR_OK;
+			else				
+				ret = FR_DENIED;
+		} break;
+		case USB_IOCTL_UMS_READ_STRESS:
+		{
+			void *buf = v[2].data;
+
+			u32 sec = *(u32 *)v[0].data;
+			u32 cnt  = *(u32 *)v[1].data;
+
+			if(USBStorage_Read_Stress(sec, cnt, buf))
+				ret = FR_OK;
+			else				
+				ret = FR_DENIED;
+		} break;
 		case 0x60:
 		{
 			HAXHandle = FS_Open( (char*)(v[0].data), (u32)(v[1].data) );
@@ -117,8 +169,8 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 			{
 				*blocks = *blocks / 0x4000;
 					
-				if( *blocks > 0x2000 )
-					*blocks = 0x1000 + ( *blocks & 0xFFF );
+				if( *blocks > 0x1000 )
+					*blocks = 0x0 + ( *blocks & 0xFFF );
 			}
 			
 			sync_after_write( blocks, sizeof(u32) );
@@ -530,20 +582,17 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 {
 	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
 	{
-		if(strstr(path, "/tmp") == NULL && strstr(path, "/48") == NULL && strstr(path, "/ticket") == NULL)
-		{
-			if(*(u8*)0x0 == 0 && strstr(path, "/title/00010001/") != NULL)
-			{
+		if(*(vu32*)0x3180 >> 8 == 0x484142 && (strstr(path, "/ticket") != NULL || strstr(path, "/00010000/") != NULL || strstr(path, "/00010001/") != NULL))
+		{				
 #ifdef DEBUG
-				dbgprintf("FFS:Don't fake vallues for: \"%s\"\n", path);
+			dbgprintf("FFS:Don't fake values for: \"%s\" in Shop!\n", path);
 #endif
-			}
-			else
-			{
-				*FileCount = 20;
-				*TotalSize = 0x400000;
-				return FS_SUCCESS;
-			}
+		}
+		else
+		{
+			*FileCount = 20;
+			*TotalSize = 0x400000;
+			return FS_SUCCESS;
 		}
 	}
 	
@@ -853,6 +902,11 @@ s32 FS_Open( char *Path, u8 Mode )
 		{
 //			dbgprintf("/dev/fs trigger detected\n");
 			return FS_FD;
+		}		
+		else if(strncmp( Path+5, "usb2", 4 ) == 0) 
+		{
+			dbgprintf("/dev/usb2 trigger detected\n");
+			return USB_FD;
 		}
 		/* else if( strncmp( Path+5, "flash", 5 ) == 0 ) {
 			return FS_ENOENT;		
@@ -862,7 +916,9 @@ s32 FS_Open( char *Path, u8 Mode )
 			// Not a devicepath of ours, dispatch it to the syscall again..
 			return FS_ENOENT;
 		}
-	} else { // Or is it a filepath ?
+	} 
+	else 
+	{ // Or is it a filepath ?
 
 		//if( (strstr( Path, "data/setting.txt") != NULL) && (Mode&2) )
 		//{
@@ -946,7 +1002,7 @@ s32 FS_Write( s32 FileHandle, u8 *Data, u32 Length )
 	if (obcd_trig[FileHandle] == 1)
 	{
 //		dbgprintf("Special write /sneek/obcd.txt detected\n");
-		seclen = Length / 512;
+		seclen = Length / s_size;
 //		dbgprintf("Size = %x Offset = %x\n",seclen,fd_stack[FileHandle].fptr);
 
 		if (seclen > 0)
@@ -995,7 +1051,7 @@ s32 FS_Read( s32 FileHandle, u8 *Data, u32 Length )
 	{
 		r = FR_OK;
 //		dbgprintf("Special read /sneek/obcd.txt detected\n");
-		seclen = Length / 512;
+		seclen = Length / s_size;
 //		dbgprintf("Size = %x Offset = %x\n",seclen,fd_stack[FileHandle].fptr);
 
 		if (seclen > 0)

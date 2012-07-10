@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -28,6 +29,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #endif
 
 u32 s_size;
+u32 s_cnt;
 
 DSTATUS disk_initialize(BYTE drv, WORD *ss)
 {
@@ -45,7 +47,7 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	
 	s32 r = USBStorage_Init();	
 	
-	u32 s_cnt = USBStorage_Get_Capacity(&s_size);
+	s_cnt = USBStorage_Get_Capacity(&s_size);
 	
 	*ss = s_size;
 	
