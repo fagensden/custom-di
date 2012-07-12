@@ -125,6 +125,8 @@ static void Set_key2( void )
 	s32 ESHandle = IOS_Open("/dev/es", 0);
 
 	IOS_Ioctlv(ESHandle, 0x50, 2, 1, v);
+	
+	IOS_Close(ESHandle);
 
     KeyIDT = *(u32*)(KeyIDT2);
 	

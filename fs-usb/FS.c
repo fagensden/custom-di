@@ -86,39 +86,76 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 		} break;
 		case USB_IOCTL_UMS_READ_SECTORS:
 		{
-			void *buf = v[2].data;
+			u8 *buf = (u8*)v[2].data;
 
 			u32 sec = *(u32 *)v[0].data;
 			u32 cnt  = *(u32 *)v[1].data;
+			
+			u32 t_read = 0;
+			
+			while(t_read < cnt)
+			{
+				u32 r_sec = (cnt - t_read);
+				
+				if (r_sec > 8)
+					r_sec = 8;
 
-			if(USBStorage_Read_Sectors(sec, cnt, buf))
-				ret = FR_OK;
-			else				
-				ret = FR_DENIED;
+				ret = USBStorage_Read_Sectors(sec+t_read, r_sec, &buf[t_read*s_size]);
+				
+				if (ret < 0)
+					break;
+					
+				t_read += r_sec;
+			}				
+		
 		} break;
 		case USB_IOCTL_UMS_WRITE_SECTORS:
 		{
-			void *buf = v[2].data;
+			u8 *buf = (u8*)v[2].data;
 
 			u32 sec = *(u32 *)v[0].data;
 			u32 cnt  = *(u32 *)v[1].data;
+			
+			u32 t_write = 0;
+			
+			while(t_write < cnt)
+			{
+				u32 w_sec = (cnt - t_write);
+				
+				if (w_sec > 8)
+					w_sec = 8;
 
-			if(USBStorage_Write_Sectors(sec, cnt, buf))
-				ret = FR_OK;
-			else				
-				ret = FR_DENIED;
+				ret = USBStorage_Write_Sectors(sec+t_write, w_sec, &buf[t_write*s_size]);
+				
+				if (ret < 0)
+					break;
+					
+				t_write += w_sec;
+			}
 		} break;
 		case USB_IOCTL_UMS_READ_STRESS:
 		{
-			void *buf = v[2].data;
+			u8 *buf = (u8*)v[2].data;
 
 			u32 sec = *(u32 *)v[0].data;
 			u32 cnt  = *(u32 *)v[1].data;
+			
+			u32 t_read = 0;
+			
+			while(t_read < cnt)
+			{
+				u32 r_sec = (cnt - t_read);
+				
+				if (r_sec > 8)
+					r_sec = 8;
 
-			if(USBStorage_Read_Stress(sec, cnt, buf))
-				ret = FR_OK;
-			else				
-				ret = FR_DENIED;
+				ret = USBStorage_Read_Stress(sec+t_read, r_sec, &buf[t_read*s_size]);
+				
+				if (ret < 0)
+					break;
+					
+				t_read += r_sec;
+			}
 		} break;
 		case 0x60:
 		{

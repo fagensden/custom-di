@@ -81,6 +81,8 @@ char *path=NULL;
 u32 *size=NULL;
 u64 *iTitleID=NULL;
 
+HacksConfig *PL;
+
 unsigned char gc_banner[16] =
 {
 	0x41, 0x53, 0x48, 0x30,
@@ -131,6 +133,20 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 	switch(msg->ioctl.command)
 	{
+		case IOCTL_ES_SET_FAKE_IOS_RELOAD:
+		{
+			ret = ES_SUCCESS;
+			dbgprintf("ES:Set fake IOS Reload\n");		
+		} break;
+		case IOCTL_ES_SET_RETURN_TO:
+		{
+			__configloadcfg();
+			PL->RtrnID = *(u64 *)v[0].data;
+			PL->ReturnTo = 1;
+			NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
+			ret = ES_SUCCESS;
+			dbgprintf("ES:Return to title: 0x%08x-%08x\n", (u32)(TitleID>>32), (u32)(TitleID));		
+		} break;
 		case IOCTL_ES_VERIFYSIGN:
 		{
 			ret = ES_SUCCESS;

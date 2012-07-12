@@ -173,16 +173,15 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	TOCount			= 0;
 	TOCountDirty	= 1;	
 	
-	if( ES_CheckBootOption( "/sys/launch.sys", TitleID ) == 0 )
-	{
-		__configloadcfg();
-		if( PL->Autoboot == 0 )
+	if(ES_CheckBootOption("/sys/launch.sys", TitleID) == 0)
+	{		
+		if(PL->Autoboot == 0)
 			*TitleID = 0x100000002LL;			
-		else if	( PL->Autoboot == 1 )	
+		else if	( PL->Autoboot == 1)	
 			*TitleID = PL->TitleID;
-		else if( PL ->Autoboot == 2 )
+		else if(PL ->Autoboot == 2)
 		{
-			LoadDOLToMEM( (char *)PL->DOLName );
+			LoadDOLToMEM((char *)PL->DOLName);
 			*TitleID = 0x100084f4a4e4bLL;
 		}
 	}
@@ -1810,8 +1809,18 @@ s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 		free( path );
 		return 0;
 	}
-
-	*TitleID = *(vu64*)data;
+	
+	__configloadcfg();
+	if(PL->ReturnTo == 1)
+	{
+		*TitleID = PL->RtrnID;
+		PL->ReturnTo = 0;
+		NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
+	}
+	else
+	{
+		*TitleID = *(vu64*)data;
+	}
 
 	if( strncmp( path, "/sys/launch.sys", 15 ) == 0 )
 		ISFS_Delete( path );
