@@ -90,11 +90,13 @@ typedef struct
 	u32 EULang;
 	u32 USLang;
 	u32 Config;
-	u32 Autoboot;	
+	u16 ReturnTo;
+	u16 Autoboot;	
 	u32 ChNbr;
 	u16 Shop1;
 	u16 DolNr;
 	u64 TitleID;
+	u64 RtrnID;
 	u8 bootapp[256];
 	u8 DOLName[40];
 } HacksConfig; 

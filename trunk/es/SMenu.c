@@ -226,10 +226,12 @@ void __configloadcfg( void )
 		PL->USLang   = 1;
 		PL->Shop1    = 0;
 		PL->Config   = 0;
+		PL->ReturnTo = 0;
 		PL->Autoboot = 0;
 		PL->ChNbr    = 0;
 		PL->DolNr    = 0;
 		PL->TitleID  = 0x0000000100000002LL;
+		PL->RtrnID	= 0x0000000100000002LL;
 	}
 	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
 }
