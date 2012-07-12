@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+              2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -135,17 +136,16 @@ void ES_Ioctlv( struct ipcmessage *msg )
 	{
 		case IOCTL_ES_SET_FAKE_IOS_RELOAD:
 		{
-			ret = ES_SUCCESS;
-			dbgprintf("ES:Set fake IOS Reload\n");		
+			ret = ES_SUCCESS;	
 		} break;
 		case IOCTL_ES_SET_RETURN_TO:
 		{
-			__configloadcfg();
-			PL->RtrnID = *(u64 *)v[0].data;
-			PL->ReturnTo = 1;
-			NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
+			u8 *data=(u8*)malloca( 0xE0, 0x40 );
+			memcpy(data, (u64*)v[0].data, sizeof(u64) );
+		
+			NANDWriteFileSafe("/sys/reload.sys", data , 0xE0);
+			free(data);
 			ret = ES_SUCCESS;
-			dbgprintf("ES:Return to title: 0x%08x-%08x\n", (u32)(TitleID>>32), (u32)(TitleID));		
 		} break;
 		case IOCTL_ES_VERIFYSIGN:
 		{

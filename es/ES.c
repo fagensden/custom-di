@@ -1,8 +1,8 @@
 /*
-
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+              2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -51,7 +51,7 @@ s32 ES_TitleCreatePath( u64 TitleID )
 {
 	char *path = (char*)malloca( 0x40, 32 );
 
-	//dbgprintf("Creating path for:%08x-%08x\n", (u32)(TitleID>>32), (u32)(TitleID) );
+	dbgprintf("Creating path for:%08x-%08x\n", (u32)(TitleID>>32), (u32)(TitleID) );
 
 	_sprintf( path, "/title/%08x/%08x/data", (u32)(TitleID>>32), (u32)(TitleID) );
 	if( ISFS_GetUsage( path, (u32*)NULL, (u32*)NULL ) != FS_SUCCESS )
@@ -82,18 +82,7 @@ s32 ES_TitleCreatePath( u64 TitleID )
 
 	return ES_SUCCESS;	
 }
-void ES_Fatal( char *name, u32 line, char *file, s32 error, char *msg )
-{
-	dbgprintf("\n\n************ ES FATAL ERROR ************\n");
-	//dbgprintf("Function :%s\n", name );
-	//dbgprintf("line     :%d\n", line );
-	//dbgprintf("file     :%s\n", file );
-	//dbgprintf("error    :%d\n", error );
-	//dbgprintf("%s\n", msg );
-	//dbgprintf("************ ES FATAL ERROR ************\n");
 
-	while(1);
-}
 s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 {
 	char *path = (char*)malloca( 0x40, 32 );
@@ -116,7 +105,6 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 	{
 		if( TMD->Contents[i].Index == ContentID )
 		{
-			//dbgprintf("ContentCnt:%d Index:%d cIndex:%d type:%04x\n", *(vu16*)(data+0x1DE), *(vu32*)(v[0].data), *(vu16*)(data+0x1E8+i*0x24), *(vu16*)(data+0x1EA+i*0x24) );
 			if( TMD->Contents[i].Type & CONTENT_SHARED )
 			{
 				ret = ES_GetS1ContentID( TMD->Contents[i].SHA1 );
@@ -124,14 +112,18 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 				{
 					_sprintf( path, "/shared1/%08x.app", ret );
 					ret = IOS_Open( path, 1 );
-					//dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
-				} else {
-					dbgprintf("ES:iOpenContent->Fatal Error: tried to open nonexisting content!\n");
+					dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
+				} 
+				else 
+				{
+					//dbgprintf("ES:iOpenContent->Fatal Error: tried to open nonexisting content!\n");
 					hexdump( TMD->Contents[i].SHA1, 0x14 );
 					ret = ES_NFOUND;
 				}
 
-			} else {	// not-shared
+			} 
+			else // not-shared
+			{	
 				_sprintf( path, "/title/%08x/%08x/content/%08x.app", (u32)(TitleID>>32), (u32)TitleID, TMD->Contents[i].ID );
 				ret = IOS_Open( path, 1 );
 				//dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
@@ -146,8 +138,8 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 	free( path );
 
 	return ret;
-
 }
+
 s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 {
 	CNTMap		= (u8*)NULL;
@@ -174,7 +166,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	TOCountDirty	= 1;	
 	
 	if(ES_CheckBootOption("/sys/launch.sys", TitleID) == 0)
-	{		
+	{	
 		if(PL->Autoboot == 0)
 			*TitleID = 0x100000002LL;			
 		else if	( PL->Autoboot == 1)	
@@ -185,15 +177,16 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 			*TitleID = 0x100084f4a4e4bLL;
 		}
 	}
-
-
+	
+	if(*TitleID == 0x100000002LL)
+		ES_CheckBootOption("/sys/reload.sys", TitleID);
+	
 	dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
 
 	if( (u32)(*TitleID>>32) == 1 && (u32)(*TitleID) != 2 )	//	IOS loading requested
 	{
 		IOSVersion = (u32)(*TitleID);
 		LaunchDisc = 1;
-
 	} 
 	else 
 	{
@@ -343,6 +336,7 @@ ES_Sign_CleanUp:
 
 	return r;
 }
+
 s32 ES_GetTitles( u64 *Titles )
 {
 	if( *TCountDirty == 0 )
@@ -392,6 +386,7 @@ s32 ES_GetTitles( u64 *Titles )
 
 	return ES_SUCCESS;
 }
+
 s32 ES_GetOwnedTitles( u64 *Titles )
 {
 	if( TOCountDirty == 0xdeadbeef )
@@ -534,6 +529,7 @@ s32 ES_GetNumOwnedTitles( u32 *TitleCount )
 
 	return ES_SUCCESS;
 }
+
 void iES_GetTMDView( TitleMetaData *TMD, u8 *oTMDView )
 {
 	u32 TMDViewSize = (TMD->ContentCount<<4) + 0x5C;
@@ -568,6 +564,7 @@ void iES_GetTMDView( TitleMetaData *TMD, u8 *oTMDView )
 	memcpy( oTMDView, TMDView, TMDViewSize );
 	free( TMDView );
 }
+
 s32 ES_GetTMDView( u64 *TitleID, u8 *oTMDView )
 {
 	char *path	= (char*)malloca( 0x40, 32 );
@@ -590,6 +587,7 @@ s32 ES_GetTMDView( u64 *TitleID, u8 *oTMDView )
 
 	return ES_SUCCESS;
 }
+
 void iES_GetTicketView( u8 *Ticket, u8 *oTicketView )
 {
 	u8 *TikView = (u8*)malloca( 0xD8, 32 );
@@ -626,6 +624,7 @@ void iES_GetTicketView( u8 *Ticket, u8 *oTicketView )
 
 	return;
 }
+
 s32 ES_DIGetTicketView( u64 *TitleID, u8 *oTikView )
 {
 	if( DITicket == NULL )
@@ -635,6 +634,7 @@ s32 ES_DIGetTicketView( u64 *TitleID, u8 *oTikView )
 
 	return ES_SUCCESS;
 }
+
 s32 ES_GetUID( u64 *TitleID, u16 *UID )
 {
 	char *path	= (char*)malloca( 0x40, 32 );
@@ -753,6 +753,7 @@ s32 ES_GetUID( u64 *TitleID, u16 *UID )
 	free( size );
 	return 1;
 }
+
 s32 ES_DIVerify( u64 *TitleID, u32 *Key, TitleMetaData *TMD, u32 tmd_size, char *tik, char *Hashes )
 {
 	char *path		= (char*)malloca( 0x40, 32 );
@@ -991,6 +992,7 @@ s32 ES_GetS1ContentID( void *ContentHash )
 	}
 	return ES_FATAL;
 }
+
 s32 ES_CheckSharedContent( void *ContentHash )
 {
 	if( *CNTMapDirty )
@@ -1019,6 +1021,7 @@ s32 ES_CheckSharedContent( void *ContentHash )
 	}
 	return 0;
 }
+
 s32 ES_AddTitleFinish( TitleMetaData *TMD )
 {
 	char *path		= (char*)malloca( 0x40, 32 );
@@ -1215,6 +1218,7 @@ s32 ES_AddTitleFinish( TitleMetaData *TMD )
 //
 //	return r;
 //}
+
 s32 ES_CreateKey( u8 *Ticket )
 {
 	u8 *sTitleID	= (u8*)malloca( 0x10, 0x20 );
@@ -1526,6 +1530,7 @@ ACF_Fail:
 
 	return r;
 }
+
 s32 ES_AddContentData( u32 cfd, void *data, u32 data_size )
 {
 	s32 r=0;
@@ -1715,6 +1720,7 @@ s32 ES_LoadModules( u32 KernelVersion )
 
 	return ES_SUCCESS;
 }
+
 s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 {
 	char *path = (char*)malloca( 0x70, 0x40 );
@@ -1792,6 +1798,7 @@ s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 
 	while(1);
 }
+
 s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 {
 	char *path	= (char*)malloca( 0x70, 0x40);
@@ -1802,31 +1809,27 @@ s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 	u8 *data = NANDLoadFile( path, size );
 	if( data == NULL )
 	{
-		if( strncmp( path, "/sys/launch.sys", 15 ) == 0 )
-			ISFS_Delete( path );
-
+		if(strncmp(path, "/sys/launch.sys", 15) == 0)
+			ISFS_Delete(path);
+			
+		if(strncmp(path, "/sys/reload.sys", 15) == 0)
+			ISFS_Delete(path);
+			
 		free( size );
 		free( path );
 		return 0;
 	}
 	
-	__configloadcfg();
-	if(PL->ReturnTo == 1)
-	{
-		*TitleID = PL->RtrnID;
-		PL->ReturnTo = 0;
-		NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
-	}
-	else
-	{
-		*TitleID = *(vu64*)data;
-	}
+	*TitleID = *(vu64*)data;
 
-	if( strncmp( path, "/sys/launch.sys", 15 ) == 0 )
-		ISFS_Delete( path );
+	if(strncmp(path, "/sys/launch.sys", 15) == 0)
+		ISFS_Delete(path);
 
-	free( size );
-	free( path );
+	if(strncmp(path, "/sys/reload.sys", 15) == 0)
+		ISFS_Delete(path);
+	
+	free(size);
+	free(path);
 
 	return 1;
 }
