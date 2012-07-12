@@ -1,9 +1,9 @@
-
 /*
 
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+              2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -90,8 +90,7 @@ typedef struct
 	u32 EULang;
 	u32 USLang;
 	u32 Config;
-	u16 ReturnTo;
-	u16 Autoboot;	
+	u32 Autoboot;	
 	u32 ChNbr;
 	u16 Shop1;
 	u16 DolNr;

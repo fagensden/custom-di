@@ -1,3 +1,25 @@
+/*
+
+SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
+
+Copyright (C) 2009-2011  crediar
+              2011-2012  OverjoY
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation version 2.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+*/
+
 #include "SMenu.h"
 #include "svn.h"
 
@@ -226,12 +248,10 @@ void __configloadcfg( void )
 		PL->USLang   = 1;
 		PL->Shop1    = 0;
 		PL->Config   = 0;
-		PL->ReturnTo = 0;
 		PL->Autoboot = 0;
 		PL->ChNbr    = 0;
 		PL->DolNr    = 0;
 		PL->TitleID  = 0x0000000100000002LL;
-		PL->RtrnID	= 0x0000000100000002LL;
 	}
 	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
 }
