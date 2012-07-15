@@ -147,6 +147,12 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			free(data);
 			ret = ES_SUCCESS;
 		} break;
+		case IOCTL_ES_WIIFLOW_IDENTIFY:
+		{
+			*(u32*)(v[0].data) = 0x6666c6f77;
+			ret = ES_SUCCESS;
+			dbgprintf("ES:Sending Wiiflow magic request\n");
+		} break;
 		case IOCTL_ES_VERIFYSIGN:
 		{
 			ret = ES_SUCCESS;

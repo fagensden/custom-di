@@ -144,7 +144,6 @@ typedef struct
 #define ISFS_IS_USB					30
 #define ISFS_GET_DI_PATH			34
 
-
 s32 ISFS_Init( void );
 s32 ISFS_ReadDir( const char *filepath, char *name_list, u32 *num );
 s32 ISFS_GetFileStats( s32 fd, fstats *status );

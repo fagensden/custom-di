@@ -633,6 +633,13 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 		}
 	}
 	
+	if(*(vu32*)0x0 >> 8 == 0x535a41)
+	{
+		*FileCount = 20;
+		*TotalSize = 0x400000;
+		return FS_SUCCESS;
+	}
+	
 	char *file = heap_alloc_aligned(0, 0x40, 0x40);
 
 	DIR d;
