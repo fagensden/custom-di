@@ -34,8 +34,8 @@
 #define	EHCI_TUNE_FLS		2	/* (small) 256 frame schedule */
 
 extern int verbose;
-//static void dbg_qtd (const char *label, struct ehci_qtd *qtd)
-//{
+static void dbg_qtd (const char *label, struct ehci_qtd *qtd)
+{
 	//ehci_dbg( "%s td %p n%08x %08x t%08x p0=%08x\n", label, qtd, 
 	//	hc32_to_cpup( &qtd->hw_next),
 	//	hc32_to_cpup( &qtd->hw_alt_next),
@@ -47,10 +47,10 @@ extern int verbose;
 	//		hc32_to_cpup( &qtd->hw_buf[2]),
 	//		hc32_to_cpup( &qtd->hw_buf[3]),
 	//		hc32_to_cpup( &qtd->hw_buf[4]));
-//}
+}
 
-//static void dbg_qh (const char *label, struct ehci_qh *qh)
-//{
+static void dbg_qh (const char *label, struct ehci_qh *qh)
+{
 	//ehci_dbg ( "%s qh %p n%08x info %x %x qtd %x\n", label,
 	//	qh, 
 	//	hc32_to_cpu(qh->hw_next), 
@@ -58,87 +58,87 @@ extern int verbose;
 	//	hc32_to_cpu(qh->hw_info2),
 	//	hc32_to_cpu(qh->hw_current));
 	//dbg_qtd ("overlay",  (struct ehci_qtd *) &qh->hw_qtd_next);
-//}
+}
 
-//static void dbg_command (void)
-//{
-//#ifdef DEBUG
-	//u32 command=ehci_readl( &ehci->regs->command);
-	//u32 async=ehci_readl( &ehci->regs->async_next);
+static void dbg_command (void)
+{
+#ifdef DEBUG
+	u32 command=ehci_readl( &ehci->regs->command);
+	u32 async=ehci_readl( &ehci->regs->async_next);
 		
-	//ehci_dbg ("async_next: %08x\n",async);
-	//ehci_dbg (
-	//	"command %06x %s=%d ithresh=%d%s%s%s%s %s %s\n",
-	//	 command,
-	//	(command & CMD_PARK) ? "park" : "(park)",
-	//	CMD_PARK_CNT (command),
-	//	(command >> 16) & 0x3f,
-	//	(command & CMD_LRESET) ? " LReset" : "",
-	//	(command & CMD_IAAD) ? " IAAD" : "",
-	//	(command & CMD_ASE) ? " Async" : "",
-	//	(command & CMD_PSE) ? " Periodic" : "",
-	//	(command & CMD_RESET) ? " Reset" : "",
-	//	(command & CMD_RUN) ? "RUN" : "HALT"
-	//);
-//#endif
-//}
+	ehci_dbg ("async_next: %08x\n",async);
+	ehci_dbg (
+		"command %06x %s=%d ithresh=%d%s%s%s%s %s %s\n",
+		 command,
+		(command & CMD_PARK) ? "park" : "(park)",
+		CMD_PARK_CNT (command),
+		(command >> 16) & 0x3f,
+		(command & CMD_LRESET) ? " LReset" : "",
+		(command & CMD_IAAD) ? " IAAD" : "",
+		(command & CMD_ASE) ? " Async" : "",
+		(command & CMD_PSE) ? " Periodic" : "",
+		(command & CMD_RESET) ? " Reset" : "",
+		(command & CMD_RUN) ? "RUN" : "HALT"
+	);
+#endif
+}
 
-//static void dbg_status (void)
-//{
-//#ifdef DEBUG
-	//u32 status=ehci_readl( &ehci->regs->status);
-	//ehci_dbg (
-	//	"status %04x%s%s%s%s%s%s%s%s%s%s\n",
-	//	status,
-	//	(status & STS_ASS) ? " Async" : "",
-	//	(status & STS_PSS) ? " Periodic" : "",
-	//	(status & STS_RECL) ? " Recl" : "",
-	//	(status & STS_HALT) ? " Halt" : "",
-	//	(status & STS_IAA) ? " IAA" : "",
-	//	(status & STS_FATAL) ? " FATAL" : "",
-	//	(status & STS_FLR) ? " FLR" : "",
-	//	(status & STS_PCD) ? " PCD" : "",
-	//	(status & STS_ERR) ? " ERR" : "",
-	//	(status & STS_INT) ? " INT" : ""
-	//);
-//#endif
-//}
+static void dbg_status (void)
+{
+#ifdef DEBUG
+	u32 status=ehci_readl( &ehci->regs->status);
+	ehci_dbg (
+	 "status %04x%s%s%s%s%s%s%s%s%s%s\n",
+		status,
+		(status & STS_ASS) ? " Async" : "",
+		(status & STS_PSS) ? " Periodic" : "",
+		(status & STS_RECL) ? " Recl" : "",
+		(status & STS_HALT) ? " Halt" : "",
+		(status & STS_IAA) ? " IAA" : "",
+		(status & STS_FATAL) ? " FATAL" : "",
+		(status & STS_FLR) ? " FLR" : "",
+		(status & STS_PCD) ? " PCD" : "",
+		(status & STS_ERR) ? " ERR" : "",
+		(status & STS_INT) ? " INT" : ""
+	);
+#endif
+}
 
-//void debug_qtds(void)
-//{
-//	struct ehci_qh *qh = ehci->async; 
-//	struct ehci_qtd *qtd;
-//	dbg_qh ("qh",qh);
-//	dbg_command ();
-//	dbg_status ();
-//	for(qtd = qh->qtd_head; qtd; qtd = qtd->next)
-//	{
-//		ehci_dma_unmap_bidir(qtd->qtd_dma,sizeof(struct ehci_qtd));
-//		dbg_qtd("qtd",qtd);
-//		ehci_dma_map_bidir(qtd,sizeof(struct ehci_qtd));
-//	}
-//}
+void debug_qtds(void)
+{
+	struct ehci_qh *qh = ehci->async; 
+	struct ehci_qtd *qtd;
+	dbg_qh ("qh",qh);
+	dbg_command ();
+	dbg_status ();
+	for(qtd = qh->qtd_head; qtd; qtd = qtd->next)
+	{
+		ehci_dma_unmap_bidir(qtd->qtd_dma,sizeof(struct ehci_qtd));
+		dbg_qtd("qtd",qtd);
+		ehci_dma_map_bidir(qtd,sizeof(struct ehci_qtd));
+	}
+}
 
-//void dump_qh(struct ehci_qh	*qh)
-//{
-//	struct ehci_qtd	*qtd;
-//	dbg_command ();
-//	dbg_status ();
-//	ehci_dma_unmap_bidir(qh->qh_dma,sizeof(struct ehci_qh));
-//	dbg_qh("qh",qh);
-//	print_hex_dump_bytes("qh:",DUMP_PREFIX_OFFSET,(void*)qh,12*4);
-//	for(qtd = qh->qtd_head; qtd; qtd = qtd->next)
-//	{
-//		u32 *buf;
-//		ehci_dma_unmap_bidir(qtd->qtd_dma,sizeof(struct ehci_qtd));
-//		dbg_qtd("qtd",qtd);
-//		print_hex_dump_bytes("qtd:",DUMP_PREFIX_OFFSET,(void*)qtd,8*4);
-//		buf = (u32*)hc32_to_cpu(qtd->hw_buf[0]);
-//		if(buf)
-//			print_hex_dump_bytes("qtd buf:",DUMP_PREFIX_OFFSET,(void*)(buf),8*4);
-//
-//	}
-//}
+void dump_qh(struct ehci_qh	*qh)
+{
+	struct ehci_qtd	*qtd;
+	dbg_command ();
+	dbg_status ();
+	ehci_dma_unmap_bidir(qh->qh_dma,sizeof(struct ehci_qh));
+	dbg_qh("qh",qh);
+	print_hex_dump_bytes("qh:",DUMP_PREFIX_OFFSET,(void*)qh,12*4);
+	for(qtd = qh->qtd_head; qtd; qtd = qtd->next)
+	{
+		u32 *buf;
+		ehci_dma_unmap_bidir(qtd->qtd_dma,sizeof(struct ehci_qtd));
+		dbg_qtd("qtd",qtd);
+		print_hex_dump_bytes("qtd:",DUMP_PREFIX_OFFSET,(void*)qtd,8*4);
+		buf = (u32*)hc32_to_cpu(qtd->hw_buf[0]);
+		if(buf)
+			print_hex_dump_bytes("qtd buf:",DUMP_PREFIX_OFFSET,(void*)(buf),8*4);
+
+	}
+}
 
 /*-------------------------------------------------------------------------*/
 
@@ -176,8 +176,8 @@ static int handshake (void __iomem *ptr, u32 mask, u32 done, int usec)
 	} while (usec > 0);
 
 	ehci_dbg("\nhandshake timeout!!\n\n");
-	//dump_qh(ehci->async);
-	//dump_qh(ehci->asyncqh);
+	dump_qh(ehci->async);
+	dump_qh(ehci->asyncqh);
 	//BUG();
 	return -ETIMEDOUT;
 }
@@ -298,7 +298,7 @@ static void qh_end_transfer (void)
 	}
 	if(error)
 	{
-		//dump_qh(ehci->asyncqh);
+		dump_qh(ehci->asyncqh);
 		qtd->urb->actual_length = error;
 	}
 	ehci->qtd_used = 0;
@@ -736,11 +736,10 @@ int ehci_release_ports(void)
 int ehci_release_port(int port)
 {
 	u32 __iomem	*status_reg = &ehci->regs->port_status[2];
-	while(ehci_readl(&ehci->regs->port_status[2]) == 0x1000);// wait port 2 to init
-	msleep(1);// wait another msec..
-	status_reg = &ehci->regs->port_status[port];
-	u32 status = ehci_readl(status_reg);		
-	ehci_writel( PORT_OWNER,status_reg); // release port.
+	while(ehci_readl(&ehci->regs->port_status[2]) == 0x1000);
+	msleep(1);
+	status_reg = &ehci->regs->port_status[port];		
+	ehci_writel( PORT_OWNER, status_reg);
 
 	return 0;
 }

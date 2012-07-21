@@ -264,6 +264,7 @@ extern int ehci_open_device(int vid,int pid,int fd);
 extern int ehci_close_device(struct ehci_device *dev);
 extern void * ehci_fd_to_dev(int fd);
 extern int ehci_release_ports(void);
+extern int ehci_release_port(int port);
 
 /* UMS API */
 

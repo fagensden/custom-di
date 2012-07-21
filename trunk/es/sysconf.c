@@ -35,6 +35,7 @@ bool tbdec = false;
 bool configloaded = false;
 
 HacksConfig *PL;
+memcfg *MC;
 
 void __Dec_Enc_TB( void ) 
 {	
@@ -582,6 +583,21 @@ void LoadDOLToMEM( char *path )
 	IOS_Read( fd, (void *)0x12000000, status->Size );
 	heap_free( 0, status );
 	IOS_Close( fd );
+}
+
+s32 GetBootConfigFromMem(u64 *TitleID)
+{
+	memcfg *MC = (memcfg *)0x01200000;
+
+	dbgprintf("ES:Checking magic in memory 0x%08x\n", *(vu32*)0x01200000);
+	if(MC->magic != 0x666c6f77)
+		return 0;	
+	
+	*TitleID = MC->titleid;
+	dbgprintf("ES:Wiiflow magic found!\n");
+	dbgprintf("ES:Title found in memory: %08x-%08x...\n", (u32)(MC->titleid>>32), (u32)MC->titleid );
+	MC->magic = 0x4f4a4f59;
+	return 1;
 }
 
 void KillEULA()
