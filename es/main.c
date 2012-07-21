@@ -149,7 +149,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		} break;
 		case IOCTL_ES_WIIFLOW_IDENTIFY:
 		{
-			*(u32*)(v[0].data) = 0x6666c6f77;
+			*(u32*)(v[0].data) = 0x666c6f77;
 			ret = ES_SUCCESS;
 			dbgprintf("ES:Sending Wiiflow magic request\n");
 		} break;
@@ -1324,7 +1324,7 @@ int _main( int argc, char *argv[] )
 		{
 			case IOS_OPEN:
 			{
-				//dbgprintf("ES:mqueue_recv(%d):%d cmd:%d device:\"%s\":%d\n", queueid, ret, message->command, message->open.device, message->open.mode );
+				dbgprintf("ES:mqueue_recv(%d):%d cmd:%d device:\"%s\":%d\n", queueid, ret, message->command, message->open.device, message->open.mode );
 				// Is it our device?
 				if( memcmp( message->open.device, "/dev/es", 8 ) == 0 )
 				{

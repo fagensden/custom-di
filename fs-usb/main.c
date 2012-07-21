@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -25,8 +26,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ff.h"
 #include "FS.h"
 
-#define DIPATHFILE 		"/sneek/dipath.bin"
-#define NANDPATHFILE	"/sneek/nandpath.bin"
 #define PATHFILE 		"/sneek/nandcfg.bin"
 #define NANDFOLDER 		"/nands"
 #define NANDCFG_SIZE 	0x10
@@ -57,63 +56,28 @@ typedef struct
 	u8  NandInfo[][NANDINFO_SIZE];
 } NandConfig;
 
+typedef struct
+{
+	u32 magic;
+	u64 titleid;
+	u32 config;
+	u32 paddinga;
+	u32 paddingb;
+	u32 paddingc;
+	u32 paddingd;
+	char dipath[256];
+	char nandpath[256];
+} MEMCfg;
+
+enum ExtNANDCfg
+{
+	NCON_EXT_DI_PATH		= (1<<0),
+	NCON_EXT_NAND_PATH		= (1<<1),
+};
+
 NandConfig *NandCFG;
 
 #undef DEBUG
-
-void udelay(int us)
-{
-	u8 heap[0x10];
-	u32 msg;
-	s32 mqueue = -1;
-	s32 timer = -1;
-
-	mqueue = mqueue_create(heap, 1);
-	if(mqueue < 0)
-		goto out;
-	timer = timer_create(us, 0, mqueue, 0xbabababa);
-	if(timer < 0)
-		goto out;
-	mqueue_recv(mqueue, &msg, 0);
-	
-out:
-	if(timer > 0)
-		timer_destroy(timer);
-	if(mqueue > 0)
-		mqueue_destroy(mqueue);
-}
-
-#define ALIGN_FORWARD(x,align) \
-	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
-
-#define ALIGN_BACKWARD(x,align) \
-	((typeof(x))(((u32)(x)) & (~(align-1))))
-
-static char ascii(char s)
-{
-  if(s < 0x20) return '.';
-  if(s > 0x7E) return '.';
-  return s;
-}
-
-void hexdump(void *d, int len)
-{
-  u8 *data;
-  int i, off;
-  data = (u8*)d;
-  for (off=0; off<len; off += 16) {
-    dbgprintf("%08x  ",off);
-    for(i=0; i<16; i++)
-      if((i+off)>=len) dbgprintf("   ");
-      else dbgprintf("%02x ",data[off+i]);
-
-    dbgprintf(" ");
-    for(i=0; i<16; i++)
-      if((i+off)>=len) dbgprintf(" ");
-      else dbgprintf("%c",ascii(data[off+i]));
-    dbgprintf("\n");
-  }
-}
 
 s32 RegisterDevices( void )
 {
@@ -158,8 +122,7 @@ void _main(void)
 	DIR dir;
 	u32 read;
 	u32 write;
-	u32 usenfol=0;
-	s32 counter;
+	u32 addpath=0;
 
 	thread_set_priority( 0, 0x58 );
 
@@ -181,7 +144,7 @@ void _main(void)
 	if(ret != FR_OK)
 	{
 		dbgprintf("FFS:Error %d while trying to mount USB\n", ret );
-		ThreadCancel( 0, 0x77 );
+		ThreadCancel(0, 0x77);
 	}
 
 	char *path = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
@@ -190,179 +153,134 @@ void _main(void)
 	char *fpath = (char *)heap_alloc_aligned( 0, 0x80, 32 );
 	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, 0x100, 32 );
 	
-	strcpy( path, DIPATHFILE );
-	
-	if( f_open( &fil, path, FA_READ ) != FR_OK )
-	{
-		strcpy( diroot, "/sneek" );
-	}
-	else
-	{
-		f_read( &fil, npath, fil.fsize, &read );
-		npath[0x3f] = 0;
-		if (read > 0)
-		{
-			read &= 0x3f;
-			for (counter=0;counter<read;counter++)
-			{
-				if ((npath[counter] == 13)||(npath[counter] == 10)||(npath[counter] == 32))	
-				{
-					npath[counter] = 0;
-				}
-			}
-		}
-		f_close(&fil);
-		
-		if (npath[0] == '/')
-		{
-			strcpy( diroot, npath);
-		}
-		else
-		{
-			diroot[0] = '/';
-			strcat( diroot, npath );
-		}	
-	}	
-
 	nandroot[0] = 0;
-	strcpy( path, NANDPATHFILE );
-	if( f_open( &fil, path, FA_READ ) == FR_OK )
-	{	
-		f_read( &fil, npath, fil.fsize, &read );
-		
-		npath[0x3f] = 0;
-		if (read > 0)
-		{
-			read &= 0x3f;
-			for (counter=0;counter<read;counter++)
-			{
-				if ((npath[counter] == 13)||(npath[counter] == 10)||(npath[counter] == 32))	
-				{
-					npath[counter] = 0;
-				}
-			}
-		}
-		f_close(&fil);
-		if(npath[0] == '/')		
-			strcpy( nandroot, npath );
-		else
-		{
-			nandroot[0] = '/';
-			strcpy( nandroot+1 , npath );
-		}
-	}
-	else
+	strcpy(diroot, "/sneek");
+
+	MEMCfg *MC = (MEMCfg *)0x01200000;
+	
+	if(MC->magic == 0x666c6f77)
 	{
-		usenfol = 1;
+		dbgprintf("FFS:Found config magic in memory: 0x%08x\n", *(vu32*)0x01200000);
+		if(MC->config&NCON_EXT_DI_PATH)
+		{
+			dbgprintf("FFS:DI path changed by external app to \"%s\"\n", MC->dipath);
+			strcpy(diroot, MC->dipath);
+		}
+		if(MC->config&NCON_EXT_NAND_PATH)
+		{
+			dbgprintf("FFS:Nand path changed by external app to \"%s\"\n", MC->nandpath);
+			strcpy(nandroot, MC->nandpath);
+			addpath = 1;
+		}
 	}		
 
-	strcpy( path, PATHFILE );
-	strcpy( npath, NANDFOLDER );
+	strcpy(path, PATHFILE);
+	strcpy(npath, NANDFOLDER);
 	
-	if( f_open( &fil, path, FA_READ ) == FR_OK )
+	if(f_open(&fil, path, FA_READ) == FR_OK)
 	{
-		if( NandCFG )
-			heap_free( 0, NandCFG );
+		if(NandCFG)
+			heap_free(0, NandCFG);
 			
-		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
-		f_read( &fil, NandCFG, fil.fsize, &read );		
+		NandCFG = (NandConfig *)heap_alloc_aligned(0, fil.fsize, 32);
+		f_read(&fil, NandCFG, fil.fsize, &read);		
 		f_close(&fil);
-		__sprintf( tempnroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel] );
-		f_unlink( path );
-		heap_free( 0, NandCFG );
-	}	
+		__sprintf(tempnroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
+		f_unlink(path);
+		heap_free(0, NandCFG);
+	}
+
+	if(addpath)
+		strcpy(tempnroot, nandroot);
 	
-	if( f_opendir( &dir, npath ) == FR_OK )
+	if(f_opendir(&dir, npath) == FR_OK)
 	{
 		u32 ncnt=0;
-		f_open( &fil, path, FA_WRITE|FA_CREATE_ALWAYS );
+		f_open(&fil, path, FA_WRITE|FA_CREATE_ALWAYS);
 		NandCFG->NandCnt = 0;
 		NandCFG->NandSel = 0;
-		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
-		f_lseek( &fil, 0x10 );
-		usenfol = 1;
-		while( f_readdir( &dir, &FInfo ) == FR_OK )
+		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
+		f_lseek(&fil, 0x10);
+		while(f_readdir(&dir, &FInfo) == FR_OK)
 		{
-			memset32( NInfo, 0, NANDINFO_SIZE );
-			if( FInfo.lfsize )
-				memcpy( NInfo+NANDDESC_OFF, FInfo.lfname, strlen( FInfo.lfname ) );
+			memset32(NInfo, 0, NANDINFO_SIZE);
+			if(FInfo.lfsize)
+				memcpy(NInfo+NANDDESC_OFF, FInfo.lfname, strlen(FInfo.lfname));
 			else
-				memcpy( NInfo+NANDDESC_OFF, FInfo.fname, strlen( FInfo.fname ) );
+				memcpy(NInfo+NANDDESC_OFF, FInfo.fname, strlen(FInfo.fname));
 				
-			memset32( fpath, 0, 0x80 );
-			strcpy( fpath, NANDFOLDER );
-			strcat( fpath, "/" );
-			strcat( fpath, (char *)( NInfo+NANDDESC_OFF ) );			
+			memset32(fpath, 0, 0x80);
+			strcpy(fpath, NANDFOLDER);
+			strcat(fpath, "/");
+			strcat(fpath, (char *)(NInfo+NANDDESC_OFF));			
 			
-			memcpy( NInfo, fpath, strlen( fpath ) );
-			memcpy( NInfo+NANDDI_OFF, diroot, 0x40 );
+			memcpy(NInfo, fpath, strlen(fpath));
+			memcpy(NInfo+NANDDI_OFF, diroot, strlen(fpath));
 
-			f_write( &fil, NInfo, NANDINFO_SIZE, &write );
-			if(nandroot[0] != 0)
-				if ( memcmp( nandroot, fpath, strlen( nandroot ) ) == 0 )
-					usenfol=0;
+			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
 			
-			if( strcmp( tempnroot, fpath ) == 0 )
+			if(strcmp(tempnroot, fpath) == 0)
+			{
+				addpath=0;
 				NandCFG->NandSel = ncnt;
+			}
 				
 			ncnt++;
 		}
 		
-		if( ( nandroot[0] != 0 ) && ( usenfol == 1 ) )
+		if(addpath)
 		{
-			memcpy( NInfo, nandroot, 0x80 );
-			memcpy( NInfo+NANDDESC_OFF, nandroot, 0x40 );
-			memcpy( NInfo+NANDDI_OFF, diroot, 0x40 );
-			f_write( &fil, NInfo, NANDINFO_SIZE, &write );
+			memset32(NInfo, 0, NANDINFO_SIZE);
+			memcpy(NInfo, nandroot, 0x80);
+			memcpy(NInfo+NANDDESC_OFF, nandroot, 0x40);
+			memcpy(NInfo+NANDDI_OFF, diroot, 0x40);
+			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
 			NandCFG->NandSel = ncnt;
 			ncnt++;			
 		}
 
 		NandCFG->NandCnt = ncnt;
-		f_lseek( &fil, 0 );
-		f_write( &fil, NandCFG, NANDCFG_SIZE, &write );
-		f_close( &fil );
-	}
-	else
-	{
-		usenfol = 0;
-	}
-
-	if( usenfol )
-	{
-		if( NandCFG )
-			heap_free( 0, NandCFG );
-			
-		NandCFG = (NandConfig *)heap_alloc_aligned( 0, fil.fsize, 32 );
-		f_open( &fil, path, FA_READ );
-		f_read( &fil, NandCFG, fil.fsize, &read );
+		f_lseek(&fil, 0);
+		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
 		f_close(&fil);
-		__sprintf( nandroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel] );
 	}
 
-	strcpy( path, nandroot );
-	strcat( path, "/sneekcache" );
+
+	if(NandCFG)
+		heap_free(0, NandCFG);
+			
+	NandCFG = (NandConfig *)heap_alloc_aligned(0, fil.fsize, 32);
+	f_open(&fil, path, FA_READ);
+	f_read(&fil, NandCFG, fil.fsize, &read);
+	f_close(&fil);
+	__sprintf(nandroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
+
+	
+	dbgprintf("FFS:Using path to nand: \"%s\"\n", nandroot);
+
+	strcpy(path, nandroot);
+	strcat(path, "/sneekcache");
 	
 	if (f_opendir( &dir, path ) != FR_OK)
-		FS_CreateDir( "/sneekcache" );
+		FS_CreateDir("/sneekcache");
 	
 	
-	heap_free( 0, fpath );
-	heap_free( 0, tempnroot );
-	heap_free( 0, NInfo );
-	heap_free( 0, path );
-	heap_free( 0, npath );
-	heap_free( 0, NandCFG );
+	heap_free(0, fpath);
+	heap_free(0, tempnroot);
+	heap_free(0, NInfo);
+	heap_free(0, path);
+	heap_free(0, npath);
+	heap_free(0, NandCFG);
 	
-	FS_Delete( "/tmp" );
-	FS_Delete( "/import" );
+	FS_Delete("/tmp");
+	FS_Delete("/import");
 
-	FS_CreateDir( "/tmp" );
-	FS_CreateDir( "/import" );	
+	FS_CreateDir("/tmp");
+	FS_CreateDir("/import");	
 	
-	thread_set_priority( 0, 0x08 );
+	thread_set_priority(0, 0x08);
 
-	while (1)
+	while(1)
 	{
 		ret = mqueue_recv(QueueID, (void *)&CMessage, 0);
 		if( ret != 0 )

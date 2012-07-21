@@ -23,6 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "string.h"
 #include "ehci.h"
 #include "alloc.h"
+#include "common.h"
 
 #ifndef MEM2_BSS
 #define MEM2_BSS

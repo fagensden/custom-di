@@ -2,7 +2,6 @@
 #include "syscalls.h"
 #include "global.h"
 
-
 void udelay(int us)
 {
 	u8 heap[0x10];

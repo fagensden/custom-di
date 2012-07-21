@@ -6,6 +6,12 @@
 #define	SHARED_PTR	((void *)0x13600000)
 #define	SHARED_SIZE	(0x18000)
 
+#define ALIGN_FORWARD(x,align) \
+	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+
+#define ALIGN_BACKWARD(x,align) \
+	((typeof(x))(((u32)(x)) & (~(align-1))))
+
 #ifdef DEBUG
 int dbgprintf( const char *fmt, ...);
 #else

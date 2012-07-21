@@ -163,18 +163,22 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	*TCountDirty	= 1;
 
 	TOCount			= 0;
-	TOCountDirty	= 1;	
+	TOCountDirty	= 1;
 	
-	if(ES_CheckBootOption("/sys/launch.sys", TitleID) == 0)
-	{	
-		if(PL->Autoboot == 0)
-			*TitleID = 0x100000002LL;			
-		else if	( PL->Autoboot == 1)	
-			*TitleID = PL->TitleID;
-		else if(PL ->Autoboot == 2)
+	if(GetBootConfigFromMem(TitleID) == 0)
+	{
+		if(ES_CheckBootOption("/sys/launch.sys", TitleID) == 0)
 		{
-			LoadDOLToMEM((char *)PL->DOLName);
-			*TitleID = 0x100084f4a4e4bLL;
+			__configloadcfg();
+			if(PL->Autoboot == 0)
+				*TitleID = 0x100000002LL;			
+			else if	( PL->Autoboot == 1)	
+				*TitleID = PL->TitleID;
+			else if(PL ->Autoboot == 2)
+			{
+				LoadDOLToMEM((char *)PL->DOLName);
+				*TitleID = 0x100084f4a4e4bLL;
+			}
 		}
 	}
 	

@@ -99,10 +99,24 @@ typedef struct _netconfig
     connection_t connection[3];
 } netconfig_t;
 
+typedef struct _memcfg
+{
+	u32 magic;
+	u64 titleid;
+	u32 config;
+	u32 paddinga;
+	u32 paddingb;
+	u32 paddingc;
+	u32 paddingd;
+	char dipath[256];
+	char nandpath[256];
+} memcfg;
+
 void DoGameRegion( u64 TitleID );
 void DoSMRegion( u64 TitleID, u16 TitleVersion );
 s32 Force_Internet_Test( void );
 void LoadDOLToMEM( char *path );
+s32 GetBootConfigFromMem(u64 *TitleID);
 void KillEULA();
 
 #endif

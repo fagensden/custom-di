@@ -62,8 +62,7 @@ __res = ((unsigned long) n) % (unsigned) base; \
 n = ((unsigned long) n) / (unsigned) base; \
 __res; })
 
-static char * number(char * str, long num, int base, int size, int precision
-	,int type)
+static char * number(char * str, long num, int base, int size, int precision ,int type)
 {
 	char c,sign,tmp[66];
 	const char *digits="0123456789abcdefghijklmnopqrstuvwxyz";
@@ -127,6 +126,32 @@ static char * number(char * str, long num, int base, int size, int precision
 	while (size-- > 0)
 		*str++ = ' ';
 	return str;
+}
+
+static char ascii(char s)
+{
+  if(s < 0x20) return '.';
+  if(s > 0x7E) return '.';
+  return s;
+}
+
+void hexdump(void *d, int len)
+{
+  u8 *data;
+  int i, off;
+  data = (u8*)d;
+  for (off=0; off<len; off += 16) {
+    dbgprintf("%08x  ",off);
+    for(i=0; i<16; i++)
+      if((i+off)>=len) dbgprintf("   ");
+      else dbgprintf("%02x ",data[off+i]);
+
+    dbgprintf(" ");
+    for(i=0; i<16; i++)
+      if((i+off)>=len) dbgprintf(" ");
+      else dbgprintf("%c",ascii(data[off+i]));
+    dbgprintf("\n");
+  }
 }
 
 int vsprintf(char *buf, const char *fmt, va_list args)
@@ -292,6 +317,7 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 	*str = '\0';
 	return str-buf;
 }
+
 int __sprintf( char *astr, const char *fmt, ...)
 {
 	va_list args;
@@ -303,6 +329,7 @@ int __sprintf( char *astr, const char *fmt, ...)
 
 	return i;
 }
+
 int dbgprintf( const char *fmt, ...)
 {
 	if ( (*(vu32*)(HW_EXICTRL) & 1) == 0)
