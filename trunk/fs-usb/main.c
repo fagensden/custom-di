@@ -26,33 +26,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ff.h"
 #include "FS.h"
 
-#define PATHFILE 		"/sneek/nandcfg.bin"
+#define NANDCFGFILE		"/sneek/nandcfg.bin"
 #define NANDFOLDER 		"/nands"
 #define NANDCFG_SIZE 	0x10
+#define NANDDESC_SIZE 	0x40
 #define NANDDESC_OFF	0x80
 #define NANDDI_OFF		0xC0
 #define NANDINFO_SIZE	0x100
 
 FATFS fatfs;
 
-extern char nandroot[0x40] ALIGNED(32);
-extern char diroot[0x40] ALIGNED(32);
+extern char nandroot[NANDDESC_OFF] ALIGNED(32);
+extern char diroot[NANDDESC_SIZE] ALIGNED(32);
 
 static char Heap[0x100] ALIGNED(32);
 void *QueueSpace = NULL;
 int QueueID = 0;
-int HeapID=0;
+int HeapID = 0;
 int tiny_ehci_init(void);
 int ehc_loop(void);
 
-int verbose=0;
+int verbose = 0;
+int unlockcfg = 0;
 
 typedef struct
 {	
 	u32 NandCnt;
 	u32 NandSel;
-	u32 Padding1;
-	u32 Padding2;
+	u32 NandExt;
+	u32 Config;
 	u8  NandInfo[][NANDINFO_SIZE];
 } NandConfig;
 
@@ -73,6 +75,7 @@ enum ExtNANDCfg
 {
 	NCON_EXT_DI_PATH		= (1<<0),
 	NCON_EXT_NAND_PATH		= (1<<1),
+	NCON_HIDE_EXT_PATH		= (1<<2),
 };
 
 NandConfig *NandCFG;
@@ -112,17 +115,16 @@ s32 RegisterDevices( void )
 	return QueueID;
 }
 
-char __aeabi_unwind_cpp_pr0[0];
 void _main(void)
 {
-	s32 ret=0;
+	s32 ret = 0;
 	struct IPCMessage *CMessage=NULL;
 	FILINFO FInfo;
 	FIL fil;
 	DIR dir;
-	u32 read;
-	u32 write;
-	u32 addpath=0;
+	u32 read, write, i;
+	u32 extpath = 0;
+	u32 Extcnt = 0;
 
 	thread_set_priority( 0, 0x58 );
 
@@ -140,18 +142,16 @@ void _main(void)
 		ThreadCancel( 0, 0x77 );
 
 	ret = f_mount(0, &fatfs);
-
 	if(ret != FR_OK)
-	{
-		dbgprintf("FFS:Error %d while trying to mount USB\n", ret );
 		ThreadCancel(0, 0x77);
-	}
 
-	char *path = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
-	char *npath = (char*)heap_alloc_aligned( 0, 0x40, 0x40 );
-	char *tempnroot = (char*)heap_alloc_aligned( 0, 0x80, 0x40 );	
-	char *fpath = (char *)heap_alloc_aligned( 0, 0x80, 32 );
-	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, 0x100, 32 );
+
+	char *path = (char*)heap_alloc_aligned( 0, NANDDESC_SIZE, 0x40 );
+	char *npath = (char*)heap_alloc_aligned( 0, NANDDESC_SIZE, 0x40 );
+	char *tempnroot = (char*)heap_alloc_aligned( 0, NANDDESC_OFF, 0x40 );	
+	char *fpath = (char *)heap_alloc_aligned( 0, NANDDESC_OFF, 32 );
+	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, NANDINFO_SIZE, 32 );
+	u8 *MInfo = NULL;
 	
 	nandroot[0] = 0;
 	strcpy(diroot, "/sneek");
@@ -170,12 +170,21 @@ void _main(void)
 		{
 			dbgprintf("FFS:Nand path changed by external app to \"%s\"\n", MC->nandpath);
 			strcpy(nandroot, MC->nandpath);
-			addpath = 1;
+			if(!(MC->config&NCON_HIDE_EXT_PATH))
+			{
+				memset32(NInfo, 0, NANDINFO_SIZE);
+				memcpy(NInfo, nandroot, NANDDESC_OFF);
+				memcpy(NInfo+NANDDESC_OFF, nandroot, NANDDESC_SIZE);
+				memcpy(NInfo+NANDDI_OFF, diroot, NANDDESC_SIZE);
+				extpath = 1;
+			}
 		}
 	}		
 
-	strcpy(path, PATHFILE);
+	strcpy(path, NANDCFGFILE);
 	strcpy(npath, NANDFOLDER);
+	
+	unlockcfg = 1;
 	
 	if(f_open(&fil, path, FA_READ) == FR_OK)
 	{
@@ -184,23 +193,52 @@ void _main(void)
 			
 		NandCFG = (NandConfig *)heap_alloc_aligned(0, fil.fsize, 32);
 		f_read(&fil, NandCFG, fil.fsize, &read);		
-		f_close(&fil);
+		Extcnt = NandCFG->NandExt;
 		__sprintf(tempnroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
+		if(Extcnt != 0)
+		{
+			MInfo = (u8 *)heap_alloc_aligned( 0, NANDINFO_SIZE * Extcnt, 32 );
+			memset32(MInfo, 0, NANDINFO_SIZE * Extcnt);
+			f_lseek(&fil, NANDCFG_SIZE);
+			f_read(&fil, MInfo, NANDINFO_SIZE * Extcnt, &read);
+			if(nandroot[0] != 0)
+			{
+				for(i = 0; i < Extcnt; ++i)
+				{
+					if(strncmp(nandroot, (char *)NandCFG->NandInfo[i], strlen(nandroot)) == 0)
+					{
+						extpath = 0;
+						break;
+					}
+				}
+			}
+		}
+		f_close(&fil);
 		f_unlink(path);
-		heap_free(0, NandCFG);
+		heap_free(0, NandCFG);	
 	}
-
-	if(addpath)
-		strcpy(tempnroot, nandroot);
 	
 	if(f_opendir(&dir, npath) == FR_OK)
 	{
+		NandCFG = (NandConfig *)heap_alloc_aligned(0, NANDCFG_SIZE, 32);
+		memset32(NandCFG, 0, NANDCFG_SIZE);
 		u32 ncnt=0;
 		f_open(&fil, path, FA_WRITE|FA_CREATE_ALWAYS);
 		NandCFG->NandCnt = 0;
 		NandCFG->NandSel = 0;
+		NandCFG->NandExt = Extcnt + extpath;
 		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
-		f_lseek(&fil, 0x10);
+		f_lseek(&fil, NANDCFG_SIZE);
+		if(extpath != 0)
+		{
+			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
+		}
+		if(Extcnt != 0)
+		{
+			f_write(&fil, MInfo, NANDINFO_SIZE * Extcnt, &write);
+		}
+		heap_free(0, MInfo);
+		ncnt += Extcnt;
 		while(f_readdir(&dir, &FInfo) == FR_OK)
 		{
 			memset32(NInfo, 0, NANDINFO_SIZE);
@@ -209,7 +247,7 @@ void _main(void)
 			else
 				memcpy(NInfo+NANDDESC_OFF, FInfo.fname, strlen(FInfo.fname));
 				
-			memset32(fpath, 0, 0x80);
+			memset32(fpath, 0, NANDDESC_OFF);
 			strcpy(fpath, NANDFOLDER);
 			strcat(fpath, "/");
 			strcat(fpath, (char *)(NInfo+NANDDESC_OFF));			
@@ -220,25 +258,10 @@ void _main(void)
 			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
 			
 			if(strcmp(tempnroot, fpath) == 0)
-			{
-				addpath=0;
-				NandCFG->NandSel = ncnt;
-			}
+				NandCFG->NandSel = ncnt  + extpath;
 				
 			ncnt++;
 		}
-		
-		if(addpath)
-		{
-			memset32(NInfo, 0, NANDINFO_SIZE);
-			memcpy(NInfo, nandroot, 0x80);
-			memcpy(NInfo+NANDDESC_OFF, nandroot, 0x40);
-			memcpy(NInfo+NANDDI_OFF, diroot, 0x40);
-			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
-			NandCFG->NandSel = ncnt;
-			ncnt++;			
-		}
-
 		NandCFG->NandCnt = ncnt;
 		f_lseek(&fil, 0);
 		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
@@ -253,8 +276,9 @@ void _main(void)
 	f_open(&fil, path, FA_READ);
 	f_read(&fil, NandCFG, fil.fsize, &read);
 	f_close(&fil);
-	__sprintf(nandroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
-
+	unlockcfg = 0;
+	if(nandroot[0] == 0)
+		__sprintf(nandroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
 	
 	dbgprintf("FFS:Using path to nand: \"%s\"\n", nandroot);
 

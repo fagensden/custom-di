@@ -37,6 +37,7 @@ char diroot[0x40] ALIGNED(32);
 
 extern u32 s_size;
 extern u32 s_cnt;
+extern int unlockcfg;
 
 //#define USEATTR
 //#undef DEBUG
@@ -633,7 +634,7 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 		}
 	}
 	
-	if(*(vu32*)0x0 >> 8 == 0x535a41)
+	if(*(vu32*)0x0 >> 8 == 0x535a41 || *(vu32*)0x0 >> 8 == 0x525050)
 	{
 		*FileCount = 20;
 		*TotalSize = 0x400000;
@@ -935,6 +936,11 @@ s32 FS_Close( s32 FileHandle )
 }
 s32 FS_Open( char *Path, u8 Mode )
 {
+	if(!unlockcfg)
+	{
+		if(strstr(Path, "nandcfg.bin")  != NULL)
+			return FR_DENIED;	
+	}
 	
 	if( strncmp( Path, "/AX", 3 ) == 0 )
 		return HAXHandle;
