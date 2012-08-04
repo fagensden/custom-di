@@ -238,7 +238,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	//SNEEK does not support single module IOSs so we just load IOS35 instead
 	//IOS58 is also not supported
 	if( IOSVersion < 28 )
-		IOSVersion = 35;
+		IOSVersion = 56;
 	if( IOSVersion == 58 )
 		IOSVersion = 56;
 	if( IOSVersion > 200 )

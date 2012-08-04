@@ -1412,16 +1412,6 @@ void SMenuReadPad ( void )
 						free(DICfgO);
                 	}
 				}
-				/*if(DICfg->Config&DML_VIDEO_PAL50)
-					DMLVideoMode = 1;
-				else if(DICfg->Config&DML_VIDEO_NTSC)
-					DMLVideoMode = 2;
-				else if(DICfg->Config&DML_VIDEO_PAL60)
-					DMLVideoMode = 3;
-				else if(DICfg->Config&DML_VIDEO_PROG)
-					DMLVideoMode = 4;
-				else if(DICfg->Config&DML_VIDEO_PROG_P)
-					DMLVideoMode = 5;*/
 			}
 			if( NandCfg == NULL )
 			{
