@@ -955,14 +955,24 @@ s32 FS_Open( char *Path, u8 Mode )
 		}		
 		else if(strncmp( Path+5, "usb2", 4 ) == 0) 
 		{
-			dbgprintf("/dev/usb2 trigger detected\n");
-			return USB_FD;
+			if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
+			{
+				dbgprintf("/dev/usb2 trigger detected\n");
+				return USB_FD;
+			}
+			else
+			{
+				dbgprintf("UBISOFT AP detection found\n");
+				return FS_ENOENT;
+			}
 		}
 		/* else if( strncmp( Path+5, "flash", 5 ) == 0 ) {
 			return FS_ENOENT;		
 		} else if( strncmp( Path+5, "boot2", 5 ) == 0) {
 			return B2_FD;
-		}*/ else {
+		}*/ 
+		else 
+		{
 			// Not a devicepath of ours, dispatch it to the syscall again..
 			return FS_ENOENT;
 		}
