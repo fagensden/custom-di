@@ -649,6 +649,7 @@ s32 DVDSelectGame(int SlotID)
 	{
 		dbgprintf("DIP:Set mode to DISC\n");
 		FMode = IS_DISC;
+		wii_sector_size = 0x8000;
 	}
 	
 	if(DICfg->Gamecount > 0 && FMode != IS_DISC)
