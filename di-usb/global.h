@@ -58,4 +58,10 @@ typedef u32 u_int32_t;
 	type *name = (type*)(((u32)(_al__##name)) + ((alignment) - (( \
 	(u32)(_al__##name))&((alignment)-1))))
 
+typedef struct
+{
+	u32 data;
+	u32 len;
+} vect;
+
 #endif

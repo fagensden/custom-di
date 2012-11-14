@@ -1,8 +1,8 @@
 /*
-
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -30,7 +30,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #define ISFS_MAX_PATH	0x40
 
-typedef s32 (*isfscallback)(s32 result,void *usrdata);
+typedef s32 (*isfscallback)(s32 result, void *usrdata);
 
 typedef struct _fstats
 {
@@ -128,11 +128,11 @@ typedef struct
 
 #define ISFS_IS_USB					30
 
-s32 ISFS_ReadDir( const char *filepath, char *name_list, u32 *num );
-s32 ISFS_GetFileStats( s32 fd, fstats *status );
-s32 ISFS_Delete( const char *filepath );
-s32 ISFS_CreateFile( const char *FileName, u8 Attributes, u8 PermOwner, u8 PermGroup, u8 PermOther );
-s32 ISFS_CreateDir( const char *FileName, u8 Attributes, u8 PermOwner, u8 PermGroup, u8 PermOther );
-s32 ISFS_Rename( const char *FileSrc, const char *FileDst );
-
+s32 ISFS_ReadDir(const char *filepath, char *name_list, u32 *num);
+s32 ISFS_GetFileStats(s32 fd, fstats *status);
+s32 ISFS_Delete(const char *filepath);
+s32 ISFS_CreateFile(const char *FileName, u8 Attributes, u8 PermOwner, u8 PermGroup, u8 PermOther);
+s32 ISFS_CreateDir(const char *FileName, u8 Attributes, u8 PermOwner, u8 PermGroup, u8 PermOther);
+s32 ISFS_Rename(const char *FileSrc, const char *FileDst);
+s32 ISFS_GetDIPath(char *filepath);
 #endif

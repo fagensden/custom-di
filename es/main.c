@@ -52,7 +52,6 @@ static u32 KeyIDT ALIGNED(32) = 0;
 
 char diroot[0x20] ALIGNED(32);
 
-
 TitleMetaData *iTMD = (TitleMetaData *)NULL;			//used for information during title import
 static u8 *iTIK=NULL;									//used for information during title import
 
@@ -143,14 +142,13 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			u8 *data=(u8*)malloca( 0xE0, 0x40 );
 			memcpy(data, (u64*)v[0].data, sizeof(u64) );
 		
-			NANDWriteFileSafe("/sys/reload.sys", data , 0xE0);
+			NANDWriteFileSafe("/sneek/reload.sys", data , 0xE0);
 			free(data);
 			ret = ES_SUCCESS;
 		} break;
 		case IOCTL_ES_WIIFLOW_IDENTIFY:
 		{
-			*(u32*)(v[0].data) = 0x666c6f77;
-			ret = ES_SUCCESS;
+			ret = 0x666c6f77;
 			dbgprintf("ES:Sending Wiiflow magic request\n");
 		} break;
 		case IOCTL_ES_VERIFYSIGN:
@@ -607,7 +605,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		} break;
 		case IOCTL_ES_DELETETICKET:
 		{
-			memcpy( iTitleID, (u8*)(v[0].data), sizeof(u64) );
+			memcpy( iTitleID, (u8*)(v[0].data)+0x10, sizeof(u64) );
 
 			_sprintf( path, "/ticket/%08x/%08x.tik", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
 
@@ -888,11 +886,11 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		{
 			memcpy( iTitleID, (u8*)(v[0].data), sizeof(u64) );
 
-			//dbgprintf("ES:LaunchTitle( %08x-%08x )\n", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
+			dbgprintf("ES:LaunchTitle( %08x-%08x )\n", (u32)(*iTitleID>>32), (u32)(*iTitleID) );
 
 			ret = ES_LaunchTitle( (u64*)(v[0].data), (u8*)(v[1].data) );
 
-			//dbgprintf("ES_LaunchTitle Failed with:%d\n", ret );
+			dbgprintf("ES_LaunchTitle Failed with:%d\n", ret );
 
 		} break;
 		case IOCTL_ES_SETUID:
@@ -1043,45 +1041,45 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			if( (u32*)(v[4].data) == NULL )		// key
 			{
-				//dbgprintf("key ptr == NULL\n");
+				dbgprintf("key ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( v[4].len != 4 ) {
-				//dbgprintf("key len invalid, %d != 4\n", v[4].len );
+				dbgprintf("key len invalid, %d != 4\n", v[4].len );
 				ret = ES_FATAL;
 			}
 
 			if( (u8*)(v[3].data) == NULL )		// TMD
 			{
-				//dbgprintf("TMD ptr == NULL\n");
+				dbgprintf("TMD ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( ((*(u16*)(v[3].data+0x1DE))*36+0x1E4) != v[3].len ) {
-				//dbgprintf("TMD len invalid, %d != %d\n", ((*(u16*)(v[3].data+0x1DE))*36+0x1E4), v[3].len );
+				dbgprintf("TMD len invalid, %d != %d\n", ((*(u16*)(v[3].data+0x1DE))*36+0x1E4), v[3].len );
 				ret = ES_FATAL;
 			}
 
 			if( (u8*)(v[2].data) == NULL )		// tik
 			{
-				//dbgprintf("tik ptr == NULL\n");
+				dbgprintf("tik ptr == NULL\n");
 				ret = ES_FATAL;
 			} else if( v[2].len != 0x2A4 ) {
-				//dbgprintf("tik len invalid, %d != 0x2A4\n", v[2].len );
+				dbgprintf("tik len invalid, %d != 0x2A4\n", v[2].len );
 				ret = ES_FATAL;
 			}
 
 			if( (u8*)(v[5].data) == NULL )		//hashes
 			{
-				////dbgprintf("hashes ptr == NULL\n");
+				dbgprintf("hashes ptr == NULL\n");
 				ret = ES_FATAL;
 			 }
 
 			if( ret == ES_SUCCESS )
 				ret = ES_DIVerify( &TitleID, (u32*)(v[4].data), (TitleMetaData*)(v[3].data), v[3].len, (char*)(v[2].data), (char*)(v[5].data) );
 
-			////dbgprintf("ES:DIVerfiy():%d\n", ret );
+			dbgprintf("ES:DIVerfiy():%d\n", ret );
 		} break;
 		case IOCTL_ES_GETBOOT2VERSION:
 		{
-			*(u32*)(v[0].data) = 5;
+			*(u32*)(v[0].data) = 65535;
 			ret = ES_SUCCESS;
 			////dbgprintf("ES:GetBoot2Version(5):%d\n", ret );
 		} break;
@@ -1093,9 +1091,8 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		case IOCTL_ES_IMPORTBOOT:
 		{
 			ret = ES_SUCCESS;
-			////dbgprintf("ES:ImportBoot():%d\n", ret );
+			dbgprintf("ES:ImportBoot():%d\n", ret );
 		} break;
-
 		case 0x50:
 		{
 			u32* pKeyIDT ALIGNED(32);
@@ -1106,7 +1103,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			pKeyIDT = (u32*)( v[2].data );
 			*pKeyIDT = KeyIDT;
-		} break;
+		} break;		
 		default:
 		{
 			for( i=0; i<InCount+OutCount; ++i)
@@ -1123,7 +1120,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 }
 int _main( int argc, char *argv[] )
 {
-	s32 ret=0;
+	s32 ret = 0;
 	struct ipcmessage *message=NULL;
 	u8 MessageHeap[0x10];
 	u32 MessageQueue=0xFFFFFFFF;
@@ -1228,16 +1225,9 @@ int _main( int argc, char *argv[] )
 	}
 	
 	if( TitleID == 0x0000000100000002LL )
-	{
-		//Disable SD access for system menu, as it breaks channel/game loading
-		//if( *SDStatus == 1 )
-		//	*SDStatus = 1;
-
 		MenuType = 1;
-		
-	} /*else if ( (TitleID >> 32) ==  0x00010000LL ) {
+	else if ( (TitleID >> 32) ==  0x00010000LL ) 
 		MenuType = 2;
-	}*/
 
 	LoadAndRebuildChannelCache();
 	Force_Internet_Test();
@@ -1299,8 +1289,9 @@ int _main( int argc, char *argv[] )
 					{
 						SMenuDraw();
 						SMenuReadPad();
-					} else if( MenuType == 2 ) {
-
+					} 
+					else if( MenuType == 2 ) 
+					{
 						SCheatDraw();
 						SCheatReadPad();
 					}

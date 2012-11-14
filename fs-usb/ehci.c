@@ -175,7 +175,7 @@ static int handshake (void __iomem *ptr, u32 mask, u32 done, int usec)
 		usec--;
 	} while (usec > 0);
 
-	ehci_dbg("\nhandshake timeout!!\n\n");
+	ehci_dbg("\nEHCI:Handshake timeout!!\n\n");
 	dump_qh(ehci->async);
 	dump_qh(ehci->asyncqh);
 	//BUG();
@@ -280,17 +280,18 @@ static void qh_end_transfer (void)
 				
 		if (!(qtd->length ==0 && ((token & 0xff)==QTD_STS_HALT)) && (token & QTD_STS_HALT)) 
 		{
-			ehci_dbg("\nqtd error!:");
+			ehci_dbg("\nEHCI:");
+			ehci_dbg("QTD error!:");
 			if (token & QTD_STS_BABBLE) 	/* FIXME "must" disable babbling device's port too */				
 				ehci_dbg(" BABBLE"); 
 			if (token & QTD_STS_MMF) 		/* fs/ls interrupt xfer missed the complete-split */
-				ehci_dbg(" missed micro frame");
+				ehci_dbg(" Missed micro frame");
 			if (token & QTD_STS_DBE) 
-				ehci_dbg(" databuffer error");
+				ehci_dbg(" Databuffer error");
 			if (token & QTD_STS_XACT)
-				ehci_dbg(" wrong ack");
+				ehci_dbg(" Wrong ack");
 			if (QTD_CERR (token)==0)
-				ehci_dbg(" toomany errors");
+				ehci_dbg(" Toomany errors");
 						
 			ehci_dbg("\n");
 			error = -1;
@@ -558,7 +559,7 @@ int ehci_do_urb (struct ehci_device *dev, struct ehci_urb	*urb)
 	if(retval==0)				
 		return urb->actual_length;
 
-	ehci_dbg ( "un successfull urb %d!!\n", retval);
+	ehci_dbg ("EHCI:Unsuccessfull urb %d!!\n", retval);
 	return retval;
 }
 
@@ -567,7 +568,7 @@ s32 ehci_control_message(struct ehci_device *dev,u8 bmRequestType,u8 bmRequest,u
 	struct ehci_urb urb;
 	usbctrlrequest *req = ehci->ctrl_buffer;
 	if(verbose)
-		ehci_dbg ( "control msg: rt%02X r%02X v%04X i%04X s%04x %p\n", bmRequestType, bmRequest, wValue, wIndex,wLength,buf);
+		ehci_dbg ("EHCI:Control msg: rt%02X r%02X v%04X i%04X s%04x %p\n", bmRequestType, bmRequest, wValue, wIndex,wLength,buf);
 		
 	req->bRequestType = bmRequestType;
 	req->bRequest = bmRequest;
@@ -584,7 +585,7 @@ s32 ehci_control_message(struct ehci_device *dev,u8 bmRequestType,u8 bmRequest,u
 		int ret;
 		urb.transfer_buffer = USB_Alloc(wLength);
 		if (verbose)
-		ehci_dbg("alloc another buffer %p %p\n",buf,urb.transfer_buffer);
+		ehci_dbg("EHCI:Alloc another buffer %p %p\n",buf,urb.transfer_buffer);
 		
 		memcpy(urb.transfer_buffer,buf,wLength);
 		ret =  ehci_do_urb(dev,&urb);
@@ -610,7 +611,7 @@ s32 ehci_bulk_message(struct ehci_device *dev,u8 bEndpoint,u16 wLength,void *rpD
 	urb.transfer_buffer_length = wLength;
 	urb.transfer_buffer = rpData;
 	if(verbose)
-		ehci_dbg ( "bulk msg: ep:%02X size:%02X addr:%04X", bEndpoint, wLength, rpData);
+		ehci_dbg ("EHCI:Bulk msg: ep:%02X size:%02X addr:%04X", bEndpoint, wLength, rpData);
 		
 	ret= ehci_do_urb(dev,&urb);
 	if(verbose)
@@ -633,21 +634,21 @@ int ehci_reset_port(int port)
 		{
 			msleep(1000);
 			status = ehci_readl(status_reg);
-			ehci_dbg ("port %d status at retry %d %X \n", port, retries, status);
+			ehci_dbg ("EHCI:Port %d status at retry %d %X \n", port, retries, status);
 			retries--;
 		}
 		if( retries <= 0 )
 		{		
 			ehci_writel( PORT_OWNER, status_reg);
-			ehci_dbg ("port %d had no usb2 device connected at startup %X \n", port, ehci_readl(status_reg));
+			ehci_dbg ("EHCI:Port %d had no usb2 device connected at startup %X\n", port, ehci_readl(status_reg));
 			return -ENODEV;// no USB2 device connected
 		}
 	}
-	ehci_dbg ("port %d has usb2 device connected! reset it...\n", port);
+	ehci_dbg ("EHCI:Port %d has usb2 device connected! Reset it...\n", port);
 	ehci_writel( 0x1803, status_reg);
 	while ((ehci_readl(status_reg) & 0x1801) != 0x1801)
 	{
-		ehci_dbg ( "Waiting for port %d to settle...(%04x)\n", port, ehci_readl(status_reg));
+		ehci_dbg ( "EHCI:Waiting for port %d to settle...(%04x)\n", port, ehci_readl(status_reg));
 		ehci_writel( 0x1803,status_reg);
 		msleep(500);
 	}
@@ -660,30 +661,30 @@ int ehci_reset_port(int port)
 
 	if (retval != 0)
 	{
-		ehci_dbg ( "port %d reset error %d\n", port, retval);
+		ehci_dbg ( "EHCI:Port %d reset error %d\n", port, retval);
 		return retval;
 	}
-	ehci_dbg ( "port %d reseted status:%04x...\n", port,ehci_readl(status_reg));
+	ehci_dbg ( "EHCI:Port %d reseted status: %04x...\n", port,ehci_readl(status_reg));
 	msleep(50);
 	// now the device has the default device id
 	retval = ehci_control_message( dev, USB_CTRLTYPE_DIR_DEVICE2HOST, USB_REQ_GETDESCRIPTOR, USB_DT_DEVICE<<8, 0, sizeof(dev->desc), &dev->desc );
 	
 	if (retval < 0)
 	{
-		ehci_dbg("unable to get device desc...\n");
+		ehci_dbg("EHCI: Unable to get device desc...\n");
 		return retval;
 	}
 
 	retval = ehci_control_message( dev, USB_CTRLTYPE_DIR_HOST2DEVICE, USB_REQ_SETADDRESS,port+1,0,0,0);
 	if (retval < 0)
 	{
-		ehci_dbg("unable to set device addr...\n");
+		ehci_dbg("EHCI:Unable to set device addr...\n");
 		return retval;
 	}
 	dev->toggles = 0;
 
 	dev->id = port+1;
-	ehci_dbg ( "device %d: %X %X...\n", dev->id,le16_to_cpu(dev->desc.idVendor),le16_to_cpu(dev->desc.idProduct));
+	ehci_dbg ("EHCI:Device %d: %X %X...\n", dev->id,le16_to_cpu(dev->desc.idVendor),le16_to_cpu(dev->desc.idProduct));
 	int relport = port == 0 ? 1 : 0;
 	
 	ehci_release_port(relport);
@@ -777,7 +778,7 @@ int ehci_close_device(struct ehci_device *dev)
 		if(dev->fd == fd)
 			return dev;
 	}
-	ehci_dbg("unkown fd! %d\n",fd);
+	ehci_dbg("EHCI:Unkown fd! %d\n",fd);
 	return 0;
 }
 
@@ -790,7 +791,7 @@ int ehci_get_device_list(u8 maxdev,u8 b0,u8*num,u16*buf)
 		struct ehci_device *dev = &ehci->devices[i];
 		if(dev->id != 0)
 		{
-			ehci_dbg ( "device %d: %X %X...\n", dev->id,le16_to_cpu(dev->desc.idVendor),le16_to_cpu(dev->desc.idProduct));
+			ehci_dbg ( "EHCI:Device %d: %X %X...\n", dev->id,le16_to_cpu(dev->desc.idVendor),le16_to_cpu(dev->desc.idProduct));
 			buf[j*4] = 0;
 			buf[j*4+1] = 0;
 			buf[j*4+2] = le16_to_cpu(dev->desc.idVendor);
@@ -798,7 +799,7 @@ int ehci_get_device_list(u8 maxdev,u8 b0,u8*num,u16*buf)
 			j++;
 		}
 	}
-	ehci_dbg("found %d devices\n",j);
+	ehci_dbg("EHCI:Found %d devices\n",j);
 	*num = j;
 	return 0;
 }

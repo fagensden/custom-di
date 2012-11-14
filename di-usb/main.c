@@ -1,8 +1,8 @@
 /*
-
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -22,172 +22,157 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "syscalls.h"
 #include "global.h"
 #include "ipc.h"
-#include "gecko.h"
 #include "alloc.h"
 #include "dip.h"
+#include "disc.h"
 #include "DIGlue.h"
-
-extern DIConfig *DICfg;
+#include "common.h"
 
 s32 switchtimer;
 int QueueID;
 int requested_game;
+int CVR;
 u32 ignore_logfile;
 char *cdiconfig ALIGNED(32);
+static char DIFolder[40];
 
-s32 FS_Get_Di_Path( void )
+extern u32 DICover ALIGNED(32);
+extern u32 ChangeDisc ALIGNED(32);
+extern DIConfig *DICfg;
+
+s32 RegisterDevices(void *QueueSpace)
 {
-	s32 FFSHandle = IOS_Open("/dev/fs", 0 );
-	if( FFSHandle < 0 )
-		return FFSHandle;
+	QueueID = MessageQueueCreate(QueueSpace, 8);
 
-	u8 *dipath = (u8 *)malloca( 0x20, 0x20 );
+	s32 ret = IOS_Register("/dev/di", QueueID);
 
-	s32 r = IOS_Ioctl( FFSHandle, ISFS_GET_DI_PATH, NULL, 0, (void*)(dipath), 0x20 );
-	IOS_Close( FFSHandle );
-	
-	if ( r == FS_SUCCESS )
-	{
-		memcpy( cdiconfig, dipath, 0x20 );
-		cdiconfig[0x1f] = 0;
-	}
-	else
-	{
-		//for compatibility with previous
-		strcpy( cdiconfig, "/sneek" );
-	}
-	strcat( cdiconfig,"/diconfig.bin" );
-	free( dipath );
-
-	return r;
-}
-
-
-void udelay(int us)
-{
-	u8 heap[0x10];
-	struct ipcmessage *Message;
-	int mqueue = -1;
-	int TimeID = -1;
-
-	mqueue = MessageQueueCreate(heap, 1);
-	if(mqueue < 0)
-		goto out;
-	TimeID = TimerCreate(us, 0, mqueue, 0xbabababa);
-	if(TimeID < 0)
-		goto out;
-	MessageQueueReceive(mqueue, &Message, 0);
-	
-out:
-	if(TimeID > 0)
-		TimerDestroy(TimeID);
-	if(mqueue > 0)
-		MessageQueueDestroy(mqueue);
-}
-
-s32 RegisterDevices( void *QueueSpace )
-{
-	QueueID = MessageQueueCreate( QueueSpace, 8);
-
-	s32 ret = IOS_Register("/dev/di", QueueID );
-
-	if( ret < 0 )
+	if(ret < 0)
 		return ret;
 
 	return QueueID;
 }
-char __aeabi_unwind_cpp_pr0[0];
 
 void _main(void)
 {
+	s32 ret = DI_FATAL;
 	struct ipcmessage *IPCMessage = NULL;
-
-	//we can only start logging if FS is running
-	//so we will disable it until so
 	ignore_logfile = 1;
-	//dbgprintf("CDI: main starting...\n");
-	ThreadSetPriority( 0, 0xFF );
+	ThreadSetPriority(0, 0xFF);
 
 	HeapInit();
 
-	void *QueueSpace = malloc( 0x20 );
-//	int QueueID = RegisterDevices( QueueSpace );
-	QueueID = RegisterDevices( QueueSpace );
+	void *QueueSpace = malloc(0x20);
+	QueueID = RegisterDevices(QueueSpace);
 
-	if( QueueID < 0 )
-	{
-		ThreadCancel( 0, 0x77 );
-	}
+	if(QueueID < 0)
+		ThreadCancel(0, 0x77);
 	
-	s32 ret = EnableVideo( 1 );
+	Set_DVDVideo(1);
+	DVDInit();
+	udelay(1200000);
 
-	DVDInit();								 
-
-	//a 0.5 seconds delay to avoid racing
-	//as es is waiting for the harddisk to become ready
-	//this needs to be after the DVDInit();
-	//which sets the flag for harddisk ready
-
-	udelay( 500000 );
-
-
-	//basically
 	ignore_logfile = 0;
-	cdiconfig = (char *)( malloca( 0x40, 0x20 ) );
+	cdiconfig = (char *)(malloca(0x40, 0x20));
 
-	FS_Get_Di_Path();
+	ISFS_GetDIPath(DIFolder);	
+	sprintf(cdiconfig, "%s/%s", DIFolder, CACHEFILE);
 
-	DICfg = (DIConfig*)malloca( DVD_CONFIG_SIZE, 32 );
+	DICfg = (DIConfig*)malloca(DVD_CONFIG_SIZE, 32);
 
-//	dbgprintf("CDI:before DVDUpdateCache\n"); 
 	DVDUpdateCache(0);
 
-	DVDSelectGame( DICfg->SlotID );
-
-	while (1)
+	if(DICfg->Config & CONFIG_MOUNT_DISC)
 	{
+		if(!DICVR)
+		{
+			DI_Reset();			
+			udelay(500000);
+		}
+			
+		if(DICVR & 1)
+		{
+			DVDSelectGame(DICfg->SlotID);
+		}
+		else if(DICVR & 4)
+		{
+			if(*(vu32*)0 == 0)
+				DI_ReadDiskId();
+				
+			DVDSelectGame(9999);
+		}
+	}
+	else
+	{
+		DVDSelectGame(DICfg->SlotID);
+	}
+	
+	CVR = DICVR;
+
+	while(1)
+	{			
+		if(CVR != DICVR)
+		{
+			if(DICVR & 1)
+			{
+				ChangeDisc = 1;
+				DICover |= 1;				
+			}
+			else if(DICVR & 4)
+			{
+				DI_Reset();			
+				udelay(1000000);
+				if(*(vu32*)0 == 0)
+					DI_ReadDiskId();
+				
+				DVDSelectGame(9999);
+			}	
+			CVR = DICVR;
+		}			
+		
 		ret = MessageQueueReceive( QueueID, &IPCMessage, 0 );
 
 		if( (u32)IPCMessage == 0xDEADDEAE )
 		{
-			TimerStop( switchtimer );
+			TimerStop(switchtimer);
 			TimerDestroy(switchtimer);
-			//dbgprintf( "CDI:switchtimer expired -> requested_game = %d\n", requested_game ); 
-			DVDSelectGame( requested_game );
+			if(requested_game == 9999)
+			{				
+				udelay(500000);
+				if(*(vu32*)0 == 0)
+					DI_ReadDiskId();				
+			}
+			DVDSelectGame(requested_game);
 			continue;
 		}
 
-		switch( IPCMessage->command )
+		switch(IPCMessage->command)
 		{
 			case IOS_OPEN:
 			{
-				if( strncmp("/dev/di", IPCMessage->open.device, 8 ) == 0 )
-				{
-					MessageQueueAck( IPCMessage, 24 );
-				} else {
-					MessageQueueAck( IPCMessage, -6 );
-				}
-				
+				if(strncmp("/dev/di", IPCMessage->open.device, 8) == 0)
+					MessageQueueAck(IPCMessage, 24);
+				else
+					MessageQueueAck(IPCMessage, -6);				
 			} break;
 
 			case IOS_CLOSE:
 			{
-				MessageQueueAck( IPCMessage, 0 );
+				MessageQueueAck(IPCMessage, 0);
 			} break;
 
 			case IOS_IOCTL:
-				MessageQueueAck( IPCMessage, DIP_Ioctl( IPCMessage ) );
+				MessageQueueAck(IPCMessage, DIP_Ioctl(IPCMessage));
 			break;
 
 			case IOS_IOCTLV:
-				MessageQueueAck( IPCMessage, DIP_Ioctlv( IPCMessage ) );
+				MessageQueueAck(IPCMessage, DIP_Ioctlv(IPCMessage));
 				break;
 
 			case IOS_READ:
 			case IOS_WRITE:
 			case IOS_SEEK:
 			default:
-				MessageQueueAck( IPCMessage, -4 );
+				MessageQueueAck(IPCMessage, -4);
 				break;
 		}
 	}

@@ -53,7 +53,9 @@ s32 ES_TitleCreatePath( u64 TitleID )
 
 	dbgprintf("Creating path for:%08x-%08x\n", (u32)(TitleID>>32), (u32)(TitleID) );
 
-	_sprintf( path, "/title/%08x/%08x/data", (u32)(TitleID>>32), (u32)(TitleID) );
+	_sprintf( path, "/title/%08x/%08x/data", (u32)(TitleID>>32), (u32)(TitleID) );	
+	
+	ISFS_Dont_Fake();
 	if( ISFS_GetUsage( path, (u32*)NULL, (u32*)NULL ) != FS_SUCCESS )
 	{
 		//dbgprintf("Path \"/title/%08x/%08x/data\" not found\n", (u32)(TitleID>>32), (u32)(TitleID) );
@@ -67,12 +69,14 @@ s32 ES_TitleCreatePath( u64 TitleID )
 	}
 	
 	_sprintf( path, "/title/%08x/%08x/content", (u32)(TitleID>>32), (u32)(TitleID) );
+	ISFS_Dont_Fake();
 	if( ISFS_GetUsage( path, (u32*)NULL, (u32*)NULL ) != FS_SUCCESS )
 	{
 		ISFS_CreateDir( path, 0, 3, 3, 3 );
 	}
 
 	_sprintf( path, "/ticket/%08x", (u32)(TitleID>>32) );
+	ISFS_Dont_Fake();
 	if( ISFS_GetUsage( path, (u32*)NULL, (u32*)NULL ) != FS_SUCCESS )
 	{
 		ISFS_CreateDir( path, 0, 3, 3, 3 );
@@ -183,7 +187,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	}
 	
 	if(*TitleID == 0x100000002LL)
-		ES_CheckBootOption("/sys/reload.sys", TitleID);
+		ES_CheckBootOption("/sneek/reload.sys", TitleID);
 	
 	dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
 
@@ -262,10 +266,10 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 			DoGameRegion( *(vu64*)data );
 
 			r = LoadPPC( data+0x29A );
-			//dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
+			dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
 
 			r = ISFS_Delete( path );
-			//dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
+			dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
 
 			free( data );
 			free( path );
@@ -1430,7 +1434,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 			r = IOS_Read( in, block, 0x4000 );
 			if( r < 0 || r != 0x4000 )
 			{
-				//dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
+				dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
@@ -1582,170 +1586,169 @@ s32 ES_AddContentData( u32 cfd, void *data, u32 data_size )
 	return ES_SUCCESS;
 }
 
-s32 ES_LoadModules( u32 KernelVersion )
+s32 ES_LoadModules(u32 KernelVersion)
 {
 	//used later for decrypted
-	KeyID = (u32*)malloca( sizeof(u32), 0x40 );
-	char *path = malloca( 0x70, 0x40 );
-	////u32 LoadDI = false;
+	KeyID = (u32*)malloca(sizeof(u32), 0x40);
+	char *path = malloca(0x70, 0x40);
 	s32 r=0;
 	int i;
 
 	LoadDI = false;
 	//load TMD
 	
-	_sprintf( path, "/title/00000001/%08x/content/title.tmd", KernelVersion );
+	_sprintf(path, "/title/00000001/%08x/content/title.tmd", KernelVersion);
 
 	u32 *size = (u32*)malloca( sizeof(u32), 0x40 );
-	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile( path, size );
-	if( TMD == NULL )
+	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile(path, size);
+	if(TMD == NULL)
 	{
-		free( path );
-		return *size;
+		dbgprintf("ES:Can't load TMD for IOS%d, falling back to IOS56\n",KernelVersion);
+		free(path);
+		free(KeyID);
+		free(size);
+		return ES_LoadModules(56);
 	}
 
-	if( TMD->ContentCount == 3 )	// STUB detected!
+	if(TMD->ContentCount == 3)	// STUB detected!
 	{
-		//dbgprintf("ES:STUB IOS detected, falling back to IOS35\n");
-		free( path );
-		free( KeyID );
-		free( size );
-		return ES_LoadModules( 35 );
+		dbgprintf("ES:STUB IOS detected, falling back to IOS56\n");
+		free(path);
+		free(KeyID);
+		free(size);
+		return ES_LoadModules(56);
 	}
 
-	//dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount );
-
-	//Check if di.bin is present
+	dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount);
    
-    //	_sprintf( path, "/sneek/di.bin" );
-	strcpy( path, diroot );
-	strcat ( path, "/di.bin");
-	
-	//dbgprintf("GS: Searching for %s\n",path);
+	strcpy(path, diroot);
+	strcat (path, "/di.bin");
 
-	s32 Dfd = IOS_Open( path, 1 );
-	if( Dfd >= 0 )
+	s32 Dfd = IOS_Open(path, 1);
+	if(Dfd >= 0)
 	{
 		IOS_Close(Dfd);
 		LoadDI = true;
-		//dbgprintf("ES:Found di.bin\n");
 	}
 
-	for( i=0; i < TMD->ContentCount; ++i )
+	for(i=0; i < TMD->ContentCount; ++i)
 	{
 		//Don't load boot module
-		if( TMD->BootIndex == TMD->Contents[i].Index )
+		if(TMD->BootIndex == TMD->Contents[i].Index)
 			continue;
 
 		//Skip SD module if FS module is using SD
-		if( TMD->Contents[i].Index == 4 )
+		if(TMD->Contents[i].Index == 4)
 		{
-			if( ISFS_IsUSB() == FS_ENOENT2 )
+			if(ISFS_IsUSB() == FS_ENOENT2)
 				continue;
 		}
 
 		//Load special DI module
-		if( TMD->Contents[i].Index == 1 && LoadDI )
+		if(TMD->Contents[i].Index == 1 && LoadDI)
 		{
-			//_sprintf( path, "/sneek/di.bin" );
 			strcpy( path, diroot );
 			strcat( path, "/di.bin" );
-
 		} 
 		else 
 		{
 			//check if shared!
-			if( TMD->Contents[i].Type & CONTENT_SHARED )
+			if(TMD->Contents[i].Type & CONTENT_SHARED)
 			{
-				u32 ID = ES_GetS1ContentID( TMD->Contents[i].SHA1 );
+				u32 ID = ES_GetS1ContentID(TMD->Contents[i].SHA1);
 
-				if( (s32)ID == ES_FATAL )
+				if((s32)ID == ES_FATAL)
 				{
 					//dbgprintf("ES:Fatal error: required shared content not found!\n");
 					//dbgprintf("Hash:\n");
-					hexdump( TMD->Contents[i].SHA1, 0x14 );
+					hexdump(TMD->Contents[i].SHA1, 0x14);
 					while(1);
 
-				} else {
-					_sprintf( path, "/shared1/%08x.app", ID );
+				} 
+				else 
+				{
+					_sprintf(path, "/shared1/%08x.app", ID);
 				}
 
-			} else {
-				_sprintf( path, "/title/00000001/%08x/content/%08x.app", KernelVersion, TMD->Contents[i].ID );
+			} 
+			else 
+			{
+				_sprintf(path, "/title/00000001/%08x/content/%08x.app", KernelVersion, TMD->Contents[i].ID);
 			}
 		}
 
-		//dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
-		r = LoadModule( path );
-		if( r < 0 )
+		dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
+		r = LoadModule(path);
+		if(r < 0)
 		{
-			//dbgprintf("ES:Fatal error: module failed to start!\n");
-			//dbgprintf("ret:%d\n", r );
+			dbgprintf("ES:Fatal error: module failed to start!\n");
+			dbgprintf("ret:%d\n", r );
 			while(1);
 		}
 		
-		if( TMD->Contents[i].Index == 1 && LoadDI && ISFS_IsUSB() == FS_ENOENT2 )	//Only wait when in SNEEK+DI mode
+		if(TMD->Contents[i].Index == 1 && LoadDI && ISFS_IsUSB() == FS_ENOENT2)	//Only wait when in SNEEK+DI mode
 		{
-			//dbgprintf("ES:Waiting for DI to init device...");
+			dbgprintf("ES:Waiting for DI module to init device");
 
-			while( DVDConnected() !=1 )
+			while(DVDConnected() !=1)
+			{
+				dbgprintf(".");
 				udelay(50000);
+			}
 
-			//dbgprintf("done!\n");
+			dbgprintf(". done!\n");
 		}
 	}
 
-//obcd
-	if ( KernelVersion != 253 )
+	if(KernelVersion != 253)
 	{
-		//dbgprintf( "ES:Waiting for network module...\n" );
+		dbgprintf("ES:Waiting for network module");
 
-		u32 counter = 0;
-		while( counter < 20 )
-//	while( 1 )
+		u32 i;
+		for(i = 1; i <= 20; ++i)
 		{
-			int rfs = IOS_Open("/dev/net/ncd/manage", 0 );
-			if( rfs >= 0 )
+			dbgprintf(".");
+			int rfs = IOS_Open("/dev/net/ncd/manage", 0);
+			if(rfs >= 0)
 			{
 				IOS_Close(rfs);
 				break;
 			}
 			udelay(500);
-			counter++;
 		}
 	}
-	//dbgprintf( "done!\n" );
+	dbgprintf(". done!\n");
 
-	free( size );
-	free( TMD );
-	free( path );
+	free(size);
+	free(TMD);
+	free(path);
 
-	thread_set_priority( 0, 0x50 );
+	thread_set_priority(0, 0x50);
 
 	return ES_SUCCESS;
 }
 
-s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
+s32 ES_LaunchTitle(u64 *TitleID, u8 *TikView)
 {
-	char *path = (char*)malloca( 0x70, 0x40 );
+	char *path = (char*)malloca(0x70, 0x40);
 
 	//System wants to switch into GC mode
-	if( *TitleID == 0x0000000100000100LL )
+	if(*TitleID == 0x0000000100000100LL)
 	{
-		_sprintf( path, "/title/%08x/%08x/content/title.tmd", (u32)((*TitleID)>>32), (u32)(*TitleID) );
-		u32 *size = (u32*)malloca( sizeof(32), 32 ); 
-		TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, size );
-		if( TMD == NULL )
+		_sprintf(path, "/title/%08x/%08x/content/title.tmd", (u32)((*TitleID)>>32), (u32)(*TitleID));
+		u32 *size = (u32*)malloca(sizeof(32), 32); 
+		TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile(path, size);
+		if(TMD == NULL)
 		{
 			//dbgprintf("ES:Couldn't find TMD of BC!\n");
 			_sprintf( path, "/sneek/kernel.bin");
-			free( size );
-
-		} else {
-
-			_sprintf( path, "/title/%08x/%08x/content/%08x.app", (u32)((*TitleID)>>32), (u32)(*TitleID), TMD->Contents[ TMD->BootIndex ].ID );
-			free( TMD );
-			free( size );
+			free(size);
+		} 
+		else 
+		{
+			_sprintf(path, "/title/%08x/%08x/content/%08x.app", (u32)((*TitleID)>>32), (u32)(*TitleID), TMD->Contents[ TMD->BootIndex ].ID);
+			free(TMD);
+			free(size);
 		}
 
 		//dbgprintf("ES:IOSBoot( %s, 0, %d )\n", path, 0, GetKernelVersion() );
@@ -1756,71 +1759,69 @@ s32 ES_LaunchTitle( u64 *TitleID, u8 *TikView )
 		{
 			r = IOSBoot("/sneek/diosmios.bin", 0, GetKernelVersion());
 			if(r < 0)
-				dbgprintf("Booting diosmios.bin failed:%d\n", r );
+				dbgprintf("Booting diosmios.bin failed:%d\n", r);
 		}
-		if(*(vu32*)0x0 == 0x52454c53)
+		if(*(vu32*)0x0 == 0x52454c53 || *(vu32*)0x0 == 0x47475045)
 		{
 			r = IOSBoot("/sneek/quadforce.bin", 0, GetKernelVersion());
 			if(r < 0)
 				dbgprintf("Booting quadforce.bin failed:%d\n", r );
 		}
 		
-		IOSBoot( path, 0, GetKernelVersion() );			
+		IOSBoot(path, 0, GetKernelVersion());			
 	
-		//dbgprintf("ES:Booting file failed!\nES:Loading kernel.bin.." );
+		dbgprintf("ES:Booting file failed!\n ES:Loading kernel.bin.." );
 
-		_sprintf( path, "/sneek/kernel.bin");
-		IOSBoot( path, 0, GetKernelVersion() );
+		_sprintf(path, "/sneek/kernel.bin");
+		IOSBoot(path, 0, GetKernelVersion());
 
-		PanicBlink( 0, 1,1,1,-1 );
+		PanicBlink(0, 1 ,1 ,1 ,-1);
 		while(1);
 	}
 
 
 	//build launch.sys
-	u8 *data=(u8*)malloca( 0xE0, 0x40 );
+	u8 *data = (u8*)malloca(0xE0, 0x40);
 
-	memcpy( data, TitleID, sizeof(u64) );
-	memcpy( data + sizeof(u64), TikView, 0xD8 );
+	memcpy(data, TitleID, sizeof(u64));
+	memcpy(data + sizeof(u64), TikView, 0xD8);
 
 	_sprintf( path, "/sys/launch.sys" );
 
-	s32 r = NANDWriteFileSafe( path, data, 0xE0 );
+	s32 r = NANDWriteFileSafe(path, data, 0xE0);
 	
-	free( data );
-	free( path );
+	free(data);
+	free(path);
 
-	//dbgprintf("NANDWriteFileSafe():%d\n", r );
-
-	if( r < 0 )
+	if(r < 0)
 		return r;
 
 	//now load IOS kernel
-	IOSBoot( "/sneek/kernel.bin", 0, GetKernelVersion() );
+	IOSBoot("/sneek/kernel.bin", 0, GetKernelVersion());
 	
-	PanicBlink( 0, 1,1,1,-1 );
+	PanicBlink(0, 1 , 1, 1, -1);
 
 	while(1);
 }
 
-s32 ES_CheckBootOption( char *Path, u64 *TitleID )
+s32 ES_CheckBootOption(char *Path, u64 *TitleID)
 {
-	char *path	= (char*)malloca( 0x70, 0x40);
-	u32 *size	= (u32*)malloca( sizeof(u32), 0x40 );
+	char *path	= (char*)malloca(0x70, 0x40);
+	u32 *size	= (u32*)malloca(sizeof(u32), 0x40);
 
-	_sprintf( path, Path );
+	strcpy(path, Path);
 
-	u8 *data = NANDLoadFile( path, size );
-	if( data == NULL )
+	u8 *data = NANDLoadFile(path, size);
+	if(data == NULL)
 	{
 		if(strncmp(path, "/sys/launch.sys", 15) == 0)
 			ISFS_Delete(path);
 			
-		if(strncmp(path, "/sys/reload.sys", 15) == 0)
+		if(strncmp(path, "/sneek/reload.sys", 15) == 0)
 			ISFS_Delete(path);
 			
-		free( size );
-		free( path );
+		free(size);
+		free(path);
 		return 0;
 	}
 	
@@ -1829,7 +1830,7 @@ s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 	if(strncmp(path, "/sys/launch.sys", 15) == 0)
 		ISFS_Delete(path);
 
-	if(strncmp(path, "/sys/reload.sys", 15) == 0)
+	if(strncmp(path, "/sneek/reload.sys", 15) == 0)
 		ISFS_Delete(path);
 	
 	free(size);
@@ -1838,16 +1839,16 @@ s32 ES_CheckBootOption( char *Path, u64 *TitleID )
 	return 1;
 }
 
-s32 ES_LaunchSYS( u64 *TitleID )
+s32 ES_LaunchSYS(u64 *TitleID)
 {
-	char *path	= (char *)malloca( 0x70, 32 );
+	char *path	= (char *)malloca(0x70, 32);
 	u32 *size	= (u32*)malloca( sizeof(u32), 32 );
 
 //Load TMD
-	_sprintf( path, "/title/%08x/%08x/content/title.tmd", (u32)(*TitleID>>32), (u32)(*TitleID) );
+	_sprintf(path, "/title/%08x/%08x/content/title.tmd", (u32)(*TitleID>>32), (u32)(*TitleID));
 
-	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile( path, size );
-	if( TMD == NULL )
+	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile(path, size);
+	if(TMD == NULL)
 	{
 		free( path );
 		return *size;
@@ -1866,10 +1867,10 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	//}
 
 //Load Ticket
-	_sprintf( path, "/ticket/%08x/%08x.tik", (u32)(*TitleID>>32), (u32)(*TitleID) );
+	_sprintf(path, "/ticket/%08x/%08x.tik", (u32)(*TitleID>>32), (u32)(*TitleID));
 
-	u8 *TIK_Data = NANDLoadFile( path, size );
-	if( TIK_Data == NULL )
+	u8 *TIK_Data = NANDLoadFile(path, size);
+	if(TIK_Data == NULL)
 	{
 		free( path );
 		free( TMD );
@@ -1879,44 +1880,44 @@ s32 ES_LaunchSYS( u64 *TitleID )
 	u16 UID = 0;
 	//dbgprintf("ES:NANDLoadFile:%p size:%d\n", TIK_Data, *size );
 
-	s32 r = ES_GetUID( TitleID, &UID );
-	if( r < 0 )
+	s32 r = ES_GetUID(TitleID, &UID);
+	if(r < 0)
 	{
 		//dbgprintf("ES:ES_GetUID:%d\n", r );
 
-		free( TIK_Data );
-		free( TMD );
-		free( size );
-		free( path );
+		free(TIK_Data);
+		free(TMD);
+		free(size);
+		free(path);
 		return r;
 	}
 
-	r = SetUID( 0xF, UID );
-	if( r < 0 )
+	r = SetUID(0xF, UID);
+	if(r < 0)
 	{
 		//dbgprintf("ES:SetUID( 0xF, 0x%04X ):%d\n", UID, r );
 
-		free( TIK_Data );
-		free( TMD );
-		free( size );
-		free( path );
+		free(TIK_Data);
+		free(TMD);
+		free(size);
+		free(path);
 		return r;
 	}
 
-	r = _cc_ahbMemFlush( 0xF, *(vu16*)((u8*)TMD+0x198) );
-	if( r < 0 )
+	r = _cc_ahbMemFlush(0xF, *(vu16*)((u8*)TMD+0x198));
+	if(r < 0)
 	{
 		//dbgprintf("_cc_ahbMemFlush( %d, %04X ):%d\n", 0xF, *(vu16*)((u8*)TMD+0x198), r );
 
-		free( TIK_Data );
-		free( TMD );
-		free( size );
-		free( path );
+		free(TIK_Data);
+		free(TMD);
+		free(size);
+		free(path);
 		return r;
 	}
 
 //Disable AHB_PROT
-	if( TMD->AccessRights & 1 )
+	if(TMD->AccessRights & 1)
 		DoStuff(0);
 	else
 		DoStuff(1);
@@ -1934,35 +1935,76 @@ s32 ES_LaunchSYS( u64 *TitleID )
 
 //Find boot index
 	u32 i;
-	for( i=0; i < TMD->ContentCount; ++i )
+	for(i = 0; i < TMD->ContentCount; ++i)
 	{
-		if( TMD->BootIndex == TMD->Contents[i].Index )
+		if(TMD->BootIndex == TMD->Contents[i].Index)
 		{
 			i = TMD->Contents[i].ID;
 			break;
 		}
 	}
-	_sprintf( path, "/title/%08x/%08x/content/%08x.app", (u32)(*TitleID>>32), (u32)(*TitleID), i );
+	_sprintf(path, "/title/%08x/%08x/content/%08x.app", (u32)(*TitleID>>32), (u32)(*TitleID), i);
 
-	if( (u32)(*TitleID>>32) == 0x00000001 && (u32)(*TitleID) != 0x00000002 )
+	if((u32)(*TitleID>>32) == 0x00000001 && (u32)(*TitleID) != 0x00000002)
 	{
-		if( *TitleID >= 0x0000000100000100LL )
+		if(*TitleID >= 0x0000000100000100LL)
 		{			
-			if(IOSBoot( path, 0, GetKernelVersion() ) < 0)
+			if(IOSBoot(path, 0, GetKernelVersion()) < 0)
 				return ES_FATAL;
 		}
 	} 
 	else 
 	{
-		//dbgprintf("PPCBoot(\"%s\"):", path );
-		r = PPCBoot( path );
-		//dbgprintf("%d\n", r );
+		char *ipath	= (char *)malloca(0x70, 32);
+		_sprintf(ipath, "/title/%08x/%08x/content/1%07x.app", (u32)(*TitleID>>32), (u32)(*TitleID), i);
+		
+		dbgprintf("ES:Checking \"%s\"\n", ipath);
+		s32 fd = IOS_Open(ipath, 1);
+		if(fd >= 0)
+		{
+			dbgprintf("ES:Priiloader found!!\n Using \"%s\" to boot into SM", ipath);
+			IOS_Close(fd);
+			r = PPCBoot(ipath);
+		}
+		else
+		{		
+			//dbgprintf("PPCBoot(\"%s\"):", path);
+			r = PPCBoot(path);
+			//dbgprintf("%d\n", r);
+		}
+		free(ipath);
 	}
 
-	free( TIK_Data );
-	free( TMD );
-	free( size );
-	free( path );
+	free(TIK_Data);
+	free(TMD);
+	free(size);
+	free(path);
 
 	return 0;
+}
+
+s32 LaunchTitle(u64 TitleID)
+{
+	u32 majorTitleID = (TitleID) >> 32;
+	u32 minorTitleID = (TitleID) & 0xFFFFFFFF;
+
+	char* ticketPath = (char*) malloca(128,32);
+	_sprintf(ticketPath,"/ticket/%08x/%08x.tik", majorTitleID, minorTitleID);
+	s32 fd = IOS_Open(ticketPath, 1);
+	free(ticketPath);
+
+	u32 size = IOS_Seek(fd, 0, SEEK_END);
+	IOS_Seek(fd, 0, SEEK_SET);
+
+	u8* ticketData = (u8*) malloca(size,32);
+	IOS_Read(fd, ticketData, size);
+	IOS_Close(fd);
+
+	u8* ticketView = (u8*) malloca(0xD8, 32);
+	iES_GetTicketView(ticketData, ticketView);
+	free(ticketData);
+
+	s32 r = ES_LaunchTitle(&TitleID, ticketView);
+	free(ticketView);
+	return r;
 }

@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -125,7 +126,7 @@ s32 DVDWriteDIConfig( void *DIConfig )
 
 	return r;
 }
-s32 DVDSelectGame( u32 SlotID )
+s32 DVDSelectGame(u32 SlotID, u32 Extract)
 {
 	s32 fd = IOS_Open("/dev/di", 0 );
 	if( fd < 0 )
@@ -142,6 +143,38 @@ s32 DVDSelectGame( u32 SlotID )
 
 	return r;
 }
+s32 DVDLoadGame(u32 ID, u32 Magic)
+{
+	s32 fd = IOS_Open("/dev/di", 0);
+	if(fd < 0)
+		return fd;
+
+	u32 *vec = (u32 *)malloca(sizeof(u32) * 2, 32);
+	vec[0] = ID;
+	vec[1] = Magic;
+
+	s32 r = IOS_Ioctl(fd, DVD_LOAD_DISC, vec, sizeof(u32) * 2, NULL, 0);
+
+	IOS_Close(fd);
+
+	free(vec);
+
+	return r;
+}
+
+s32 DVDMountDisc( void )
+{
+	s32 fd = IOS_Open("/dev/di", 0 );
+	if( fd < 0 )
+		return fd;
+
+	s32 r = IOS_Ioctl( fd, DVD_MOUNT_DISC, NULL, 0, NULL, 0 );
+
+	IOS_Close( fd );
+
+	return r;
+}
+
 s32 DVDConnected( void )
 {
 	s32 fd = IOS_Open("/dev/di", 0 );
@@ -244,7 +277,7 @@ u32 DVDLowReadDiscID( void *data )
 	sync_before_read( data, 0x20 );
 
 	u32 val = DIP_CMD_0;
-		val|= 0xA8000000;
+	val|= 0xA8000000;
 	DIP_CMD_0 = val;
 
 	val = DIP_CMD_0;

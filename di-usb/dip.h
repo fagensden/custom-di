@@ -27,24 +27,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "syscalls.h"
 #include "global.h"
 #include "ipc.h"
-#include "gecko.h"
 #include "alloc.h"
 #include "vsprintf.h"
 #include "DIGlue.h"
 #include "utils.h"
 
+#define DISC_SUCCES		0
 #define DI_SUCCESS		1
 #define DI_ERROR		2
 #define DI_FATAL		64
 
 #define IS_FST			0
 #define IS_WBFS			1
+#define IS_DISC			2
 
 #define FILECACHE_MAX	5
-#define BLOCKCACHE_MAX	5
+#define BLOCKCACHE_MAX	3
 #define FILESPLITS_MAX	10
+#define FRAG_MAX 		20000
+#define DISCRETRY_MAX	5
 
-#define DVD_CONFIG_SIZE		0x10
+#define DVD_CONFIG_SIZE		0x20
 #define DVD_REAL_NAME_OFF	0x20
 #define DVD_GAMEINFO_SIZE	0x100
 #define DVD_GAME_NAME_OFF	0x60
@@ -91,7 +94,7 @@ enum opcodes
 	DVD_RESET				= 0x8A,
 	DVD_OPEN_PARTITION		= 0x8B,
 	DVD_CLOSE_PARTITION		= 0x8C,
-	DVD_READ_UNENCRYPTED	= 0x8D,
+	DVD_READ_UNENCRYPTED	= 0x8D,	
 	DVD_REPORTKEY			= 0xA4,
 	DVD_LOW_SEEK			= 0xAB,
 	DVD_READ_CONFIG			= 0xD1,
@@ -102,6 +105,8 @@ enum opcodes
 	
 	DVD_SELECT_GAME			= 0x23,
 	DVD_GET_GAMECOUNT		= 0x24,
+	DVD_LOAD_DISC			= 0x25,
+	DVD_MOUNT_DISC			= 0x26,
 	DVD_EJECT_DISC			= 0x27,
 	DVD_INSERT_DISC			= 0x28,
 	DVD_UPDATE_GAME_CACHE	= 0x2F,
@@ -113,12 +118,11 @@ enum opcodes
 	DVD_OPEN				= 0x40,
 	DVD_READ				= 0x41,
 	DVD_WRITE				= 0x42,
-	DVD_CLOSE				= 0x43,
-	
+	DVD_CLOSE				= 0x43,	
 	DVD_CREATEDIR			= 0x45,
 	DVD_SEEK				= 0x46,
-	DVD_LOAD_DISC			= 0x25,
-
+	
+	DVD_FRAG_SET			= 0xF9,
 };
 
 enum SNEEKConfig
@@ -128,9 +132,9 @@ enum SNEEKConfig
 	CONFIG_PATCH_VIDEO		= (1<<2),
 	CONFIG_DUMP_ERROR_SKIP	= (1<<3),
 	CONFIG_DEBUG_GAME		= (1<<4),
-	CONFIG_DEBUG_GAME_WAIT	= (1<<5),
-	CONFIG_SHOW_COVERS		= (1<<6),
-	CONFIG_AUTO_UPDATE_LIST	= (1<<7),
+	CONFIG_DEBUG_GAME_WAIT	= (1<<5),	
+	CONFIG_READ_ERROR_RETRY	= (1<<6),
+	CONFIG_GAME_ERROR_SKIP	= (1<<7),
 	DML_CHEATS				= (1<<8),
 	DML_DEBUGGER			= (1<<9),
 	DML_DEBUGWAIT			= (1<<10),
@@ -138,9 +142,11 @@ enum SNEEKConfig
 	DML_NMM_DEBUG			= (1<<12),
 	DML_ACTIVITY_LED		= (1<<13),
 	DML_PADHOOK				= (1<<14),
-	DML_NODISC				= (1<<15),
+	CONFIG_MOUNT_DISC		= (1<<15),
 	DML_BOOT_DISC			= (1<<16),
 	DML_BOOT_DOL			= (1<<17),
+	DEBUG_CREATE_DIP_LOG	= (1<<18),
+	DEBUG_CREATE_ES_LOG		= (1<<19),
 };
 
 enum DMLLang
@@ -222,6 +228,10 @@ typedef struct
 	u32		Region;
 	u32		Gamecount;
 	u32		Config;
+	u32		Config2;
+	u32		Padding1;
+	u32		Padding2;
+	u32		Padding3;
 	u8		GameInfo[][DVD_GAMEINFO_SIZE];
 } DIConfig;
 
@@ -284,7 +294,7 @@ typedef struct
 	u32 Padding1;
 	u32 Padding2;
 	u32 Padding3;
-	char GameTitle[][0x60];
+	char GameTitle[][0x50];
 } GameTitles;
 
 typedef struct
@@ -302,6 +312,21 @@ typedef struct
 	u16 disc_usage_table[];
 } WBFSInfo;
 
+typedef struct
+{
+	u32 offset;
+	u32 sector;
+	u32 count;
+} Fragment;
+
+typedef struct
+{
+	u32 size;
+	u32 num;
+	u32 maxnum;
+	Fragment frag[FRAG_MAX];
+} FragList;
+
 u8 HardDriveConnected;//holds status of USB harddrive
 
 int DIP_Ioctl( struct ipcmessage * );
@@ -311,10 +336,10 @@ s32 DVDSelectGame( int SlotID );
 s32 DVDLowReadFiles( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadUnencrypted( u32 Offset, u32 Length, void *ptr );
 s32 DVDLowReadDiscIDFiles( u32 Offset, u32 Length, void *ptr );
-s32 WBFS_Read( u64 offset, u32 length, void *ptr );
-s32 WBFS_Read_Block( u64 block, u32 bl_num ); 
-s32 WBFS_Encrypted_Read( u32 offset, u32 length, void *ptr);
-s32 WBFS_Decrypted_Write( char *path, char *filename, u32 offset, u32 length );
+s32 Read( u64 offset, u32 length, void *ptr );
+s32 Read_Block( u64 block, u32 bl_num ); 
+s32 Encrypted_Read( u32 offset, u32 length, void *ptr);
+s32 Decrypted_Write( char *path, char *filename, u32 offset, u32 length );
 s32 Search_FST( u32 Offset, u32 Length, void *ptr, u32 mode );
 s32 Do_Dol_Patches( u32 Length, void *ptr );
 

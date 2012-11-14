@@ -10,12 +10,8 @@
  */
 
 #include "vsprintf.h"
-
-#define LOG_DEBUG	1
-//#define AUTO_CREATE_LOGFILE 1
-
-#ifdef LOG_DEBUG	
 #include "fs.h"
+#include "di.h"
 
 typedef enum {
 	FR_OK = 0,			/* 0 */
@@ -39,7 +35,7 @@ typedef enum {
 static char Path[32];
 static u32 buflen ALIGNED(32);
 extern u32 ignore_logfile;
-#endif
+extern DIConfig *DICfg;
 
 static inline int isdigit(int c)
 {
@@ -362,10 +358,7 @@ int dbgprintf( const char *fmt, ...)
 
 	va_start(args, fmt);
 	i = vsprintf(buffer, fmt, args);
-	va_end(args);
-
-
-#ifdef LOG_DEBUG	
+	va_end(args);	
 
 	if (ignore_logfile == 0)
 	{
@@ -375,19 +368,20 @@ int dbgprintf( const char *fmt, ...)
 		{
 			if(fd == FS_ENOENT2)
 			{
-#ifdef	AUTO_CREATE_LOGFILE		
-				ISFS_CreateFile(Path,0,0,0,0);
-				fd = IOS_Open( Path, 2 );
-				if( fd < 0 )
+				if(DICfg->Config & DEBUG_CREATE_ES_LOG)
 				{
-					//sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
-					//OSReport(buffer);
-					free(buffer);
-					return i;
+					ISFS_CreateFile(Path,0,0,0,0);
+					fd = IOS_Open( Path, 2 );
+					if( fd < 0 )
+					{
+						free(buffer);
+						return i;
+					}
 				}
-#else
-				ignore_logfile = 1;
-#endif			
+				else
+				{
+					ignore_logfile = 1;
+				}	
 			}
 			else
 			{
@@ -435,12 +429,6 @@ int dbgprintf( const char *fmt, ...)
 // to see if things work as expected	
 	svc_write(buffer);
 	
-
-
-#else
-	//GeckoSendBuffer( buffer );
-	svc_write( buffer );
-#endif
 	free(buffer);
 	return i;
 }

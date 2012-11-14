@@ -5,11 +5,11 @@ ENTRY(_start)
 
 __stack_size = 2048;
 
-MEMORY {
-
-	code		: ORIGIN = 0x20000000,	LENGTH = 0x7354
-	ram			: ORIGIN = 0x20009000,	LENGTH = 0x469EC
-	stk			: ORIGIN = 0x2004F1EC,	LENGTH = 0x800
+MEMORY 
+{
+	code		: ORIGIN = 0x20000000,	LENGTH = 0x17354
+	ram			: ORIGIN = 0x20019000,	LENGTH = 0x469EC
+	stk			: ORIGIN = 0x2005F1EC,	LENGTH = 0x800
 	table		: ORIGIN = 0x100,		LENGTH = 16K
 }
 
@@ -21,8 +21,8 @@ PHDRS
 	table PT_LOAD PHDRS AT ( 0x0 ) FLAGS ( 0 );
 
 	code PT_LOAD AT ( 0x13A10000 ) ;
-	ram PT_LOAD AT ( 0x13A19000 ) ;
-	stk PT_LOAD AT ( 0x13A5F1C4 ) ;
+	ram PT_LOAD AT ( 0x13A29000 ) ;
+	stk PT_LOAD AT ( 0x13A6F1C4 ) ;
 }
 
 SECTIONS

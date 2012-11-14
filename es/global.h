@@ -46,9 +46,10 @@ typedef u32 u_int32_t;
 
 typedef s32(*ipccallback)(s32 result,void *usrdata);
 
-#define NULL ((void *)0)
+#define NULL 			((void *)0)
 
-#define ALIGNED(x) __attribute__((aligned(x)))
+#define ALIGNED(x) 		__attribute__((aligned(x)))
+#define ALIGN32(x) 		(((x) + 31) & ~31)
 
 #define STACK_ALIGN(type, name, cnt, alignment)         \
 	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) + \

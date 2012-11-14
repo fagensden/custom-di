@@ -10,7 +10,7 @@ LDFLAGS	=	-nostartfiles -nodefaultlibs -mbig-endian -Wl,-T,iosmodule.ld,-Map,dim
 LIBS	=	-lgcc
 
 TARGET	=	dimodule.elf
-OBJECTS	=	start.o alloc.o exi.o sram.o dip.o FS.o DIGlue.o main.o syscalls.o utils_asm.o gecko.o vsprintf.o string.o
+OBJECTS	=	start.o alloc.o common.o exi.o sram.o dip.o FS.o disc.o DIGlue.o main.o syscalls.o utils_asm.o vsprintf.o string.o
 
 .PHONY: FORCE
 

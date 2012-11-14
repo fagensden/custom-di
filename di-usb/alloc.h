@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -18,6 +19,9 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 */
+#ifndef _ALLOC_
+#define _ALLOC_
+
 #include "syscalls.h"
 
 void HeapInit( void );
@@ -28,3 +32,5 @@ void hfree( void *ptr );
 void *malloc( u32 size );
 void *malloca( u32 size, u32 align );
 void free( void *ptr );
+
+#endif

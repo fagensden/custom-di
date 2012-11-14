@@ -27,6 +27,7 @@ if [ "$rev_new" != "$rev_old" ] || [ ! -f ./svn.h ]; then
 	
 	cat <<EOF > ./svn.h
 #define SVN_REV "$rev_new"
+#define SVN_BETA ""
 EOF
 
 	if [ -n "$rev_old" ]; then

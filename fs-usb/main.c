@@ -47,7 +47,6 @@ int tiny_ehci_init(void);
 int ehc_loop(void);
 
 int verbose = 0;
-int unlockcfg = 0;
 
 typedef struct
 {	
@@ -63,10 +62,9 @@ typedef struct
 	u32 magic;
 	u64 titleid;
 	u32 config;
-	u32 paddinga;
-	u32 paddingb;
-	u32 paddingc;
-	u32 paddingd;
+	u64 returnto;
+	u32 gameid;
+	u32 gamemagic;
 	char dipath[256];
 	char nandpath[256];
 } MEMCfg;
@@ -76,6 +74,8 @@ enum ExtNANDCfg
 	NCON_EXT_DI_PATH		= (1<<0),
 	NCON_EXT_NAND_PATH		= (1<<1),
 	NCON_HIDE_EXT_PATH		= (1<<2),
+	NCON_EXT_RETURN_TO		= (1<<3),
+	NCON_EXT_BOOT_GAME		= (1<<4),
 };
 
 NandConfig *NandCFG;
@@ -103,6 +103,13 @@ s32 RegisterDevices( void )
 	s32 ret = device_register("/", QueueID);
 #ifdef DEBUG
 	dbgprintf("FFS:DeviceRegister(\"/\"):%d\n", ret );
+#endif
+	if( ret < 0 )
+		return ret;
+			
+	ret = device_register("/dev/usb2", QueueID);	
+#ifdef DEBUG
+	dbgprintf("FFS:DeviceRegister(\"/dev/usb2\"):%d\n", ret );
 #endif
 	if( ret < 0 )
 		return ret;
@@ -183,8 +190,6 @@ void _main(void)
 
 	strcpy(path, NANDCFGFILE);
 	strcpy(npath, NANDFOLDER);
-	
-	unlockcfg = 1;
 	
 	if(f_open(&fil, path, FA_READ) == FR_OK)
 	{
@@ -267,8 +272,7 @@ void _main(void)
 		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
 		f_close(&fil);
 	}
-
-
+	
 	if(NandCFG)
 		heap_free(0, NandCFG);
 			
@@ -276,7 +280,6 @@ void _main(void)
 	f_open(&fil, path, FA_READ);
 	f_read(&fil, NandCFG, fil.fsize, &read);
 	f_close(&fil);
-	unlockcfg = 0;
 	if(nandroot[0] == 0)
 		__sprintf(nandroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
 	
@@ -365,27 +368,40 @@ void _main(void)
 			} break;
 			
 			case IOS_IOCTL:
-				if( CMessage->fd == SD_FD )
+				if(CMessage->fd == SD_FD)
 				{
 					if( CMessage->ioctl.command == 0x0B )
 						*(vu32*)(CMessage->ioctl.buffer_io) = 2;
 
 					mqueue_ack( (void *)CMessage, 0);
-				} else
+				}
+				else if(CMessage->fd == USB_FD)
+				{
+					USB_Ioctlv(CMessage);
+				}
+				else
+				{
 					FFS_Ioctl(CMessage);
+				}
 			break;	
 
 			case IOS_IOCTLV:
 				if( CMessage->fd == FL_FD )
+				{
 					mqueue_ack( (void *)CMessage, -1017);
+				}
+				else if(CMessage->fd == USB_FD)
+				{
+					USB_Ioctlv(CMessage);
+				}
 				else
+				{
 					FFS_Ioctlv(CMessage);
+				}
 			break;
-#ifdef EDEBUG
 			default:
 				dbgprintf("FFS:unimplemented/invalid msg: %08x\n", CMessage->command);
 				mqueue_ack( (void *)CMessage, -1017);
-#endif
 		}
 	}
 

@@ -6,11 +6,18 @@
 #define	SHARED_PTR	((void *)0x13600000)
 #define	SHARED_SIZE	(0x18000)
 
-#define ALIGN_FORWARD(x,align) \
-	((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+#define ALIGN_FORWARD(x,align) \ ((typeof(x))((((u32)(x)) + (align) - 1) & (~(align-1))))
+#define ALIGN_BACKWARD(x,align) \ ((typeof(x))(((u32)(x)) & (~(align-1))))
+#define ALIGNED(x) __attribute__((aligned(x)))
 
-#define ALIGN_BACKWARD(x,align) \
-	((typeof(x))(((u32)(x)) & (~(align-1))))
+#define STACK_ALIGN(type, name, cnt, alignment)         \
+	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) + \
+	(((sizeof(type)*(cnt))%(alignment)) > 0 ? ((alignment) - \
+	((sizeof(type)*(cnt))%(alignment))) : 0))]; \
+	type *name = (type*)(((u32)(_al__##name)) + ((alignment) - (( \
+	(u32)(_al__##name))&((alignment)-1))))
+	
+#define NULL ((void *)0)
 
 #ifdef DEBUG
 int dbgprintf( const char *fmt, ...);
@@ -47,17 +54,6 @@ typedef s32 size_t;
 
 typedef u32 u_int32_t;
 
-typedef char bool;
-
-#define NULL ((void *)0)
-
-#define ALIGNED(x) __attribute__((aligned(x)))
-
-#define STACK_ALIGN(type, name, cnt, alignment)         \
-	u8 _al__##name[((sizeof(type)*(cnt)) + (alignment) + \
-	(((sizeof(type)*(cnt))%(alignment)) > 0 ? ((alignment) - \
-	((sizeof(type)*(cnt))%(alignment))) : 0))]; \
-	type *name = (type*)(((u32)(_al__##name)) + ((alignment) - (( \
-	(u32)(_al__##name))&((alignment)-1))))
+typedef int bool;
 
 #endif

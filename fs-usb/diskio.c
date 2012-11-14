@@ -41,21 +41,19 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	{	
 		udelay(50000);
 		
-		dbgprintf("FS: Initializing TinyEHCI...\n");
+		dbgprintf("FFS:Initializing TinyEHCI...\n");
 		tiny_ehci_init();
 
-		dbgprintf("FS: Discovering EHCI devices...\n");
+		dbgprintf("FFS:Discovering EHCI devices...\n");
 		
 		i = 1;
 
 		while(ehci_discover() == -ENODEV)
 		{
-			dbgprintf("FS: Waiting for device to become ready (%d)\n", i);
+			dbgprintf("FFS:Waiting for device to become ready (%d)\n", i);
 			udelay(4000);
 			i++;
 		}
-
-		dbgprintf("done!\n");
 	
 		r = USBStorage_Init();
 		
@@ -67,7 +65,7 @@ DSTATUS disk_initialize(BYTE drv, WORD *ss)
 	
 	*ss = s_size;
 	
-	dbgprintf("FS: Drive size: %dMB SectorSize:%d\n", s_cnt / 1024 * s_size / 1024, s_size);
+	dbgprintf("FFS:Drive size: %dMB SectorSize:%d\n", s_cnt / 1024 * s_size / 1024, s_size);
 
 	return r;
 }
@@ -80,32 +78,31 @@ DSTATUS disk_status (BYTE drv)
 
 DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 {
-	u32 *buffer = malloca( count*s_size, 0x40 );
+	u32 *buffer = malloca(count * s_size, 0x40);
 
-	if( USBStorage_Read_Sectors( sector, count, buffer ) != 1 )
+	if(USBStorage_Read_Sectors(sector, count, buffer) != 1)
 	{
-		//dbgprintf("FS: Failed to read disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
+		dbgprintf("FFS:Failed to read from USB device... Sector: %d Count: %d dst: %p\n", sector, count, buff);
 		return RES_ERROR;
 	}
 
-	memcpy( buff, buffer, count*s_size );
-	free( buffer );
+	memcpy(buff, buffer, count * s_size);
+	free(buffer);
 
 	return RES_OK;
 }
 
 DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 {
-	int i;
-	u32 *buffer = malloca( count*s_size, 0x40 );
-	memcpy( buffer, buff, count*s_size );
+	u32 *buffer = malloca(count * s_size, 0x40);
+	memcpy(buffer, buff, count * s_size);
 
-	if( USBStorage_Write_Sectors( sector, count, buffer ) != 1 )
+	if(USBStorage_Write_Sectors(sector, count, buffer) != 1)
 	{
-		//dbgprintf("FS: Failed to write disc: Sector:%d Count:%d dst:%p\n", sector, count, buff );
+		dbgprintf("FFS: Failed to USB device... Sector: %d Count: %d dst: %p\n", sector, count, buff);
 		return RES_ERROR;
 	}
-	free( buffer );
+	free(buffer);
 
 	return RES_OK;
 }

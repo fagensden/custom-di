@@ -33,9 +33,12 @@ config_header *cfg_hdr;
 
 bool tbdec = false;
 bool configloaded = false;
+bool AutoBootDisc = false;
+
+u32 GameID = 0;
+u32 GameMagic = 0;
 
 HacksConfig *PL;
-memcfg *MC;
 
 void __Dec_Enc_TB( void ) 
 {	
@@ -300,11 +303,14 @@ void DoGameRegion( u64 TitleID )
 				{
 					case 'J':
 					{
-						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
 							__configsetbyte( "IPL.E60", 1 );
 						else	
 							__configsetbyte( "IPL.E60", 0 );
-						//__configsetbyte( "IPL.PGS", 1 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", 0 );
 						CCode[0] = 1;
 						__configsetbigarray( "SADR.LNG", CCode, 0x1007 );
@@ -317,11 +323,14 @@ void DoGameRegion( u64 TitleID )
 					} break;
 					case 'E':
 					{
-						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
 							__configsetbyte( "IPL.E60", 1 );
-						else
+						else	
 							__configsetbyte( "IPL.E60", 0 );
-						//__configsetbyte( "IPL.PGS", 0 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->USLang );
 						if( PL->Shop1 >= 8 &&  PL->Shop1 <= 52 )
 							CCode[0] = PL->Shop1;
@@ -343,8 +352,14 @@ void DoGameRegion( u64 TitleID )
 					case 'S':
 					case 'U':					
 					{
-						__configsetbyte( "IPL.E60", 1 );
-						//__configsetbyte( "IPL.PGS", 0 );
+						if( PL->PALVid == 2 ||  PL->PALVid == 3)
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
+						if( PL->PALVid == 1 ||  PL->PALVid == 3)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
 						if( PL->Shop1 >= 64 && PL->Shop1 <= 121 )
 							CCode[0] = PL->Shop1;
@@ -360,17 +375,23 @@ void DoGameRegion( u64 TitleID )
 					} break;
 					case 'K':					
 					{
-						if( PL->Config&CONFIG_FORCE_EuRGB60 )
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
 							__configsetbyte( "IPL.E60", 1 );
-						else
+						else	
 							__configsetbyte( "IPL.E60", 0 );
-						//__configsetbyte( "IPL.PGS", 1 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", 9 );
 						CCode[0] = 136;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
 						__configsetsetting( "AREA", "KOR" );
 						__configsetsetting( "MODEL", "RVL-001(KOR)" );
 						__configsetsetting( "CODE", "LKM" );
+						//if( PL->NTSCVid == 1 ||  PL->NTSCVid == 2)
+						//	__configsetsetting( "VIDEO", "PAL" );
+						//else
 						__configsetsetting( "VIDEO", "NTSC" );
 						__configsetsetting( "GAME", "KR" );
 						__configwrite();				
@@ -428,8 +449,14 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 				{
 					case AREA_JPN:
 					{
-						__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", 0 );
 						CCode[0] = 1;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
@@ -442,8 +469,14 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					} break;
 					case AREA_USA:
 					{
-						__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->USLang );
 						if( PL->Shop1 >= 8 &&  PL->Shop1 <= 52 )
 							CCode[0] = PL->Shop1;
@@ -459,8 +492,14 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					} break;				
 					case AREA_EUR:
 					{	
-						__configsetbyte( "IPL.E60", 1 );
-						__configsetbyte( "IPL.PGS", 0 );
+						if( PL->PALVid == 2 ||  PL->PALVid == 3)
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
+						if( PL->PALVid == 1 ||  PL->PALVid == 3)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", PL->EULang );
 						if( PL->Shop1 >= 64 &&  PL->Shop1 <= 121 )
 							CCode[0] = PL->Shop1;
@@ -476,8 +515,14 @@ void DoSMRegion( u64 TitleID, u16 TitleVersion )
 					} break;
 					case AREA_KOR:					
 					{	
-						__configsetbyte( "IPL.E60", 0 );
-						__configsetbyte( "IPL.PGS", 1 );
+						if( PL->NTSCVid == 6 ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.E60", 1 );
+						else	
+							__configsetbyte( "IPL.E60", 0 );
+						if( PL->NTSCVid == 5  ||  PL->NTSCVid == 7)
+							__configsetbyte( "IPL.PGS", 1 );
+						else
+							__configsetbyte( "IPL.PGS", 0 );
 						__configsetbyte( "IPL.LNG", 9 );
 						CCode[0] = 136;
 						__configsetbigarray( "IPL.SADR", CCode, 0x1007 );
@@ -591,11 +636,37 @@ s32 GetBootConfigFromMem(u64 *TitleID)
 
 	dbgprintf("ES:Checking magic in memory 0x%08x\n", *(vu32*)0x01200000);
 	if(MC->magic != 0x666c6f77)
-		return 0;	
+		return 0;
+		
+	if(MC->titleid == 0)
+		*TitleID = 0x100000002LL;
+	else
+	{
+		*TitleID = MC->titleid;	
+		dbgprintf("ES:Title found in memory: %08x-%08x...\n", (u32)(MC->titleid>>32), (u32)MC->titleid);
+	}
 	
-	*TitleID = MC->titleid;
-	dbgprintf("ES:Wiiflow magic found!\n");
-	dbgprintf("ES:Title found in memory: %08x-%08x...\n", (u32)(MC->titleid>>32), (u32)MC->titleid );
+	if(MC->config&NCON_EXT_RETURN_TO)
+	{
+		dbgprintf("ES:Return to title: %08x-%08x set by external app\n", (u32)(MC->returnto>>32), (u32)MC->returnto );
+		u8 *data = (u8*)malloca(0xE0, 0x40);
+		memcpy(data, &MC->returnto, sizeof(u64));
+		
+		NANDWriteFileSafe("/sneek/reload.sys", data , 0xE0);
+		free(data);
+	}
+	
+	if(MC->config&NCON_EXT_BOOT_GAME)
+	{
+		//DVDLoadGame(0x534e4d50, 0x5d1c9ea3);
+		//DVDLoadGame(MC->gameid, MC->gamemagic);
+		//GameID = MC->gameid;
+		//GameMagic = MC->gamemagic;
+		//GameID = 0x534e4d50;
+		//GameMagic = 0x5d1c9ea3;
+		AutoBootDisc = true;
+	}
+	
 	MC->magic = 0x4f4a4f59;
 	return 1;
 }
