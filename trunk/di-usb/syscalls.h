@@ -109,8 +109,8 @@ void syscall_4e(void);
 
 void *VirtualToPhysical(void *ptr);
 
-unsigned int EnableVideo( unsigned int );
-void syscall_51(void);
+void Set_DVDVideo(u32 disable);
+u32 Get_DVDVideo(void);
 void EXICtrl( s32 Flag );
 void syscall_53(void);
 void syscall_54(void);

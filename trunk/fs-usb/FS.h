@@ -45,7 +45,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define USB_IOCTL_UMS_WRITE_SECTORS	(UMS_BASE+0x4)
 #define USB_IOCTL_UMS_READ_STRESS	(UMS_BASE+0x5)
 
-
 // error codes
 #define FS_SUCCESS		0			// Success
 #define FS_EACCES		-1			// Permission denied 
@@ -86,7 +85,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define	IOCTL_SHUTDOWN   0x0D
 
 #define IOCTL_IS_USB	   		30
-#define IOCTL_SUPPORT_SD_DI		33
+#define IOCTL_DONT_FAKE			33
 #define IOCTL_GET_DI_PATH		34
 
 
@@ -110,7 +109,7 @@ typedef struct {
 	u32 file_pos;
 } FDStat;
 
-
+void USB_Ioctlv(struct IPCMessage *msg);
 void FFS_Ioctl(struct IPCMessage *msg);
 void FFS_Ioctlv(struct IPCMessage *msg);
 bool FS_IsNandFolder(char* whichpath);

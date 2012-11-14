@@ -63,3 +63,11 @@ out:
 	if(mqueue > 0)
 		mqueue_destroy(mqueue);
 }
+
+u8 IgnoreCase(u8 check)
+{
+	if(check >= 0x61 && check <= 0x7a)
+		check -= 0x20;
+		
+	return check;
+}

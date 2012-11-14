@@ -23,6 +23,32 @@ static inline void write32(u32 addr, u32 data)
 	__asm__ volatile ("str\t%0, [%1]" : : "l" (data), "l" (addr));
 }
 
+static inline u32 set32(u32 addr, u32 set)
+{
+	u32 data;
+	__asm__ volatile (
+		"ldr\t%0, [%1]\n"
+		"\torr\t%0, %2\n"
+		"\tstr\t%0, [%1]"
+		: "=&r" (data)
+		: "r" (addr), "r" (set)
+	);
+	return data;
+}
+
+static inline u32 clear32(u32 addr, u32 clear)
+{
+	u32 data;
+	__asm__ volatile (
+		"ldr\t%0, [%1]\n"
+		"\tbic\t%0, %2\n"
+		"\tstr\t%0, [%1]"
+		: "=&r" (data)
+		: "r" (addr), "r" (clear)
+	);
+	return data;
+}
+
 void *memset32(void *, int, size_t);
 
 #endif

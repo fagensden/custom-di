@@ -23,7 +23,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "diskio.h"
 #include "string.h"
 #include "ehci.h"
-
 #include "FS.h"
 
 #define ISFS_OPEN_READ		1
@@ -37,7 +36,6 @@ char diroot[0x40] ALIGNED(32);
 
 extern u32 s_size;
 extern u32 s_cnt;
-extern int unlockcfg;
 
 //#define USEATTR
 //#undef DEBUG
@@ -54,23 +52,16 @@ u32 HAXHandle;
 u32 read_sec;
 u32 write_sec;
 
-void FFS_Ioctlv(struct IPCMessage *msg)
+bool DontFake = false;
+
+void USB_Ioctlv(struct IPCMessage *msg)
 {
-	u32 InCount		= msg->ioctlv.argc_in;
-	u32 OutCount	= msg->ioctlv.argc_io;
-	vector *v		= (vector*)(msg->ioctlv.argv);
-	s32 ret=0;
+	vector *v = (vector*)(msg->ioctlv.argv);
+	s32 ret = -1017;
 
-#ifdef EDEBUG
-	dbgprintf("FFS:IOS_Ioctlv( %d, 0x%x 0x%x 0x%x 0x%p )\n", msg->fd, msg->ioctl.command, InCount, OutCount, msg->ioctlv.argv );
-#endif
-
-	//for( ret=0; ret<InCount+OutCount; ++ret)
-	//{
-	//	if( ((vu32)(v[ret].data)>>24) == 0 )
-	//		dbgprintf("FFS:in:0x%08x\tout:0x%08x\n", v[ret].data, v[ret].data );
-	//}
-
+//#ifdef EDEBUG
+//	dbgprintf("USB:IOS_Ioctlv( %d, 0x%x 0x%x 0x%x 0x%p )\n", msg->fd, msg->ioctl.command, InCount, OutCount, msg->ioctlv.argv );
+//#endif
 	switch(msg->ioctl.command)
 	{
 		case USB_IOCTL_UMS_INIT:
@@ -98,7 +89,7 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 			{
 				u32 r_sec = (cnt - t_read);
 				
-				if (r_sec > 8)
+				if(r_sec > 8)
 					r_sec = 8;
 
 				ret = USBStorage_Read_Sectors(sec+t_read, r_sec, &buf[t_read*s_size]);
@@ -158,10 +149,34 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 				t_read += r_sec;
 			}
 		} break;
+	}
+
+	mqueue_ack( (void *)msg, ret);
+}
+
+
+void FFS_Ioctlv(struct IPCMessage *msg)
+{
+	u32 InCount		= msg->ioctlv.argc_in;
+	u32 OutCount	= msg->ioctlv.argc_io;
+	vector *v		= (vector*)(msg->ioctlv.argv);
+	s32 ret=0;
+
+#ifdef EDEBUG
+	dbgprintf("FFS:IOS_Ioctlv( %d, 0x%x 0x%x 0x%x 0x%p )\n", msg->fd, msg->ioctl.command, InCount, OutCount, msg->ioctlv.argv );
+#endif
+
+	//for( ret=0; ret<InCount+OutCount; ++ret)
+	//{
+	//	if( ((vu32)(v[ret].data)>>24) == 0 )
+	//		dbgprintf("FFS:in:0x%08x\tout:0x%08x\n", v[ret].data, v[ret].data );
+	//}
+	switch(msg->ioctl.command)
+	{
 		case 0x60:
 		{
 			HAXHandle = FS_Open( (char*)(v[0].data), (u32)(v[1].data) );
-#ifdef DEBUG
+#ifdef EDEBUG
 			dbgprintf("FS_Open(%s, %02X):%d\n", (char*)(v[0].data), (u32)(v[1].data), HAXHandle );
 #endif
 			ret = HAXHandle;
@@ -172,7 +187,9 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 			{
 				ret = FS_ReadDir( (char*)(v[0].data), (u32*)(v[1].data), NULL );
 
-			} else if( InCount == 2 && OutCount == 2 ) {
+			} 
+			else if( InCount == 2 && OutCount == 2 ) 
+			{
 
 				char *buf = heap_alloc_aligned( 0, v[2].len, 0x40 );
 				memset32( buf, 0, v[2].len );
@@ -183,7 +200,9 @@ void FFS_Ioctlv(struct IPCMessage *msg)
 
 				heap_free( 0, buf );
 
-			} else {
+			} 
+			else 
+			{
 				ret = FS_EFATAL;
 			}
 
@@ -247,26 +266,26 @@ void FFS_Ioctl(struct IPCMessage *msg)
 #endif
 	
 	ret = FS_SUCCESS;
-
 	switch(msg->ioctl.command)
 	{
 		case IOCTL_GET_DI_PATH:
 		{	
-			if( lenout < 0x20 )
+			if(lenout < 0x20)
 			{
 				ret = -1017;
 			}
 			else 
 			{
-				memcpy( bufout, (void*)(diroot), 0x20 );
+				memcpy(bufout, (void*)(diroot), 0x20);
 				ret = FS_SUCCESS;
 			}	
 		 	
 		} break;
-		case IOCTL_SUPPORT_SD_DI:
+		case IOCTL_DONT_FAKE:
 		{
-			ret = FS_SUCCESS;		
-		}break;
+			DontFake = true;
+			ret = FS_SUCCESS;
+		} break;
 		case IOCTL_IS_USB:
 		{
 			ret = FS_SUCCESS;
@@ -360,7 +379,7 @@ void FFS_Ioctl(struct IPCMessage *msg)
 				heap_free( 0, path );
 			}
 #endif
-#ifdef DEBUG
+#ifdef EDEBUG
 			dbgprintf("FFS:SetAttr(\"%s\", %08X, %04X, %02X, %02X, %02X, %02X):%d in:%X out:%X\n", (char*)(bufin+6), *(u32*)(bufin), *(u16*)(bufin+4), *(u8*)(bufin+0x46), *(u8*)(bufin+0x47), *(u8*)(bufin+0x48), *(u8*)(bufin+0x49), ret, lenin, lenout ); 
 #endif
 
@@ -618,7 +637,7 @@ u32 FS_CheckHandle( s32 fd )
 
 s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 {
-	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
+	if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S' && DontFake != true)
 	{
 		if(*(vu32*)0x3180 >> 8 == 0x484142 && (strstr(path, "/ticket") != NULL || strstr(path, "/00010000/") != NULL || strstr(path, "/00010001/") != NULL))
 		{				
@@ -634,7 +653,9 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 		}
 	}
 	
-	if(*(vu32*)0x0 >> 8 == 0x535a41 || *(vu32*)0x0 >> 8 == 0x525050)
+	DontFake = false;
+	
+	if(*(vu32*)0x0 >> 8 == 0x535a41 || *(vu32*)0x0 >> 8 == 0x525050 || *(vu32*)0x0 >> 8 == 0x524f33)
 	{
 		*FileCount = 20;
 		*TotalSize = 0x400000;
@@ -934,14 +955,8 @@ s32 FS_Close( s32 FileHandle )
 	}
 	return FS_EFATAL;
 }
-s32 FS_Open( char *Path, u8 Mode )
-{
-	if(!unlockcfg)
-	{
-		if(strstr(Path, "nandcfg.bin")  != NULL)
-			return FR_DENIED;	
-	}
-	
+s32 FS_Open(char *Path, u8 Mode)
+{	
 	if( strncmp( Path, "/AX", 3 ) == 0 )
 		return HAXHandle;
 
@@ -952,7 +967,7 @@ s32 FS_Open( char *Path, u8 Mode )
 		{
 //			dbgprintf("/dev/fs trigger detected\n");
 			return FS_FD;
-		}		
+		}
 		else if(strncmp( Path+5, "usb2", 4 ) == 0) 
 		{
 			if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
@@ -1019,6 +1034,7 @@ s32 FS_Open( char *Path, u8 Mode )
 				switch( *(vu32*)0x0 >> 8 )
 				{							
 					/*** Add games that need this hack for game saves here ***/
+					case 0x524950:
 					case 0x525559:
 					{
 						if( ( strstr( nandpath, "/data/" ) != NULL ) )
@@ -1286,7 +1302,6 @@ s32 FS_DeleteFile( char *Path )
 }
 s32 FS_Move( char *sPath, char *dPath )
 {
-
 	char *LSPath = (char *)heap_alloc_aligned( 0, 0x80, 0x40 );
 	
 	FS_AdjustNpath( sPath );

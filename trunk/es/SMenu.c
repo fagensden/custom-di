@@ -1,5 +1,4 @@
 /*
-
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
@@ -22,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 #include "SMenu.h"
 #include "svn.h"
+#include "patch.h"
 
 
 u32 FrameBuffer	= 0;
@@ -78,22 +78,22 @@ u32 DVDTimeLeft = 0;
 s32 DVDHandle = 0;
 u32 DMLVideoMode = 0;
 u32 DVDReinsertDisc=false;
+s32 EntryCount = 20;
+u32 CacheSel = 0;
 char *DiscName	= (char*)NULL;
 char *DVDTitle	= (char*)NULL;
 char *DVDBuffer	= (char*)NULL;
-ImageStruct* curDVDCover = NULL;
-
-char *PICBuffer = (char*)NULL;
-u32 PICSize = 0;
-u32 PICNum = 0;
 
 bool MIOSIsDML = true;
 
 extern char diroot[0x20];
-
 extern u32 LoadDI;
 
-char *RegionStr[] = {
+u32 startaddress = 0;
+u32 endaddress = 0;
+
+char *RegionStr[] = 
+{
 	"JAP",
 	"USA",
 	"EUR",
@@ -134,6 +134,41 @@ char *RegStr[] =
 	"PAL",
 };
 
+char *VidStr[] =
+{
+	"PAL50 (576i)",
+	"PAL50 (576p)",
+	"PAL60 (480i)",
+	"PAL60 (480p)",
+	"NTSC (480i)",
+	"NTSC (480p)",
+	"NTSC (480i) PAL Enc.",
+	"NTSC (480p) PAL Enc.",
+};
+
+char *gTypeStr[] =
+{
+	"MAME",
+	"GC",
+	"WBFS",
+	"FST",
+	"Invalid",
+};
+
+char *DmpStr[] =
+{
+	"Extract",
+	"Available",
+	"NA",
+};
+
+char *CacheStr[] =
+{
+	"Game",
+	"Channel",
+	"Nand",
+};
+
 unsigned char VISetFB[] =
 {
     0x7C, 0xE3, 0x3B, 0x78,		//	mr      %r3, %r7
@@ -142,43 +177,20 @@ unsigned char VISetFB[] =
 	0x38, 0xC7, 0x00, 0x4C, 
 };
 
-s32 LaunchTitle(u64 TitleID)
-{
-	u32 majorTitleID = (TitleID) >> 32;
-	u32 minorTitleID = (TitleID) & 0xFFFFFFFF;
-
-	char* ticketPath = (char*) malloca(128,32);
-	_sprintf(ticketPath,"/ticket/%08x/%08x.tik",majorTitleID,minorTitleID);
-	s32 fd = IOS_Open(ticketPath,1);
-	free(ticketPath);
-
-	u32 size = IOS_Seek(fd,0,SEEK_END);
-	IOS_Seek(fd,0,SEEK_SET);
-
-	u8* ticketData = (u8*) malloca(size,32);
-	IOS_Read(fd,ticketData,size);
-	IOS_Close(fd);
-
-	u8* ticketView = (u8*) malloca(0xD8,32);
-	iES_GetTicketView(ticketData,ticketView);
-	free(ticketData);
-
-	s32 r = ES_LaunchTitle(&TitleID,ticketView);
-	free(ticketView);
-	return r;
-}
-
 void LoadAndRebuildChannelCache()
 {
 	channelCache = NULL;
 	u32 size, i;
-	UIDSYS *uid = (UIDSYS *)NANDLoadFile( "/sys/uid.sys", &size );
-	if (uid == NULL)
+	UIDSYS *uid = (UIDSYS *)NANDLoadFile("/sys/uid.sys", &size);
+	if(uid == NULL)
 		return;
+		
 	u32 numChannels = 0;
-	for (i = 0; i * 12 < size; i++){
+	for(i = 0; i * 12 < size; i++)
+	{
 		u32 majorTitleID = uid[i].TitleID >> 32;
-		switch (majorTitleID){
+		switch (majorTitleID)
+		{
 			case 0x00000001: //IOSes
 			case 0x00010000: //left over disc stuff
 			case 0x00010005: //DLC
@@ -186,8 +198,9 @@ void LoadAndRebuildChannelCache()
 				break;
 			default:
 			{
-				s32 fd = ES_OpenContent(uid[i].TitleID,0);
-				if (fd >= 0){
+				s32 fd = ES_OpenContent(uid[i].TitleID, 0);
+				if (fd >= 0)
+				{
 					numChannels++;
 					IOS_Close(fd);
 				}
@@ -195,17 +208,20 @@ void LoadAndRebuildChannelCache()
 		}
 	}
 
-	channelCache = (ChannelCache*)NANDLoadFile("/sneekcache/channelcache.bin",&i);
-	if (channelCache == NULL){
-		channelCache = (ChannelCache*)malloca(sizeof(ChannelCache),32);
+	channelCache = (ChannelCache*)NANDLoadFile("/sneekcache/channelcache.bin", &i);
+	if(channelCache == NULL)
+	{
+		channelCache = (ChannelCache*)malloca(sizeof(ChannelCache), 32);
 		channelCache->numChannels = 0;
 	}
 
-	if (numChannels != channelCache->numChannels || i != sizeof(ChannelCache) + sizeof(ChannelInfo) * numChannels){ // rebuild
+	if(numChannels != channelCache->numChannels || i != sizeof(ChannelCache) + sizeof(ChannelInfo) * numChannels)
+	{
 		free(channelCache);
-		channelCache = (ChannelCache*)malloca(sizeof(ChannelCache) + sizeof(ChannelInfo) * numChannels,32);
+		channelCache = (ChannelCache*)malloca(sizeof(ChannelCache) + sizeof(ChannelInfo) * numChannels, 32);
 		channelCache->numChannels = 0;
-		for (i = 0; i * 12 < size; i++){
+		for(i = 0; i * 12 < size; i++)
+		{
 			u32 majorTitleID = uid[i].TitleID >> 32;
 			switch (majorTitleID){
 				case 0x00000001: //IOSes
@@ -215,13 +231,15 @@ void LoadAndRebuildChannelCache()
 					break;
 				default:
 				{
-					s32 fd = ES_OpenContent(uid[i].TitleID,0);
-					if (fd >= 0){
-						IOS_Seek(fd,0xF0,SEEK_SET);
+					s32 fd = ES_OpenContent(uid[i].TitleID, 0);
+					if(fd >= 0)
+					{
+						IOS_Seek(fd, 0xF0, SEEK_SET);
 						u32 j;
-						for (j = 0; j < 40; j++){
-							IOS_Seek(fd,1,SEEK_CUR);
-							IOS_Read(fd,&channelCache->channels[channelCache->numChannels].name[j],1);
+						for(j = 0; j < 40; j++)
+						{
+							IOS_Seek(fd, 1, SEEK_CUR);
+							IOS_Read(fd, &channelCache->channels[channelCache->numChannels].name[j], 1);
 						}
 						channelCache->channels[channelCache->numChannels].name[40] = 0;
 						channelCache->channels[channelCache->numChannels].titleID = uid[i].TitleID;
@@ -236,7 +254,7 @@ void LoadAndRebuildChannelCache()
 	free(uid);
 }
 
-void __configloadcfg( void )
+void __configloadcfg(void)
 {
 	u32 size;
 	PL = NULL;
@@ -246,6 +264,8 @@ void __configloadcfg( void )
 		PL = (HacksConfig *)malloca( sizeof(HacksConfig), 32);
 		PL->EULang   = 1;
 		PL->USLang   = 1;
+		PL->PALVid	 = 1;
+		PL->NTSCVid	 = 5;
 		PL->Shop1    = 0;
 		PL->Config   = 0;
 		PL->Autoboot = 0;
@@ -256,9 +276,22 @@ void __configloadcfg( void )
 	NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
 }
 
-u32 SMenuFindOffsets( void *ptr, u32 SearchSize )
+int __GetGameFormat(u32 MagicA, u32 MagicB)
 {
+	if(MagicA == 0xc2339f3d && MagicB == 0x4d414d45)
+		return MAME;
+	else if(MagicA == 0xc2339f3d)
+		return GC;
+	else if(MagicA == 0x57424653 && MagicB == 0x5D1C9EA3)
+		return WBFS;
+	else if(MagicA == 0x44534358 && MagicB == 0x5D1C9EA3)
+		return FST;
+	else
+		return INV;
+}
 
+u32 SMenuFindOffsets(void *ptr, u32 SearchSize)
+{
 	u32 i;
 	u32 r13  = 0;
 
@@ -331,11 +364,14 @@ u32 SMenuFindOffsets( void *ptr, u32 SearchSize )
 					case VI_NTSC:
 						FBSize = 304*480*4;
 						break;
+					case VI_PAL:
+						FBSize = 288*432*4;
+						break;
 					case VI_EUR60:
 						FBSize = 320*480*4;
 						break;
 					default:
-						//dbgprintf("ES:SMenuFindOffsets():Invalid Video mode:%d\n", *(vu32*)(FBEnable+0x20) );
+						dbgprintf("ES:SMenuFindOffsets():Invalid Video mode:%d\n", *(vu32*)(FBEnable+0x20) );
 						break;
 				}
 
@@ -344,6 +380,19 @@ u32 SMenuFindOffsets( void *ptr, u32 SearchSize )
 		}
 	}
 	return 0;
+}
+
+void ApplyPatch(u8 *hash, u32 hashsize, u8 *patch, u32 patchsize)
+{
+	u32 step = 0;
+	for(step = startaddress; step < endaddress; ++step)
+	{
+		if(!memcmp((void *)step, hash, hashsize))
+		{
+			dbgprintf("ES:Patching @ offset: 0x%08X\n", step);
+			memcpy((void *)step, patch, patchsize);
+		}
+	}
 }
 
 void SMenuInit( u64 TitleID, u16 TitleVersion )
@@ -367,7 +416,6 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	DVDReinsertDisc=false;
 	DICfg	= NULL;
 	NandCfg = NULL;
-	PICBuffer = (char*)NULL;
 
 	Offsets		= (u32*)malloca( sizeof(u32) * MAX_HITS, 32 );
 	GameCount	= (u32*)malloca( sizeof(u32), 32 );
@@ -379,360 +427,114 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 		FB[i] = 0;
 
 //Patches and SNEEK Menu
-	switch( TitleID )
+	switch(TitleID)
 	{
 		case 0x0000000100000002LL:
-		{			
-			switch( TitleVersion )
+		{
+			char path[256];
+			u32 size, res;
+			_sprintf(path, "/title/%08x/%08x/content/title.tmd", (u32)(TitleID>>32), (u32)(TitleID));
+			TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, &size );			
+			dolhdr *menuhdr = (dolhdr *)heap_alloc_aligned(0, ALIGN32(sizeof(dolhdr)), 32);
+			memset32(menuhdr, 0, ALIGN32(sizeof(dolhdr)));			
+			_sprintf(path, "/title/%08x/%08x/content/%08X.app", (u32)(TitleID>>32), (u32)(TitleID), TMD->Contents[TMD->BootIndex].ID);
+			free(TMD);
+			menuhdr = (dolhdr *)NANDReadFromFile(path, 0, ALIGN32(sizeof(dolhdr)), &res);			
+			startaddress =  (u32)(*menuhdr->addressData - *menuhdr->offsetData);
+			endaddress = (u32)(*menuhdr->addressData + *menuhdr->sizeData);			
+			startaddress -= 0x80000000;
+			endaddress -= 0x80000000;
+			
+			if(PL->Config&CONFIG_REGION_FREE)
 			{
-				case 450:	// EUR 4.1
+				dbgprintf("ES:Patching for \"Region Free Wii Games\":\n");
+				if(TitleVersion >= 480 && TitleVersion <= 518)
 				{
-					nisp = 1;
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137D800 = 0x4800001C;
-						*(u32*)0x0137D824 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AF580 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BCDBC = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136AE6C = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136AE40 = 0x4E800020;
-					}
-				} break;				
-				case 482:	// EUR 4.2
+					ApplyPatch(hash_B, sizeof(hash_B), patch_B, sizeof(patch_B));
+					ApplyPatch(hash_C, sizeof(hash_C), patch_B, sizeof(patch_B));
+					ApplyPatch(hash_D, sizeof(hash_D), patch_C, sizeof(patch_C));
+					ApplyPatch(hash_E, sizeof(hash_E), patch_A, sizeof(patch_A));
+					ApplyPatch(hash_F, sizeof(hash_F), patch_D, sizeof(patch_D));
+				}
+				else if(TitleVersion >= 416 && TitleVersion <= 454)
 				{
-					nisp = 1;
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137DC90 = 0x4800001C;
-						*(u32*)0x0137E4E4 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AFCFC = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BD620 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136B2CC = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136B2A0 = 0x4E800020;
-					}
-
-
-					//Disc autoboot
-					//*(u32*)0x0137AD5C = 0x48000020;
-					//*(u32*)0x013799A8 = 0x60000000;
-
-					//BS2Report
-					//*(u32*)0x137AEC4 = 0x481B22BC;
-					
-				} break;
-				case 514:	// EUR 4.3
+					ApplyPatch(hash_G, sizeof(hash_G), patch_E, sizeof(patch_E));
+					ApplyPatch(hash_H, sizeof(hash_H), patch_B, sizeof(patch_B));
+					ApplyPatch(hash_I, sizeof(hash_I), patch_C, sizeof(patch_C));
+					ApplyPatch(hash_J, sizeof(hash_J), patch_D, sizeof(patch_D));
+				}
+				else if(TitleVersion >= 288 && TitleVersion <= 390)
 				{
-					nisp = 1;
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137DE28 = 0x4800001C;
-						*(u32*)0x0137E7A4 = 0x38000001;
-					
-
-						//GC-Disc Region free hack
-						*(u32*)0x0137DAEC = 0x7F60DB78;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013B0408 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BDD54 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136B464 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136B438 = 0x4E800020;
-					}
-					
-					//Autoboot disc
-					//*(u32*)0x0137AEF4 = 0x48000020;
-					//*(u32*)0x01379B40 = 0x60000000;
-					
-				} break;
-				case 449:	// USA 4.1
+					ApplyPatch(hash_Q, sizeof(hash_Q), patch_D, sizeof(patch_D));
+					ApplyPatch(hash_R, sizeof(hash_R), patch_B, sizeof(patch_B));
+				}
+				
+				dbgprintf("ES:Patching for \"Region Free Gamecube Games\":\n");
+				
+				if(TitleVersion >= 288 && TitleVersion <= 390)
 				{
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137D758 = 0x4800001C;
-						*(u32*)0x0137D77C = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AF580 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BCCC0 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136ADC4 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136AD98 = 0x4E800020;
-					}
-				} break;
-				case 481:	// USA 4.2
+					ApplyPatch(hash_S, sizeof(hash_S), patch_I, sizeof(patch_I));
+				}
+				else if(TitleVersion >= 416 && TitleVersion <= 454)
 				{
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137DBE8 = 0x4800001C;
-						*(u32*)0x0137E43C = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AFC00 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BD524 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136B224 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136B1F8 = 0x4E800020;
-					}
-				} break;
-				case 513:	// USA 4.3
+					ApplyPatch(hash_U, sizeof(hash_U), patch_I, sizeof(patch_I));
+				}
+				else if(TitleVersion >= 480 && TitleVersion <= 518)
 				{
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137DD80 = 0x4800001C;
-						*(u32*)0x0137E5D4 = 0x60000000;
-
-						//GC-Disc Region free hack
-						*(u32*)0x137DA44 = 0x7F60DB78;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013B030C = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BDC58 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136B3BC = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136B390 = 0x4E800020;
-					}
-
-				} break;
-				case 448:   // JPN 4.1
-				{				
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137CC0C = 0x4800001C;
-						*(u32*)0x0137CC30 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AE770 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BBFA0 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136A278 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136A24C = 0x4E800020;
-					}
-
-				} break;
-				case 480:   // JPN 4.2
-				{				
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137D09C = 0x4800001C;
-						*(u32*)0x0137D8F0 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AEEEC = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BC804 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136A6D8 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136A6AC = 0x4E800020;
-					}
-
-				} break;
-				case 512:   // JPN 4.3
-				{				
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137D234 = 0x4800001C;
-						*(u32*)0x0137DA88 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AF5F8 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BCF38 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136A870 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136A844 = 0x4E800020;
-					}
-
-				} break;
-				case 486:   // KOR 4.2
-				{				
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137CF7C = 0x4800001C;
-						*(u32*)0x0137D7D0 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AEF40 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BC8D4 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136A5B8 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136A58C = 0x4E800020;
-					}
-
-				} break;				
-				case 518:   // KOR 4.3
-				{	
-					if( PL->Config&CONFIG_REGION_FREE )
-					{
-						//Wii-Disc Region free hack
-						*(u32*)0x0137D114 = 0x4800001C;
-						*(u32*)0x0137D968 = 0x60000000;
-					}
-					if( PL->Config&CONFIG_MOVE_DISC_CHANNEL )
-					{
-						//Move Disc Channel
-						*(u32*)0x013AF64C = 0x60000000;
-					}
-					if( PL->Config&CONFIG_PRESS_A )
-					{
-						//Auto Press A at Health Screen
-						*(u32*)0x013BD008 = 0x48000034;
-					}
-					if( PL->Config&CONFIG_NO_BG_MUSIC )
-					{
-						//No System Menu Background Music
-						*(u32*)0x0136A750 = 0x4E800020;
-					}
-					if( PL->Config&CONFIG_NO_SOUND )
-					{
-						//No System Menu sounds AT ALL
-						*(u32*)0x0136A724 = 0x4E800020;
-					}
-				} break;	
+					ApplyPatch(hash_T, sizeof(hash_T), patch_I, sizeof(patch_I));
+				}
+			}
+			
+			if(PL->Config&CONFIG_MOVE_DISC_CHANNEL)
+			{
+				dbgprintf("ES:Patching for \"Move Disc Channel\":\n");
+				if(TitleVersion >= 288 && TitleVersion <= 518)
+					ApplyPatch(hash_K, sizeof(hash_K), patch_A, sizeof(patch_A));
+			}
+			
+			if(PL->Config&CONFIG_PRESS_A)
+			{
+				dbgprintf("ES:Patching for \"Auto Press A at Health Screen\":\n");
+				if(TitleVersion >= 288 && TitleVersion <= 518)
+					ApplyPatch(hash_L, sizeof(hash_L), patch_F, sizeof(patch_F));
+			}
+			
+			if(PL->Config&CONFIG_NO_BG_MUSIC)
+			{
+				dbgprintf("ES:Patching for \"No System Menu Sounds AT ALL\":\n");
+				if(TitleVersion >= 416 && TitleVersion <= 518)
+					ApplyPatch(hash_M, sizeof(hash_M), patch_G, sizeof(patch_G));
+			}
+			
+			if(PL->Config&CONFIG_NO_SOUND)
+			{
+				dbgprintf("ES:Patching for \"No System Menu Background Music\":\n");
+				if(TitleVersion >= 416 && TitleVersion <= 518)
+					ApplyPatch(hash_N, sizeof(hash_N), patch_G, sizeof(patch_G));
+			}
+			
+			if(PL->Config&CONFIG_BLOCK_DISC_UPDATE)
+			{
+				dbgprintf("ES:Patching for \"Skip Disc Update Check\":\n");
+				if(TitleVersion >= 1 && TitleVersion <= 511)
+				{
+					ApplyPatch(hash_Z, sizeof(hash_Z), patch_K, sizeof(patch_K));
+					ApplyPatch(hash_1, sizeof(hash_1), patch_K, sizeof(patch_K));
+				}
+				if(TitleVersion >= 512 && TitleVersion <= 518)
+				{
+					ApplyPatch(hash_3, sizeof(hash_3), patch_K, sizeof(patch_K));
+					ApplyPatch(hash_4, sizeof(hash_4), patch_K, sizeof(patch_K));
+				}
+				if(TitleVersion >= 288 && TitleVersion <= 511)
+					ApplyPatch(hash_2, sizeof(hash_2), patch_K, sizeof(patch_K));
+			}
+			
+			if(*(vu32*)0x01200000 == 0x47414d45)
+			{
+				dbgprintf("ES:Patching for \"Auto Boot Disc\":\n");
+				ApplyPatch(hash_O, sizeof(hash_O), patch_A, sizeof(patch_A));
+				ApplyPatch(hash_P, sizeof(hash_P), patch_H, sizeof(patch_H));
 			}
 		} break;
 	}
@@ -768,58 +570,31 @@ void SMenuAddFramebuffer( void )
 		}
 	}
 }
-void SMenuDraw( void )
+void SMenuDraw(void)
 {
-	u32 i,j;
-	s32 EntryCount=0;
+	u32 i, j;	
 
-	if( *(vu32*)FBEnable != 1 )
+	if(*(vu32*)FBEnable != 1 || !ShowMenu || DICfg == NULL)
 		return;
 
-	if( ShowMenu == 0 )
-		return;
-
-	if( DICfg == NULL )
-		return;
-
-	if( DICfg->Config & CONFIG_SHOW_COVERS )
-		EntryCount = 8;
-	else
-		EntryCount = 20;
-
-	for( i=0; i < MAX_FB; i++)
+	for(i=0; i < MAX_FB; i++)
 	{
-		if( FB[i] == 0 )
+		if(FB[i] == 0)
 			continue;
 
-		if( DICfg->Region > ALL )
+		if(DICfg->Region > ALL)
 			DICfg->Region = ALL;
 
-		if( MenuType != 3 )
-		{
-			if( FSUSB )
-			{
-				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O+cDI r%s %s Games:%d Region:%s", SVN_REV, __DATE__, *GameCount, RegionStr[DICfg->Region] );
-				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "UNEEK2O r%s %s", SVN_REV, __DATE__);					
-			} 
-			else 
-			{
-				if(LoadDI == true)
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O+cDI r%s %s Games:%d Region:%s", SVN_REV, __DATE__, *GameCount, RegionStr[DICfg->Region] );
-				else
-					PrintFormat( FB[i], MENU_POS_X, 20, "SNEEK2O r%s %s", SVN_REV, __DATE__);					
-			}
-		}
+		if(MenuType != 3)
+			PrintFormat(FB[i], MENU_POS_X, 20, "%sNEEK2O%s r%s %s %s %s: %d",  FSUSB ? "U" : "S", LoadDI ? "+DI" : "", SVN_REV, SVN_BETA, __DATE__, MenuType == 4 ? "Channels" : "Games", MenuType == 4 ? channelCache->numChannels : *GameCount);
 
-		switch( MenuType )
+		switch(MenuType)
 		{
 			case 0:
 			{
 				u32 gRegion = 0;
 
-				switch( *(u8*)(DICfg->GameInfo[PosX+ScrollX] + 3) )
+				switch(*(u8*)(DICfg->GameInfo[PosX+ScrollX] + 3))
 				{
 					case 'X':	// hamster heroes uses this for some reason
 					case 'A':
@@ -845,114 +620,72 @@ void SMenuDraw( void )
 						break;
 				}
 
-				PrintFormat( FB[i], MENU_POS_X, 20+16, "Press PLUS for settings  Press MINUS for dumping" );
-				
-				PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y, "GameRegion:%s", RegionStr[gRegion] );
+				if(LoadDI == true)				
+					PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y, "Game region: %s / Menu region: %s", RegionStr[gRegion], RegionStr[DICfg->Region]);
 
-				PrintFormat( FB[i], MENU_POS_X + 420, MENU_POS_Y,"Press HOME for Channels");
-
-				for( j=0; j<EntryCount; ++j )
+				for(j = 0; j < EntryCount; ++j)
 				{
-					if( j+ScrollX >= *GameCount )
+					if(j+ScrollX >= *GameCount)
 						break;
 
-					if(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d && *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x4d414d45)
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (MAME)", DICfg->GameInfo[ScrollX+j] + 0x20 );
-					else if(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C) == 0xc2339f3d)
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (GC)", DICfg->GameInfo[ScrollX+j] + 0x20 );
-					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x57424653 )
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (WBFS)", DICfg->GameInfo[ScrollX+j] + 0x20 );
-					else if( *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18) == 0x5D1C9EA3 &&  ((*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1c) == 0x44534358)||(DIConfType == 0)))
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (FST)", DICfg->GameInfo[ScrollX+j] + 0x20 );
+					if(__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18)) == INV)
+						PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.38s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
 					else
-						PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.37s (Invalid)", DICfg->GameInfo[ScrollX+j] + 0x20 );
-
-					if( j == PosX )
+						PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
+					
+					if(j == PosX)
 						PrintFormat( FB[i], 0, MENU_POS_Y+32+16*j, "-->");
-				}
-
-				if( DICfg->Config & CONFIG_SHOW_COVERS )
-				{
-					if (curDVDCover)
-					{
-						DrawImage( FB[i], MENU_POS_X, MENU_POS_Y+(j+2)*16, curDVDCover );
-					} else
-						PrintFormat( FB[i], MENU_POS_X+6*12, MENU_POS_Y+(j+6)*16, "no cover image found!" );
 				}
 
 				PrintFormat( FB[i], MENU_POS_X+575, MENU_POS_Y+16*22, "%d/%d", ScrollX/EntryCount + 1, *GameCount/EntryCount + (*GameCount % EntryCount > 0));
 
 				sync_after_write( (u32*)(FB[i]), FBSize );
 			} break;
-
-			case 4:
-			{
-				PrintFormat( FB[i], MENU_POS_X, 20+16, "Close the HOME menu before launching!!!" );
-				PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y, "Installed Channels:%u", channelCache->numChannels);
-
-				for( j=0; j<EntryCount; ++j )
-				{
-					if( j+ScrollX >= channelCache->numChannels )
-						break;
-
-					PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s", channelCache->channels[ScrollX+j].name);
-
-					if( j == PosX )
-						PrintFormat( FB[i], 0, MENU_POS_Y+32+16*j, "-->");
-				}
-
-				if( DICfg->Config & CONFIG_SHOW_COVERS )
-				{
-					if (curDVDCover){
-						DrawImage(FB[i],MENU_POS_X,MENU_POS_Y+(j+2)*16,curDVDCover);
-					}
-					else
-						PrintFormat(FB[i],MENU_POS_X,MENU_POS_Y+(j+2)*16,"no cover image found!");
-				}
-
-				PrintFormat( FB[i], MENU_POS_X+575, MENU_POS_Y+16*21, "%d/%d", ScrollX/EntryCount + 1, channelCache->numChannels/EntryCount + (channelCache->numChannels % EntryCount > 0));
-
-				sync_after_write( (u32*)(FB[i]), FBSize );
-			} break;
-
+			
 			case 1:
 			{
-				PrintFormat( FB[i], MENU_POS_X+80, 56, "NEEK Config:" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*0, "Game Region     :%s", RegionStr[DICfg->Region] );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*1, "__fwrite Patch  :%s", (DICfg->Config&CONFIG_PATCH_FWRITE) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*2, "MotionPlus Video:%s", (DICfg->Config&CONFIG_PATCH_MPVIDEO) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*3, "Video Mode Patch:%s", (DICfg->Config&CONFIG_PATCH_VIDEO) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*4, "Error Skipping  :%s", (DICfg->Config&CONFIG_DUMP_ERROR_SKIP) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*5, "Display Covers  :%s", (DICfg->Config&CONFIG_SHOW_COVERS) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*6, "AutoUpdate Games:%s", (DICfg->Config&CONFIG_AUTO_UPDATE_LIST) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Game Debugging  :%s", (DICfg->Config&CONFIG_DEBUG_GAME) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Debugger Wait   :%s", (DICfg->Config&CONFIG_DEBUG_GAME_WAIT) ? "On" : "Off" );
-				
-				switch( (DICfg->Config&HOOK_TYPE_MASK) )
+				PrintFormat(FB[i], MENU_POS_X+15, 68, "NEEK2O Config:");			
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*0, "__fwrite Patch                            :%s", (DICfg->Config&CONFIG_PATCH_FWRITE) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*1, "MotionPlus Video                          :%s", (DICfg->Config&CONFIG_PATCH_MPVIDEO) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*2, "Video Mode Patch                          :%s", (DICfg->Config&CONFIG_PATCH_VIDEO) ? "On" : "Off");				
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*4, "Debugging:");				
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*5, "Autocreate log for DIP module             :%s", (DICfg->Config&DEBUG_CREATE_DIP_LOG) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*6, "Autocreate log for ES module              :%s", (DICfg->Config&DEBUG_CREATE_ES_LOG) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*7, "Game Debugging                            :%s", (DICfg->Config&CONFIG_DEBUG_GAME) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*8, "Debugger Wait                             :%s", (DICfg->Config&CONFIG_DEBUG_GAME_WAIT) ? "On" : "Off");
+				switch((DICfg->Config&HOOK_TYPE_MASK))
 				{
 					case HOOK_TYPE_VSYNC:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :%s", "VIWaitForRetrace" );
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Hook Type : %s", "VIWaitForRetrace" );
 					break;
 					case HOOK_TYPE_OSLEEP:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :%s", "OSSleepThread" );
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Hook Type : %s", "OSSleepThread" );
 					break;
 					//case HOOK_TYPE_AXNEXT:
-					//	PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook type       :%s", "__AXNextFrame" );
+					//	PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Hook type : %s", "__AXNextFrame" );
 					//break;
 					default:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*9, "Hook Type       :Invalid Type:%d", (DICfg->Config&HOOK_TYPE_MASK)>>28 );
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Hook Type : Invalid Type: %d", (DICfg->Config&HOOK_TYPE_MASK)>>28 );
 					break;
 				}
-
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*11, "Save Config" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*12, "Recreate Game Cache(restarts!!)" );
-				if( fnnd ) 
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select Emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+NANDDESC_OFF );
+			
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*11, "Disc Options:");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*12, "Load Disc");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*13, "Retry On Read Error                       :%s", (DICfg->Config&CONFIG_READ_ERROR_RETRY) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*14, "Error Skipping Game Play                  :%s", (DICfg->Config&CONFIG_GAME_ERROR_SKIP) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*15, "Error Skipping Dumper                     :%s", (DICfg->Config&CONFIG_DUMP_ERROR_SKIP) ? "On" : "Off");			
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*17, "Cache and Config Files:");				
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*18, "Recreate %s Cache", CacheStr[CacheSel]);
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*19, "Reset Configuration");
+				
+				if(fnnd) 
+					PrintFormat(FB[i], MENU_POS_X+15, 84+16*20, "Select Emunand: %.20s", NandCfg->NandInfo[NandCfg->NandSel]+NANDDESC_OFF);
 				else
-					PrintFormat( FB[i], MENU_POS_X+80, 104+16*13, "Select Emunand: Root Nand" );
-
-				PrintFormat( FB[i], MENU_POS_X+60, 40+64+16*PosX, "-->");
-				sync_after_write( (u32*)(FB[i]), FBSize );
+					PrintFormat(FB[i], MENU_POS_X+15, 84+16*20, "Select Emunand: Root Nand");
+				
+				
+				PrintFormat( FB[i], MENU_POS_X-5, 84+16*PosX, "-->");
+				sync_after_write((u32*)(FB[i]), FBSize);
 			} break;
 
 			case 2:
@@ -1151,7 +884,6 @@ void SMenuDraw( void )
 											//dbgprintf("\nES:DVDLowRead():%d\n", ret );
 											//dbgprintf("ES:DVDError:%X\n", DVDError );
 											break;
-
 										}
 									}
 
@@ -1197,28 +929,41 @@ void SMenuDraw( void )
 				}
 
 			} break;
-			case 3:
+			case 4:
 			{
-				memcpy( (void *)FB[i], PICBuffer, FBSize );
-			} break;
+				for( j=0; j<EntryCount; ++j )
+				{
+					if( j+ScrollX >= channelCache->numChannels )
+						break;
+
+					PrintFormat( FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s", channelCache->channels[ScrollX+j].name);
+
+					if( j == PosX )
+						PrintFormat( FB[i], 0, MENU_POS_Y+32+16*j, "-->");
+				}
+
+				PrintFormat( FB[i], MENU_POS_X+575, MENU_POS_Y+16*21, "%d/%d", ScrollX/EntryCount + 1, channelCache->numChannels/EntryCount + (channelCache->numChannels % EntryCount > 0));
+
+				sync_after_write( (u32*)(FB[i]), FBSize );
+			} break;			
 			case 5:
 			{				
-				PrintFormat( FB[i], MENU_POS_X+15, 52, "Menu Hacks:" );			
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*0, "Auto Press A at Health Screen             :%s", ( PL->Config&CONFIG_PRESS_A ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 68, "Menu Hacks:" );			
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*0, "Auto Press A at Health Screen             :%s", ( PL->Config&CONFIG_PRESS_A ) ? "On" : "Off" );				
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*1, "No System Menu Background Music           :%s", ( PL->Config&CONFIG_NO_BG_MUSIC ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*2, "No System Menu Sounds At All              :%s", ( PL->Config&CONFIG_NO_SOUND ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*3, "Move Disc Channel                         :%s", ( PL->Config&CONFIG_MOVE_DISC_CHANNEL ) ? "On" : "Off" );				
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Patch Shop Channel For Country: %d", PL->Shop1 );
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*6, "Region Free Hacks:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Skip Disc Update Check                    :%s", ( PL->Config&CONFIG_BLOCK_DISC_UPDATE ) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*5, "Console Country Code: %d", PL->Shop1 );
+				
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*7, "Region Free Hacks:" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*8, "System Region Free Hack                   :%s", ( PL->Config&CONFIG_REGION_FREE ) ? "On" : "Off" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Temp Region Change                        :%s", ( PL->Config&CONFIG_REGION_CHANGE ) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "EUR Default Language:  %s", LanguageStr[PL->EULang] );
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*11, "USA Default Language:  %s", LanguageStr[PL->USLang] );
-				if( nisp )
-					PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Force EuRGB60 with NTSC games on PAL nands:%s", ( PL->Config&CONFIG_FORCE_EuRGB60 ) ? "On" : "Off" );
-				else	
-					PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Force EuRGB60 with NTSC games on PAL nands:NA" );
-				PrintFormat( FB[i], MENU_POS_X+15, 84+16*14, "Auto Boot Options:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "EUR Default Language : %s", LanguageStr[PL->EULang] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*11, "USA Default Language : %s", LanguageStr[PL->USLang] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Force PAL Video Mode : %s", VidStr[PL->PALVid] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*13, "Force NTSC Video Mode: %s", VidStr[PL->NTSCVid] );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*15, "Auto Boot Options:" );
 				PrintFormat( FB[i], MENU_POS_X+15, 84+16*16, "Autoboot: %s", BootStr[PL->Autoboot] );
 				if( PL->Autoboot == 1 )					
 					PrintFormat( FB[i], MENU_POS_X+15, 84+16*17, "AB Channel: %.20s", channelCache->channels[PL->ChNbr].name );				
@@ -1297,206 +1042,165 @@ void SMenuDraw( void )
 			} break;
 			default:
 			{
-				if(LoadDI == true)
-					MenuType = 0;
-				else
-					MenuType = 4;
 				ShowMenu = 0;
 			} break;
 		}
 	}
 }
-void LoadDVDCover()
+
+void LoadDIConfig(void)
 {
-	if (curDVDCover != NULL)
-		free(curDVDCover);
-
-	curDVDCover = NULL;
-	
-	if (DICfg == NULL || PosX + ScrollX >= DICfg->Gamecount)
-		return;
-
-	char* imgPathBuffer = (char*)malloca(160,32);
-	_sprintf( imgPathBuffer, "/sneek/covers/%s.raw", DICfg->GameInfo[PosX+ScrollX]);
-
-	curDVDCover = LoadImage(imgPathBuffer);
-
-	if (curDVDCover == NULL)
+	if(!LoadDI)
 	{
-		_sprintf( imgPathBuffer, "/sneek/covers/%s.bmp", DICfg->GameInfo[PosX+ScrollX]);
-		curDVDCover = LoadImage(imgPathBuffer);
+		DICfg = (DIConfig *)malloca( 0x110, 32 );
+		DICfg->Gamecount = 0;
+		DICfg->SlotID = 0;
+		DICfg->Region = 0;
+		DICfg->Config = 0;
 	}
-
-	free(imgPathBuffer);
-}
-void LoadChannelCover()
-{
-	if (curDVDCover != NULL)
-		free(curDVDCover);
-
-	curDVDCover = NULL;
-	
-	if (channelCache == NULL || PosX + ScrollX >= channelCache->numChannels )
-		return;
-
-	char* imgPathBuffer = (char*)malloca(160,32);
-	u32 minorTitleID = channelCache->channels[PosX+ScrollX].titleID & 0xFFFFFFFF;
-
-	_sprintf( imgPathBuffer, "/sneek/covers/%c%c%c%c.raw", minorTitleID >> 24 & 0xFF, minorTitleID >> 16 & 0xFF, minorTitleID >> 8  & 0xFF, minorTitleID & 0xFF );
-	curDVDCover = LoadImage(imgPathBuffer);
-
-	if (curDVDCover == NULL)
+	else
 	{
-		_sprintf( imgPathBuffer, "/sneek/covers/%c%c%c%c.bmp", minorTitleID >> 24 & 0xFF, minorTitleID >> 16 & 0xFF, minorTitleID >> 8  & 0xFF, minorTitleID & 0xFF );
-		curDVDCover = LoadImage(imgPathBuffer);
+		DVDGetGameCount(GameCount);
+		if((*GameCount & 0xF0000) == 0x10000)
+		{
+			DIConfType = 1;
+			*GameCount &= ~0x10000;
+			DICfg = (DIConfig *)malloca( *GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 32);
+			DVDReadGameInfo(0, *GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, DICfg);
+		}
+		else
+		{
+			DIConfType = 0;
+			DICfgO = (DIConfigO *)malloca(*GameCount * OLD_GAMEINFO_SIZE + OLD_CONFIG_SIZE, 32);
+			DVDReadGameInfo(0, *GameCount * OLD_GAMEINFO_SIZE + OLD_CONFIG_SIZE, DICfgO);
+			DICfg = (DIConfig *)malloca(*GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 32);
+			DICfg->SlotID = DICfgO->SlotID;
+			DICfg->Region = DICfgO->Region;
+			DICfg->Gamecount = DICfgO->Gamecount;
+			DICfg->Config = DICfgO->Config;
+			u32 i;
+			for(i = 0; i < (*GameCount); i++)
+			{
+				memcpy(DICfg->GameInfo[i], DICfgO->GameInfo[i], OLD_GAMEINFO_SIZE);
+			}	
+			free(DICfgO);
+		}
 	}
-
-	free(imgPathBuffer);
 }
-void SMenuReadPad ( void )
-{
-	s32 EntryCount=0;
-	u32 Gameidx;
 
-	memcpy( &GCPad, (u32*)0xD806404, sizeof(u32) * 2 );
-
-	if( ( GCPad.Buttons & 0x1F3F0000 ) == 0 && ( *WPad & 0x0000FFFF ) == 0 )
+void SMenuReadPad(void)
+{	
+	memcpy(&GCPad, (u32*)0xD806404, sizeof(u32) * 2);
+	
+	if((GCPad.Buttons & 0x1F3F0000) == 0 && (*WPad & 0x0000FFFF) == 0)
 	{
 		SLock = 0;
 		return;
 	}
 
-	if( SLock != 0 )
-		return;
+	if(SLock)
+		return;	
 
-	if( GCPad.Start || (*WPad&WPAD_BUTTON_1) )
+	if((GCPad.Start || (*WPad&WPAD_BUTTON_1)) && !SLock)
 	{
 		ShowMenu = !ShowMenu;
-		if(ShowMenu)
-		{
-			if( DICfg == NULL )
-			{	
-				if (LoadDI != true)
-				{
-                	DICfg = (DIConfig *)malloca( 0x110, 32 );
-					DICfg->Gamecount = 0;
-					DICfg->SlotID = 0;
-					DICfg->Region = 0;
-					DICfg->Config = 0;
-				}
-				else
-				{
-					DVDGetGameCount( GameCount );
-					if((*GameCount & 0xF0000) == 0x10000)
-					{
-						DIConfType = 1;
-                		*GameCount &= ~0x10000;
-                		DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-                		DVDReadGameInfo( 0, *GameCount * 0x100 + 0x10, DICfg );
-						//DoEE( 432, DICfg );
-					}
-					else
-					{
-						DIConfType = 0;
-                		DICfgO = (DIConfigO *)malloca( *GameCount * 0x80 + 0x10, 32 );
-                		DVDReadGameInfo( 0, *GameCount * 0x80 + 0x10, DICfgO );
-                		DICfg = (DIConfig *)malloca( *GameCount * 0x100 + 0x10, 32 );
-						DICfg->SlotID = DICfgO->SlotID;
-						DICfg->Region = DICfgO->Region;
-						DICfg->Gamecount = DICfgO->Gamecount;
-						DICfg->Config = DICfgO->Config;
-						for(Gameidx = 0;Gameidx < (*GameCount);Gameidx++)
-						{
-							memcpy(DICfg->GameInfo[Gameidx],DICfgO->GameInfo[Gameidx],0x80);
-						}	
-						free(DICfgO);
-                	}
-				}
-			}
-			if( NandCfg == NULL )
-			{
-				char *path = malloca( 0x40, 0x40 );
-				strcpy(path, "/sneek/NandCfg.bin");
-				u32* fsize = malloca(sizeof(u32),0x20);
-				*fsize = 0x10;
-				NandCfg = (NandConfig*)NANDLoadFile(path,fsize);
-				if (NandCfg != NULL)
-				{
-					*NandCount = NandCfg->NandCnt;
-					heap_free( 0, NandCfg );
-					*fsize = *NandCount * 0x80 + 0x10;
-					NandCfg = (NandConfig*)NANDLoadFile(path,fsize);
-					if (NandCfg != NULL)
-					{
-						fnnd = 1;	
-					}
-				}
-				free (fsize);
-				free(path);
-			}
-			if( MenuType == 0 && (DICfg->Config & CONFIG_SHOW_COVERS) )
-				LoadDVDCover();
-		}
+			
+		if(DICfg == NULL)
+			LoadDIConfig();
+
+		MenuType = LoadDI ? 0 : 4;
+		PosX	= 0;
+		ScrollX	= 0;
 		SLock = 1;
+		
+	}
+	
+	if((GCPad.Z || (*WPad&WPAD_BUTTON_2)) && !SLock)
+	{
+		if(ShowMenu && (!MenuType || MenuType == 4))
+		{
+			MenuType = MenuType ? 0 : 4;				
+			PosX	= 0;
+			ScrollX	= 0;
+			SLock	= 1;			
+		}
+		else
+		{				
+			ShowMenu = !ShowMenu;
+			
+			if(DICfg == NULL)
+				LoadDIConfig();
+
+			if(ShowMenu)
+			{
+				if(NandCfg == NULL)
+				{
+					char *path = malloca(0x40, 0x40);
+					strcpy(path, "/sneek/NandCfg.bin");
+					u32* fsize = malloca(sizeof(u32), 0x20);
+					*fsize = 0x10;
+					NandCfg = (NandConfig*)NANDLoadFile(path, fsize);
+					if(NandCfg != NULL)
+					{
+						*NandCount = NandCfg->NandCnt;
+						heap_free( 0, NandCfg );
+						*fsize = *NandCount * 0x80 + 0x10;
+						NandCfg = (NandConfig*)NANDLoadFile(path, fsize);
+						if (NandCfg != NULL)
+							fnnd = 1;	
+					}
+					free(fsize);
+					free(path);
+				}
+			}
+			MenuType = 1;
+			SLock = 1;
+		}
 	}
 
-	if( !ShowMenu )
+	if(!ShowMenu)
 		return;
-		
-	if( DICfg->Config & CONFIG_SHOW_COVERS )
-		EntryCount = 8;
-	else
-		EntryCount = 20;
 
-	if( (GCPad.B || (*WPad&WPAD_BUTTON_B) ) && SLock == 0 )
-	{
-		if( MenuType == 3 )
-			free( PICBuffer );
-		
-		if( curDVDCover != NULL )
-			free(curDVDCover);
-
-		curDVDCover = NULL;
-		if( MenuType == 0 )
+	if((GCPad.B || (*WPad&WPAD_BUTTON_B) ) && !SLock)
+	{			
+		if(MenuType == 0 || MenuType == 1)
+		{
 			ShowMenu = 0;
-		if(LoadDI == true)
-			MenuType = 0;
+		}
+		else if(MenuType == 4)
+		{
+			if(LoadDI)
+				MenuType = 0;
+			else 
+				ShowMenu = 0;
+		}
 		else
 		{
-			if(MenuType == 4)
-				ShowMenu = 0;
-			MenuType = 4;
+			MenuType = 1;
 		}
+			
 		PosX	= 0;
 		ScrollX	= 0;
 		SLock	= 1;
-
-		if( ShowMenu != 0 && DICfg->Config & CONFIG_SHOW_COVERS )
-			LoadDVDCover();
 	}
 
-	if( (GCPad.X || (*WPad&WPAD_BUTTON_PLUS) ) && SLock == 0 )
-	{
-		if( curDVDCover != NULL )
-			free(curDVDCover);
-
-		curDVDCover = NULL;
-		
-		if( MenuType == 1 )
+	if((GCPad.X || (*WPad&WPAD_BUTTON_PLUS)) && !SLock)
+	{		
+		if(MenuType == 1)
 		{
 			MenuType = 5;
-			PosX = 0;
-			
+			PosX = 0;			
 			ScrollX	= 0;
+			SLock	= 1;
 		}
-		else if( MenuType == 5 && MIOSIsDML)
+		else if(MenuType == 5)
 		{
 			MenuType = 6;
-			PosX = 0;
-			
+			PosX = 0;			
 			ScrollX	= 0;
+			SLock	= 1;
 		}
-		else
+		else if(MenuType == 6)
 		{
 			MenuType = 1;
 			if (LoadDI == true)
@@ -1505,220 +1209,182 @@ void SMenuReadPad ( void )
 				PosX = 13;
 				
 			ScrollX	= 0;
-		}
-		SLock	= 1;
+			SLock	= 1;
+		}		
 	}
 
-	if( (GCPad.Y || (*WPad&WPAD_BUTTON_MINUS) ) && SLock == 0 && MenuType != 2 && LoadDI == true)
+	if((GCPad.Y || (*WPad&WPAD_BUTTON_MINUS) ) && !SLock)
 	{
-		if( curDVDCover != NULL )
-			free(curDVDCover);
-
-		curDVDCover = NULL;
-
-		MenuType = 2;
-
-		PosX	= 0;
-		ScrollX	= 0;
-		SLock	= 1;
-	}
-
-	if( (GCPad.Z || (*WPad&WPAD_BUTTON_2) ) && SLock == 0 && MenuType != 3 )
-	{
-		if( curDVDCover != NULL )
-			free(curDVDCover);
-
-		curDVDCover = NULL;
-
-		MenuType= 3;
-		PICSize	= 0;
-		PICNum	= 0;
-
-		s32 fd = IOS_Open("/scrn_00.raw", 1 );
-		if( fd >= 0 )
+		if(MenuType == 1)
 		{
-			PICSize = IOS_Seek( fd, 0, SEEK_END );
-			IOS_Seek( fd, 0, 0 );
-			PICBuffer = (char*)malloca( FBSize, 32 );
-			IOS_Read( fd, PICBuffer, FBSize );
-			IOS_Close( fd );
+			MenuType = 6;
+			PosX = 0;			
+			ScrollX	= 0;
+			SLock	= 1;
 		}
-
-		PosX	= 0;
-		ScrollX	= 0;
-		SLock	= 1;
-	}
-
-	if( *WPad & WPAD_BUTTON_HOME && MenuType != 4 )
-	{
-		if( curDVDCover != NULL )
-			free(curDVDCover);
-
-		curDVDCover = NULL;
-
-		MenuType= 4;
-		PosX	= 0;
-		ScrollX	= 0;
-		SLock	= 1;
-
-		if( DICfg->Config & CONFIG_SHOW_COVERS )
-			LoadChannelCover();
-	}
-
-	switch( MenuType )
-	{
-		case 4: //channel list
+		else if(MenuType == 5)
 		{
-			if( GCPad.A || (*WPad&WPAD_BUTTON_A) )
-			{
-				if (curDVDCover != NULL)
-					free(curDVDCover);
-				curDVDCover = NULL;
-				ShowMenu = 0;
-				LaunchTitle(channelCache->channels[PosX + ScrollX].titleID);
-				SLock = 1;
-				break;
-			}
-			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
-			{
-				if( PosX ){
-					PosX--;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadChannelCover();
-				}
-				else if( ScrollX )
-				{
-					ScrollX--;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadChannelCover();
-				}
+			MenuType = 1;
+			if(LoadDI == true)
+				PosX = 0;
+			else
+				PosX = 13;
+				
+			ScrollX	= 0;
+			SLock	= 1;
+		}
+		else if(MenuType == 6)
+		{
+			MenuType = 5;
+			PosX = 0;			
+			ScrollX	= 0;
+			SLock	= 1;			
+		}	
+	}
 
-				SLock = 1;
-			} else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
-			{
-				if( PosX >= EntryCount-1 )
-				{
-					if( PosX+ScrollX+1 < channelCache->numChannels )
-					{
-						ScrollX++;
-						if( DICfg->Config & CONFIG_SHOW_COVERS )
-							LoadChannelCover();
-					}
-				} else if ( PosX+ScrollX+1 < channelCache->numChannels ){
-					PosX++;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadChannelCover();
-				}
-
-				SLock = 1;
-			} else if( GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT) )
-			{
-				if( ScrollX/EntryCount*EntryCount + EntryCount < channelCache->numChannels )
-				{
-					PosX	= 0;
-					ScrollX = ScrollX/EntryCount*EntryCount + EntryCount;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadChannelCover();
-				} else {
-					PosX	= 0;
-					ScrollX	= 0;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadChannelCover();
-				}
-
-				SLock = 1; 
-			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
-			{
-				if( ScrollX/EntryCount*EntryCount - EntryCount > 0 )
-				{
-					PosX	= 0;
-					ScrollX-= EntryCount;
-				} else {
-					PosX	= 0;
-					ScrollX	= 0;
-				}
-				if( DICfg->Config & CONFIG_SHOW_COVERS )
-					LoadChannelCover();
-
-				SLock = 1; 
-			}
-		} break;
+	switch(MenuType)
+	{		
 		case 0:			// Game list
 		{
-			if( GCPad.A || (*WPad&WPAD_BUTTON_A) )
+			if(GCPad.Z || (*WPad&WPAD_BUTTON_2))
 			{
-				DVDSelectGame( PosX+ScrollX );
-				if (curDVDCover != NULL)
-					free(curDVDCover);
-				curDVDCover = NULL;
+				//DVDSelectGame( PosX+ScrollX, 1 );
+				//ShowMenu = 0;
+				//GameSelected = PosX+ScrollX;
+				//MenuType = 7;
+				//PosX = 7;
+				//SLock = 1;
+			}
+			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
+			{
+				DVDSelectGame(PosX+ScrollX, 0);
 				ShowMenu = 0;
 				SLock = 1;
 			}
-			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
+			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{
-				if( PosX )
-				{
+				if(PosX)
 					PosX--;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadDVDCover();
-				}
-				else if( ScrollX )
-				{
+				else if(ScrollX)
 					ScrollX--;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadDVDCover();
-				}
 
 				SLock = 1;
-			} else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
+			} 
+			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
 			{
-				if( PosX >= EntryCount-1 )
+				if(PosX >= EntryCount-1)
 				{
-					if( PosX+ScrollX+1 < *GameCount )
-					{
+					if(PosX+ScrollX+1 < *GameCount)
 						ScrollX++;
-						if( DICfg->Config & CONFIG_SHOW_COVERS )
-							LoadDVDCover();
-					}
-				} else if ( PosX+ScrollX+1 < *GameCount )
-				{
+				} 
+				else if(PosX+ScrollX+1 < *GameCount)
 					PosX++;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadDVDCover();
-				}
 
 				SLock = 1;
-			} else if( GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT) )
+			} 
+			else if(GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT))
 			{
-				if( ScrollX/EntryCount*EntryCount + EntryCount < DICfg->Gamecount )
+				if(ScrollX/EntryCount*EntryCount + EntryCount < DICfg->Gamecount)
 				{
 					PosX	= 0;
 					ScrollX = ScrollX/EntryCount*EntryCount + EntryCount;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadDVDCover();
-				} else {
+				} 
+				else 
+				{
 					PosX	= 0;
 					ScrollX	= 0;
-					if( DICfg->Config & CONFIG_SHOW_COVERS )
-						LoadDVDCover();
 				}
 
 				SLock = 1; 
-			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
+			} 
+			else if(GCPad.Left || (*WPad&WPAD_BUTTON_LEFT))
 			{
-				if( ScrollX/EntryCount*EntryCount - EntryCount > 0 )
+				if(ScrollX/EntryCount*EntryCount - EntryCount > 0)
 				{
 					PosX	= 0;
 					ScrollX-= EntryCount;
-				} else {
+				} 
+				else 
+				{
 					PosX	= 0;
 					ScrollX	= 0;
 				}
-
-				if( DICfg->Config & CONFIG_SHOW_COVERS )
-					LoadDVDCover();
-
 				SLock = 1; 
+			}
+			else if(GCPad.X || (*WPad&WPAD_BUTTON_PLUS))
+			{
+				if(IgnoreCase((u8)DICfg->GameInfo[PosX+ScrollX][0x20]) >= IgnoreCase((u8)DICfg->GameInfo[*GameCount-1][0x20]))
+				{
+					PosX	= 0;
+					ScrollX	= 0;
+				}
+				else
+				{
+					u32 snum;
+					u32 lnum = PosX + ScrollX;
+				
+					for(snum = PosX+ScrollX; snum <= *GameCount; snum++)
+					{				
+						if(IgnoreCase((u8)DICfg->GameInfo[snum][0x20]) > IgnoreCase((u8)DICfg->GameInfo[lnum][0x20]))
+						{
+							ScrollX += PosX;
+							PosX = 0;
+							break;						
+						}
+						
+						if(PosX >= EntryCount-1)
+						{
+							if(PosX+ScrollX <= *GameCount)							
+								ScrollX++;
+						}
+						else if(PosX+ScrollX <= *GameCount)
+						{
+							PosX++;	
+						}
+					}
+				}				
+				SLock = 1;
+			}
+			else if(GCPad.Y || (*WPad&WPAD_BUTTON_MINUS))
+			{
+				u32 snum;
+				u32 tnum = 0;
+				if(IgnoreCase((u8)DICfg->GameInfo[PosX+ScrollX][0x20]) <= IgnoreCase((u8)DICfg->GameInfo[0][0x20]))
+				{
+					PosX = 0;
+					ScrollX	= *GameCount-1;
+					tnum = ScrollX;
+					for(snum = tnum; snum >= 0; snum--)
+					{
+						if(IgnoreCase((u8)DICfg->GameInfo[snum][0x20]) < IgnoreCase((u8)DICfg->GameInfo[tnum][0x20]))
+						{
+							ScrollX++;
+							break;
+						}
+						ScrollX--;
+					}
+				}
+				else
+				{					
+					u32 lnum = PosX + ScrollX;
+					ScrollX = lnum;
+					PosX = 0;
+				
+					for(snum = PosX+ScrollX; snum >= 0; snum--)
+					{
+						if(IgnoreCase((u8)DICfg->GameInfo[snum][0x20]) < IgnoreCase((u8)DICfg->GameInfo[tnum][0x20]))
+						{
+							ScrollX++;
+							break;
+						}
+					
+						if(IgnoreCase((u8)DICfg->GameInfo[snum][0x20]) < IgnoreCase((u8)DICfg->GameInfo[lnum][0x20]))
+							tnum = snum;
+				
+						ScrollX--;
+					}
+				}
+				SLock = 1;
 			}
 		} break;
 		case 1:		//SNEEK Settings
@@ -1729,142 +1395,155 @@ void SMenuReadPad ( void )
 				{
 					case 0:
 					{
-						if( DICfg->Region == LTN )
-							DICfg->Region = JAP;
-						else
-							DICfg->Region++;
-						SLock = 1;
+						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DVDWriteDIConfig(DICfg);						
 						DVDReinsertDisc=true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
-						DVDReinsertDisc=true;
-					} break;
-					case 3:
-					{
 						DICfg->Config ^= CONFIG_PATCH_VIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
-					} break;
-					case 4:
-					{
-						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
-					} break;
+					} break;				
 					case 5:
 					{
-						DICfg->Config ^= CONFIG_SHOW_COVERS;
+						DICfg->Config ^= DEBUG_CREATE_DIP_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= CONFIG_AUTO_UPDATE_LIST;
+						DICfg->Config ^= DEBUG_CREATE_ES_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 7:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 8:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME_WAIT;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 9:
 					{
-						if( (DICfg->Config & HOOK_TYPE_MASK) == HOOK_TYPE_OSLEEP )
+						if((DICfg->Config & HOOK_TYPE_MASK) == HOOK_TYPE_OSLEEP)
 						{
 							DICfg->Config &= ~HOOK_TYPE_MASK;
 							DICfg->Config |= HOOK_TYPE_VSYNC;
-						} else {
+						} 
+						else 
+						{
 							DICfg->Config += HOOK_TYPE_VSYNC;								
 						}
-
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
-					} break;
-					case 11:
-					{
-						if( DVDReinsertDisc )
-							DVDSelectGame( DICfg->SlotID );
-
-						DVDWriteDIConfig( DICfg );
-
-						DVDReinsertDisc=false;
 					} break;
 					case 12:
 					{
-						DICfg->Gamecount = 0;
-						//DICfg->Config	|= CONFIG_AUTO_UPDATE_LIST;
-						DVDWriteDIConfig( DICfg );
-						LaunchTitle( 0x0000000100000002LL );	
+						DVDLowReset();
+						DVDLowReadDiscID((void*)0);
+						DVDMountDisc();							
+						ShowMenu = 0;
+						SLock = 1;
 					} break;
 					case 13:
 					{
-						Save_Nand_Cfg( NandCfg );
+						DICfg->Config ^= CONFIG_READ_ERROR_RETRY;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_GAME_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 18:
+					{
+						switch(CacheSel)
+						{
+							case 0:
+							{
+								DICfg->Gamecount = 0;
+								DVDWriteDIConfig(DICfg);
+							} break;
+							case 1:
+							{
+								ISFS_Delete("/sneekcache/channelcache.bin");
+							} break;
+							case 2:
+							{
+								ISFS_Delete("/sneek/nandcfg.bin");
+								
+							} break;
+						}
+						LaunchTitle(0x0000000100000002LL);
+					} break;
+					case 19:
+					{
+						PL->EULang   = 1;
+						PL->USLang   = 1;
+						PL->PALVid	 = 1;
+						PL->NTSCVid	 = 5;
+						PL->Shop1    = 0;
+						PL->Config   = 0;
+						PL->Autoboot = 0;
+						PL->ChNbr    = 0;
+						PL->DolNr    = 0;
+						PL->TitleID  = 0x0000000100000002LL;
+						NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
+						DICfg->Config = DML_VIDEO_GAME | DML_LANG_ENGLISH | HOOK_TYPE_OSLEEP;
+						DVDWriteDIConfig( DICfg );
+						LaunchTitle(0x0000000100000002LL);
+					} break;
+						
+					case 20:
+					{
 						NANDWriteFileSafe( "/sneek/nandcfg.bin", NandCfg , NandCfg->NandCnt * NANDINFO_SIZE + NANDCFG_SIZE );
 						LaunchTitle( 0x0000000100000002LL );
-					} break;
-					case 14:			
-					{
-						LaunchTitle( 0x0000000100000100LL );						
-					} break;
-					
+					} break;					
 				}
 				SLock = 1;
 			}
 			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
 			{
-				if(LoadDI == true)
-				{
-					if( PosX )
-					{		
-						PosX--;
-					}
-					else {
-						if( FSUSB )
-							PosX  = 13;
-						else
-							PosX = 13;
-					}
-				}
-				if( PosX == 10 )
-					PosX  = 9;
+				if(PosX == 0)
+					PosX = 20;
+				else if(PosX == 5)
+					PosX = 2;
+				else if(PosX == 12)
+					PosX = 9;
+				else if(PosX == 18)
+					PosX = 15;
+				else
+					PosX--;
 
 				SLock = 1;
-			} else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
+			} 
+			else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
 			{
-				if(LoadDI == true)
-				{
-					if( FSUSB )
-					{
-						if( PosX >= 13 )
-						{
-							PosX=0;
-						} 
-						else
-						{ 
-							PosX++;
-						}
-					} 
-					else 
-					{
-						if( PosX >= 13 )
-						{
-							PosX=0;
-						} 
-						else 
-						{	
-							PosX++;
-						}
-					}
-				}
-
-				if( PosX == 10 )
-					PosX  = 11;
-
+				PosX++;
+				if(PosX == 3)
+					PosX = 5;
+				else if(PosX == 10)
+					PosX = 12;
+				else if(PosX == 16)
+					PosX = 18;
+				else if(PosX >= 21)
+					PosX = 0;
+					
 				SLock = 1;
 			}
 
@@ -1874,47 +1553,42 @@ void SMenuReadPad ( void )
 				{
 					case 0:
 					{
-						if( DICfg->Region == LTN )
-							DICfg->Region = JAP;
-						else
-							DICfg->Region++;
+						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
-						DVDReinsertDisc=true;
-					} break;
-					case 3:
-					{
 						DICfg->Config ^= CONFIG_PATCH_VIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
-					} break;
-					case 4:
-					{
-						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
 					} break;
 					case 5:
 					{
-						DICfg->Config ^= CONFIG_SHOW_COVERS;
+						DICfg->Config ^= DEBUG_CREATE_DIP_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= CONFIG_AUTO_UPDATE_LIST;
+						DICfg->Config ^= DEBUG_CREATE_ES_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 7:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 8:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME_WAIT;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 9:
@@ -1931,7 +1605,28 @@ void SMenuReadPad ( void )
 					} break;
 					case 13:
 					{
-						if( fnnd )
+						DICfg->Config ^= CONFIG_READ_ERROR_RETRY;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_GAME_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 18: 
+					{
+						CacheSel++;
+						if(CacheSel >= 3)
+							CacheSel = 0;
+					} break;
+					case 20:
+					{
+						if(fnnd)
 						{
 							if( NandCfg->NandSel == NandCfg->NandCnt-1 )
 								NandCfg->NandSel = 0;
@@ -1947,47 +1642,42 @@ void SMenuReadPad ( void )
 				{
 					case 0:
 					{
-						if( DICfg->Region == JAP )
-							DICfg->Region = LTN;
-						else
-							DICfg->Region--;
+						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= CONFIG_PATCH_FWRITE;
+						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= CONFIG_PATCH_MPVIDEO;
-						DVDReinsertDisc=true;
-					} break;
-					case 3:
-					{
 						DICfg->Config ^= CONFIG_PATCH_VIDEO;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
-					} break;
-					case 4:
-					{
-						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
 					} break;
 					case 5:
 					{
-						DICfg->Config ^= CONFIG_SHOW_COVERS;
+						DICfg->Config ^= DEBUG_CREATE_DIP_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= CONFIG_AUTO_UPDATE_LIST;
+						DICfg->Config ^= DEBUG_CREATE_ES_LOG;
+						DVDWriteDIConfig(DICfg);
 					} break;
 					case 7:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 8:
 					{
 						DICfg->Config ^= CONFIG_DEBUG_GAME_WAIT;
+						DVDWriteDIConfig(DICfg);
 						DVDReinsertDisc=true;
 					} break;
 					case 9:
@@ -2004,6 +1694,28 @@ void SMenuReadPad ( void )
 					} break;
 					case 13:
 					{
+						DICfg->Config ^= CONFIG_READ_ERROR_RETRY;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_GAME_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_DUMP_ERROR_SKIP;
+						DVDWriteDIConfig(DICfg);
+					} break;
+					case 18: 
+					{						
+						if(CacheSel == 0)
+							CacheSel = 2;
+						else
+							CacheSel--;
+					} break;
+					case 20:
+					{
 						if( fnnd )
 						{
 							if( NandCfg->NandSel == 0 )
@@ -2011,64 +1723,86 @@ void SMenuReadPad ( void )
 							else
 								NandCfg->NandSel--;
 						}
-					} break;
-					
+					} break;					
 				}
 				SLock = 1;
 			} 
-
 		} break;
 		case 2:
 		{
-			if( GCPad.A || (*WPad&WPAD_BUTTON_A) )
+			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
 			{
-				if( DVDStatus == 2 && DVDType > 0 )
+				if(DVDStatus == 2 && DVDType > 0)
 				{
 					DVDStatus = 3;
 				}
 				SLock = 1;
 			}
 		} break;
-		case 3:
+		case 4: //channel list
 		{
-			u32 Update = false;
-			if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
+			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
 			{
-				if( PICNum > 0 )
-				{
-					PICNum--;
-					Update = true;
-				}
+				ShowMenu = 0;
+				LaunchTitle(channelCache->channels[PosX + ScrollX].titleID);
 				SLock = 1;
+				break;
 			}
-			if( GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT) )
+			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{
-				PICNum++;
-				Update = true;
-					
+				if(PosX)
+					PosX--;
+				else if(ScrollX)
+					ScrollX--;
+
 				SLock = 1;
-			}
-
-			if( Update )
+			} 
+			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
 			{
-				char *Path = (char*)malloca( 32, 32 );
-				_sprintf( Path, "/scrn_%02X.raw", PICNum );
-
-				s32 fd = IOS_Open( Path, 1 );
-				if( fd >= 0 )
+				if(PosX >= EntryCount-1)
 				{
-					PICSize = IOS_Seek( fd, 0, SEEK_END );
-					IOS_Seek( fd, 0, 0 );
-					IOS_Read( fd, PICBuffer, PICSize );
-					IOS_Close( fd );
+					if(PosX+ScrollX+1 < channelCache->numChannels)
+						ScrollX++;
+				}
+				else if(PosX+ScrollX+1 < channelCache->numChannels)
+					PosX++;
+
+				SLock = 1;
+			} 
+			else if(GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT))
+			{
+				if(ScrollX/EntryCount*EntryCount + EntryCount < channelCache->numChannels)
+				{
+					PosX	= 0;
+					ScrollX = ScrollX/EntryCount*EntryCount + EntryCount;
+				} 
+				else 
+				{
+					PosX	= 0;
+					ScrollX	= 0;
 				}
 
-				free(Path);
+				SLock = 1; 
+			} 
+			else if(GCPad.Left || (*WPad&WPAD_BUTTON_LEFT))
+			{
+				if(ScrollX/EntryCount*EntryCount - EntryCount > 0)
+				{
+					PosX	= 0;
+					ScrollX-= EntryCount;
+				} 
+				else 
+				{
+					PosX	= 0;
+					ScrollX	= 0;
+				}
+
+				SLock = 1; 
 			}
 		} break;
 		case 5:		//Menu and region hacks
 		{		
-			if( GCPad.A || (*WPad&WPAD_BUTTON_A) )
+			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
 			{
 				switch(PosX)
 				{
@@ -2093,19 +1827,24 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 1 )
+						PL->Config ^= CONFIG_BLOCK_DISC_UPDATE;
+						rebreq = 1;
+					} break;
+					case 5:
+					{
+						if(PL->Shop1 == 1)
 							PL->Shop1 = 8;
-						else if( PL->Shop1 == 52 )
+						else if(PL->Shop1 == 52)
 							PL->Shop1 = 64;
-						else if( PL->Shop1 == 121 )
+						else if(PL->Shop1 == 121)
 							PL->Shop1 = 136;
-						else if( PL->Shop1 == 136 )
+						else if(PL->Shop1 == 136)
 							PL->Shop1 = 148;
-						else if( PL->Shop1 == 148 )
+						else if(PL->Shop1 == 148)
 							PL->Shop1 = 150;
-						else if( PL->Shop1 == 157 )
+						else if(PL->Shop1 == 157)
 							PL->Shop1 = 168;
-						else if( PL->Shop1 == 177 )
+						else if(PL->Shop1 == 177)
 							PL->Shop1 = 1;
 						else
 							PL->Shop1++;
@@ -2122,44 +1861,57 @@ void SMenuReadPad ( void )
 					} break;
 					case 10:
 					{
-						if( PL->EULang == 6 )
+						if(PL->EULang == 6)
 							PL->EULang = 1;
 						else
 							PL->EULang++;
 					} break;
 					case 11:
 					{
-						if( PL->USLang == 1 )
+						if(PL->USLang == 1)
 							PL->USLang = 3;
-						else if( PL->USLang == 3 )
+						else if(PL->USLang == 3)
 							PL->USLang = 4;
-						else if( PL->USLang == 4 )
+						else if(PL->USLang == 4)
 							PL->USLang = 1;
 					} break;
 					case 12:
 					{
-						if( nisp )
-							PL->Config ^= CONFIG_FORCE_EuRGB60;
+						if(PL->PALVid == 3)
+							PL->PALVid = 0;
+						else
+							PL->PALVid++;
+							
+						rebreq = 1;
 					} break;
+					case 13:
+					{
+						if(PL->NTSCVid == 7)
+							PL->NTSCVid = 4;
+						else
+							PL->NTSCVid++;
+							
+						rebreq = 1;
+					} break;					
 					case 16:
 					{
-						if( PL->Autoboot == 1 )
+						if(PL->Autoboot == 1)
 							PL->Autoboot = 0;
 						else
 							PL->Autoboot++;
 					} break;
 					case 17:
 					{
-						if( PL->Autoboot == 1 )
+						if(PL->Autoboot == 1)
 						{
-							if( PL->ChNbr == channelCache->numChannels-1 )
+							if(PL->ChNbr == channelCache->numChannels-1)
 								PL->ChNbr = 0;
 							else
 								PL->ChNbr++;
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
 						}
-						if( PL->Autoboot == 2 )
+						if(PL->Autoboot == 2)
 						{
 							//if( PL->DolNr == *Cnt )
 							//	PL->DolNr = 0;
@@ -2172,63 +1924,57 @@ void SMenuReadPad ( void )
 					} break;
 					case 19:
 					{
-						NANDWriteFileSafe( "/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig) );
-						if( rebreq )
-							LaunchTitle( 0x0000000100000002LL );						
+						NANDWriteFileSafe("/sneekcache/hackscfg.bin", PL , sizeof(HacksConfig));
+						if(rebreq)
+							LaunchTitle(0x0000000100000002LL);						
 					} break;
 				}
 				SLock = 1;
 			}
-			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
+			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{
-				if( PosX )
+				if(PosX)
 				{		
 					PosX--;
 				}					
 				
-				if( PosX == 18 )
+				if(PosX == 18)
 				{
-					if( PL->Autoboot == 1 || PL->Autoboot == 2 )
+					if(PL->Autoboot == 1 || PL->Autoboot == 2)
 						PosX = 17;
 					else
 						PosX = 16;
 				}
-				else if( PosX == 15 )
+				else if(PosX == 15)
 				{
-					PosX = 12;
+					PosX = 13;
 				}
-				else if( PosX == 7 )
+				else if(PosX == 7)
 				{
-					PosX = 4;
+					PosX = 5;
 				}
 
 				SLock = 1;
 			} 
-			else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
+			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
 			{
-				if( PosX >= 19 )
-				{
-					PosX=0;
-				} 
-				else 
-				{	
-					PosX++;
-				}
+				PosX++;
 
-				if( PosX == 5 )
+				if(PosX == 6)
 					PosX = 8;
-				else if( PosX == 13 )
+				else if(PosX == 14)
 					PosX = 16;
-				else if( PosX == 17 && PL->Autoboot == 0 )
+				else if(PosX == 17 && PL->Autoboot == 0)
 					PosX = 19;
-				else if( PosX == 18 )
+				else if(PosX == 18)
 					PosX = 19;	
+				else if(PosX == 20)
+					PosX = 0;
 				SLock = 1;
 			}
-
-			if( GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT) )
+			if(GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT))
 			{
-				switch( PosX )
+				switch(PosX)
 				{
 					case 0:
 					{
@@ -2251,19 +1997,24 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 1 )
+						PL->Config ^= CONFIG_BLOCK_DISC_UPDATE;
+						rebreq = 1;
+					} break;
+					case 5:
+					{
+						if(PL->Shop1 == 1)
 							PL->Shop1 = 8;
-						else if( PL->Shop1 == 52 )
+						else if(PL->Shop1 == 52)
 							PL->Shop1 = 64;
-						else if( PL->Shop1 == 121 )
+						else if(PL->Shop1 == 121)
 							PL->Shop1 = 136;
-						else if( PL->Shop1 == 136 )
+						else if(PL->Shop1 == 136)
 							PL->Shop1 = 148;
-						else if( PL->Shop1 == 148 )
+						else if(PL->Shop1 == 148)
 							PL->Shop1 = 150;
-						else if( PL->Shop1 == 157 )
+						else if(PL->Shop1 == 157)
 							PL->Shop1 = 168;
-						else if( PL->Shop1 == 177 )
+						else if(PL->Shop1 == 177)
 							PL->Shop1 = 1;
 						else
 							PL->Shop1++;
@@ -2280,44 +2031,57 @@ void SMenuReadPad ( void )
 					} break;
 					case 10:
 					{
-						if( PL->EULang == 6 )
+						if(PL->EULang == 6)
 							PL->EULang = 1;
 						else
 							PL->EULang++;
 					} break;
 					case 11:
 					{
-						if( PL->USLang == 1 )
+						if(PL->USLang == 1)
 							PL->USLang = 3;
-						else if( PL->USLang == 3 )
+						else if(PL->USLang == 3)
 							PL->USLang = 4;
-						else if( PL->USLang == 4 )
+						else if(PL->USLang == 4)
 							PL->USLang = 1;
 					} break;
 					case 12:
 					{
-						if( nisp )
-							PL->Config ^=CONFIG_FORCE_EuRGB60;
+						if(PL->PALVid == 3)
+							PL->PALVid = 0;
+						else
+							PL->PALVid++;
+							
+						rebreq = 1;
+					} break;
+					case 13:
+					{
+						if(PL->NTSCVid == 7)
+							PL->NTSCVid = 4;
+						else
+							PL->NTSCVid++;
+							
+						rebreq = 1;
 					} break;
 					case 16:
 					{
-						if( PL->Autoboot == 1 )
+						if(PL->Autoboot == 1)
 							PL->Autoboot = 0;
 						else
 							PL->Autoboot++;
 					} break;
 					case 17:
 					{
-						if( PL->Autoboot == 1 )
+						if(PL->Autoboot == 1)
 						{
-							if( PL->ChNbr == channelCache->numChannels-1 )
+							if(PL->ChNbr == channelCache->numChannels-1)
 								PL->ChNbr = 0;
 							else
 								PL->ChNbr++;
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
 						}
-						else if( PL->Autoboot == 2 )
+						else if(PL->Autoboot == 2)
 						{
 							//if( PL->DolNr == *Cnt )
 							//	PL->DolNr = 0;
@@ -2329,9 +2093,10 @@ void SMenuReadPad ( void )
 					} break;
 				}
 				SLock = 1;
-			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
+			} 
+			else if(GCPad.Left || (*WPad&WPAD_BUTTON_LEFT))
 			{
-				switch( PosX )
+				switch(PosX)
 				{
 					case 0:
 					{
@@ -2354,19 +2119,24 @@ void SMenuReadPad ( void )
 					} break;
 					case 4:
 					{
-						if( PL->Shop1 == 8 )
+						PL->Config ^= CONFIG_BLOCK_DISC_UPDATE;
+						rebreq = 1;
+					} break;
+					case 5:
+					{
+						if(PL->Shop1 == 8)
 							PL->Shop1 = 1;
-						else if( PL->Shop1 == 64 )
+						else if(PL->Shop1 == 64)
 							PL->Shop1 = 52;
-						else if( PL->Shop1 == 136 )
+						else if(PL->Shop1 == 136)
 							PL->Shop1 = 121;
-						else if( PL->Shop1 == 148 )
+						else if(PL->Shop1 == 14)
 							PL->Shop1 = 136;
-						else if( PL->Shop1 == 150 )
+						else if(PL->Shop1 == 150)
 							PL->Shop1 = 148;
-						else if( PL->Shop1 == 168 )
+						else if(PL->Shop1 == 168)
 							PL->Shop1 = 157;
-						else if( PL->Shop1 == 1 )
+						else if(PL->Shop1 == 1)
 							PL->Shop1 = 177;
 						else
 							PL->Shop1--;
@@ -2383,44 +2153,57 @@ void SMenuReadPad ( void )
 					} break;
 					case 10:
 					{
-						if( PL->EULang == 1 )
+						if(PL->EULang == 1)
 							PL->EULang = 6;
 						else
 							PL->EULang--;
 					} break;
 					case 11:
 					{
-						if( PL->USLang == 1 )
+						if(PL->USLang == 1)
 							PL->USLang = 4;
-						else if( PL->USLang == 3 )
+						else if(PL->USLang == 3)
 							PL->USLang = 1;
-						else if( PL->USLang == 4 )
+						else if(PL->USLang == 4)
 							PL->USLang = 3;
 					} break;
 					case 12:
 					{
-						if( nisp )
-							PL->Config ^=CONFIG_FORCE_EuRGB60;
+						if(PL->PALVid == 0)
+							PL->PALVid = 3;
+						else
+							PL->PALVid--;
+							
+						rebreq = 1;
+					} break;
+					case 13:
+					{
+						if(PL->NTSCVid == 4)
+							PL->NTSCVid = 7;
+						else
+							PL->NTSCVid--;
+							
+						rebreq = 1;
 					} break;
 					case 16:
 					{
-						if( PL->Autoboot == 0 )
+						if(PL->Autoboot == 0)
 							PL->Autoboot = 1;
 						else
 							PL->Autoboot--;
 					} break;
 					case 17:
 					{
-						if( PL->Autoboot == 1 )
+						if(PL->Autoboot == 1)
 						{
-							if( PL->ChNbr == 0 )
+							if(PL->ChNbr == 0)
 							PL->ChNbr = channelCache->numChannels-1;
 							else
 								PL->ChNbr--;
 							
 							PL->TitleID = channelCache->channels[PL->ChNbr].titleID;
 						}
-						if( PL->Autoboot == 2 )
+						if(PL->Autoboot == 2)
 						{
 							//if( PL->DolNr == 0 )
 							//	PL->DolNr = *Cnt;
@@ -2436,7 +2219,7 @@ void SMenuReadPad ( void )
 		} break;
 		case 6:     // DML Settings
 		{		
-			if( GCPad.A || (*WPad&WPAD_BUTTON_A) )
+			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
 			{
 				switch(PosX)
 				{					
@@ -2501,17 +2284,17 @@ void SMenuReadPad ( void )
 					} break;
 					case 10:
 					{
-						DVDWriteDIConfig( DICfg );
+						DVDWriteDIConfig(DICfg);
 						
 						if(DVDReinsertDisc)
-							DVDSelectGame(DICfg->SlotID);
+							DVDSelectGame(DICfg->SlotID, 0);
 
 						DVDReinsertDisc = false;
 					} break;
 				}
 				SLock = 1;
 			}
-			if( GCPad.Up || (*WPad&WPAD_BUTTON_UP) )
+			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{				
 				if(PosX == 0)		
 					PosX = 10;
@@ -2522,7 +2305,7 @@ void SMenuReadPad ( void )
 					
 				SLock = 1;
 			} 
-			else if( GCPad.Down || (*WPad&WPAD_BUTTON_DOWN) )
+			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
 			{
 				if(PosX == 8)
 					PosX = 10;
@@ -2534,9 +2317,9 @@ void SMenuReadPad ( void )
 				SLock = 1;
 			}
 
-			if( GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT) )
+			if(GCPad.Right || (*WPad&WPAD_BUTTON_RIGHT))
 			{
-				switch( PosX )
+				switch(PosX)
 				{
 					case 0:
 					{
@@ -2579,7 +2362,9 @@ void SMenuReadPad ( void )
 						{
 							DICfg->Config &= ~DML_VIDEO_CONF;
 							DICfg->Config |= DML_VIDEO_GAME;
-						} else {
+						} 
+						else 
+						{
 							DICfg->Config += DML_VIDEO_GAME;								
 						}
 
@@ -2591,7 +2376,9 @@ void SMenuReadPad ( void )
 						{
 							DICfg->Config &= ~DML_LANG_CONF;
 							DICfg->Config |= DML_LANG_ENGLISH;
-						} else {
+						} 
+						else 
+						{
 							DICfg->Config += DML_LANG_ENGLISH;								
 						}
 
@@ -2599,9 +2386,10 @@ void SMenuReadPad ( void )
 					} break;
 				}
 				SLock = 1;
-			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
+			} 
+			else if(GCPad.Left || (*WPad&WPAD_BUTTON_LEFT))
 			{
-				switch( PosX )
+				switch(PosX)
 				{
 					case 0:
 					{
@@ -2644,7 +2432,9 @@ void SMenuReadPad ( void )
 						{
 							DICfg->Config &= ~DML_VIDEO_CONF;
 							DICfg->Config |= DML_VIDEO_PROGP;
-						} else {
+						} 
+						else 
+						{
 							DICfg->Config -= DML_VIDEO_GAME;								
 						}
 
@@ -2656,7 +2446,9 @@ void SMenuReadPad ( void )
 						{
 							DICfg->Config &= ~DML_LANG_CONF;
 							DICfg->Config |= DML_LANG_DUTCH;
-						} else {
+						} 
+						else 
+						{
 							DICfg->Config -= DML_LANG_ENGLISH;								
 						}
 

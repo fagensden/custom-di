@@ -1,5 +1,4 @@
 /*
-
 SNEEK - SD-NAND/ES + DI emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
@@ -34,8 +33,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "WPad.h"
 #include "DI.h"
 #include "font.h"
-#include "image.h"
-#include "bmp.h"
 #include "NAND.h"
 #include "ES.h"
 #include "utils.h"
@@ -64,11 +61,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define NANDDI_OFF		0xC0
 #define NANDINFO_SIZE	0x100
 
-enum {
+enum 
+{
 	AREA_JPN = 0,
 	AREA_USA,
 	AREA_EUR,
 	AREA_KOR = 6,
+};
+
+enum 
+{
+	MAME = 0,
+	GC,
+	WBFS,
+	FST,
+	INV,
 };
 
 enum SMConfig
@@ -82,13 +89,15 @@ enum SMConfig
 	CONFIG_REGION_CHANGE		= (1<<6),
 	CONFIG_FORCE_INET			= (1<<7),
 	CONFIG_FORCE_EuRGB60		= (1<<8),
+	CONFIG_BLOCK_DISC_UPDATE	= (1<<9),
 };
 
 typedef struct
-{
-	
-	u32 EULang;
-	u32 USLang;
+{	
+	u16 PALVid;
+	u16 EULang;
+	u16 NTSCVid;
+	u16 USLang;
 	u32 Config;
 	u32 Autoboot;	
 	u32 ChNbr;
@@ -112,14 +121,14 @@ void SCheatReadPad( void );
 void LoadAndRebuildChannelCache();
 void __configloadcfg( void );
 
-s32 LaunchTitle(u64 TitleID);
-
-typedef struct{
+typedef struct
+{
 	u64 titleID;
 	u8 name[41];
 } __attribute__((packed)) ChannelInfo;
 
-typedef struct{
+typedef struct
+{
 	u32 numChannels;
 	ChannelInfo channels[];
 } __attribute__((packed)) ChannelCache;

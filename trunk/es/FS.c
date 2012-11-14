@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -255,4 +256,9 @@ s32 ISFS_Get_Di_Path( char* diroot )
 	free (dipath);
 	return r;
 
+}
+
+s32 ISFS_Dont_Fake( void )
+{
+	return IOS_Ioctl( FFSHandle, ISFS_DONT_FAKE, NULL, 0, NULL, 0 );
 }

@@ -1,13 +1,15 @@
 #ifndef __IPC_H__
 #define __IPC_H__	1
 
-struct ioctl_vector {
+struct ioctl_vector 
+{
 	void *data;
 	unsigned int len;
 } __attribute__((packed));
 
 /* IOCTL vector */
-typedef struct iovec {
+typedef struct iovec 
+{
 	void *data;
 	u32   len;
 } ioctlv;

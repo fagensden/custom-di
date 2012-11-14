@@ -6,11 +6,6 @@
 
 #include "string.h"
 
-/*
-static u32 *tmp ALIGNED(32);
-static u32 *s ALIGNED(32);
-*/
-
 size_t strnlen(const char *s, size_t count)
 {
 	const char *sc;
@@ -29,15 +24,15 @@ size_t strlen(const char *s)
 	return sc - s;
 }
 
-char * strstr ( const char *str1, const char *str2)
+char *strstr(const char *str1, const char *str2)
 {
 	char *cp = (char *) str1;
 	char *s1, *s2;
 
-	if ( !*str2 )
+	if (!*str2)
 		return((char *)str1);
 
-	while (*cp)
+	while(*cp)
 	{
 		s1 = cp;
 		s2 = (char *) str2;
@@ -52,14 +47,15 @@ char * strstr ( const char *str1, const char *str2)
 
 	return(NULL);
 }
+
 char *strncpy(char *dst, const char *src, size_t n)
 {
 	char *ret = dst;
 
-	while (n && (*dst++ = *src++))
+	while(n && (*dst++ = *src++))
 		n--;
 
-	while (n--)
+	while(n--)
 		*dst++ = 0;
 
 	return ret;
@@ -69,7 +65,7 @@ char *strcpy(char *dst, const char *src)
 {
 	char *ret = dst;
 
-	while ((*dst++ = *src++))
+	while((*dst++ = *src++))
 		;
 
 	return ret;
@@ -77,7 +73,8 @@ char *strcpy(char *dst, const char *src)
 
 int strcmp(const char *p, const char *q)
 {
-	for (;;) {
+	for(;;) 
+	{
 		unsigned char a, b;
 		a = *p++;
 		b = *q++;
@@ -88,7 +85,8 @@ int strcmp(const char *p, const char *q)
 
 int strcmpi(const char *p, const char *q)
 {
-	for (;;) {
+	for(;;) 
+	{
 		unsigned char a, b;
 		a = *p++;
 		b = *q++;
@@ -103,7 +101,8 @@ int strcmpi(const char *p, const char *q)
 
 int strncmp(const char *p, const char *q, size_t n)
 {
-	while (n-- != 0) {
+	while(n-- != 0) 
+	{
 		unsigned char a, b;
 		a = *p++;
 		b = *q++;
@@ -115,7 +114,8 @@ int strncmp(const char *p, const char *q, size_t n)
 
 int strncmpi(const char *p, const char *q, size_t n)
 {
-	while (n-- != 0) {
+	while(n-- != 0) 
+	{
 		unsigned char a, b;
 		a = *p++;
 		b = *q++;
@@ -139,46 +139,12 @@ void *memset(void *dst, int x, size_t n)
 	return dst;
 }
 
-/*
-
-void *memcpy32(void *dest, const void *src, size_t count)
-{
-//	u32 *tmp = (u32*)(dest);
-//	u32 *s = (u32*)(src);
-
-	if( ( (  (u32)(src) | (u32)(dest) | count) & 0x3)==4)
-	{ 
-		tmp = (u32*)(dest);
-		s = (u32*)(src);
-		count/=4;
-		while (count--)
-			*tmp++ = *s++;
-//		return (void*)(dest);
-	}
-	else
-	{
-		memcpy(dest,src,count);
-	}
-	return (void*)(dest);
-
-}
-*/
-//void *memcpy(void *dst, const void *src, size_t n)
-//{
-//	unsigned char *p;
-//	const unsigned char *q;
-//
-//	for (p = dst, q = src; n; n--)
-//		*p++ = *q++;
-//
-//	return dst;
-//}
-
 int memcmp(const void *s1, const void *s2, size_t n)
 {
 	unsigned char *us1 = (unsigned char *) s1;
 	unsigned char *us2 = (unsigned char *) s2;
-	while (n-- != 0) {
+	while(n-- != 0) 
+	{
 		if (*us1 != *us2)
 			return (*us1 < *us2) ? -1 : +1;
 		us1++;
@@ -196,7 +162,8 @@ char *strchr(const char *s, int c)
 	return NULL;
 }
 
-char* skipPastArticles(char* s){
+char *skipPastArticles(char *s)
+{
 	if (strncmpi(s,"the ",4) == 0)
 		return &s[4];
 	if (strncmpi(s,"a ",4) == 0)
@@ -238,12 +205,6 @@ void Asciify2( char *str )
 			case 0xa0:
 				*ctr = 0x85; 
 				break;
-			//case 0xa2:
-			//	*ctr = 0x83; 
-			//	break;
-			//case 0x80:
-			//	*ctr = 0x41; 
-			//	break;
 			case 0x82:
 				*ctr = 0x41; 
 				break;
@@ -291,7 +252,7 @@ void Asciify2( char *str )
 	*ctr = '\0';
 }
 
-void upperCase( char *str )
+void upperCase(char *str)
 {
 	int i;
 	for( i=0; i<strlen( str ); ++i )
@@ -303,10 +264,10 @@ char *strcat( char *str1, const char *str2 )
 {
 	char *res = str1;
 	
-	while( *str1 )
+	while(*str1)
 		str1++;
 		
-	while( ( *str1++ = *str2++ ) )
+	while((*str1++ = *str2++))
 		;
 		
 	return res;

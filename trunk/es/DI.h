@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -29,6 +30,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "common.h"
 #include "alloc.h"
 
+#define OLD_CONFIG_SIZE		0x10
+#define DVD_CONFIG_SIZE		0x20
+#define DVD_REAL_NAME_OFF	0x20
+#define OLD_GAMEINFO_SIZE	0x80
+#define DVD_GAMEINFO_SIZE	0x100
+#define DVD_GAME_NAME_OFF	0x60
+#define WII_MAGIC_OFF		0x18
+#define DI_MAGIC_OFF		0x1c
+
 enum GameRegion 
 {
 	JAP=0,
@@ -49,8 +59,8 @@ enum SNEEKConfig
 	CONFIG_DUMP_ERROR_SKIP	= (1<<3),
 	CONFIG_DEBUG_GAME		= (1<<4),
 	CONFIG_DEBUG_GAME_WAIT	= (1<<5),	
-	CONFIG_SHOW_COVERS		= (1<<6),
-	CONFIG_AUTO_UPDATE_LIST	= (1<<7),
+	CONFIG_READ_ERROR_RETRY	= (1<<6),
+	CONFIG_GAME_ERROR_SKIP	= (1<<7),
 	DML_CHEATS				= (1<<8),
 	DML_DEBUGGER			= (1<<9),
 	DML_DEBUGWAIT			= (1<<10),
@@ -58,9 +68,11 @@ enum SNEEKConfig
 	DML_NMM_DEBUG			= (1<<12),
 	DML_ACTIVITY_LED		= (1<<13),
 	DML_PADHOOK				= (1<<14),
-	DML_NODISC				= (1<<15),
+	CONFIG_MOUNT_DISC		= (1<<15),
 	DML_BOOT_DISC			= (1<<16),
-	DML_BOOT_DOL			= (1<<17),	
+	DML_BOOT_DOL			= (1<<17),
+	DEBUG_CREATE_DIP_LOG	= (1<<18),
+	DEBUG_CREATE_ES_LOG		= (1<<19),
 };
 
 enum DMLLang
@@ -114,6 +126,10 @@ typedef struct
 	u32		Region;
 	u32		Gamecount;
 	u32		Config;
+	u32		Config2;
+	u32		Padding1;
+	u32		Padding2;
+	u32 	Padding3;
 	u8		GameInfo[][0x100];
 } DIConfig;
 
@@ -152,6 +168,8 @@ enum DIOpcodes
 
 	DVD_SELECT_GAME			= 0x23,
 	DVD_GET_GAMECOUNT		= 0x24,
+	DVD_LOAD_DISC			= 0x25,
+	DVD_MOUNT_DISC			= 0x26,
 	DVD_EJECT_DISC			= 0x27,
 	DVD_INSERT_DISC			= 0x28,
 	DVD_UPDATE_GAME_CACHE	= 0x2F,
@@ -189,29 +207,31 @@ enum DIError
 #define		DMA_READ		3
 #define		IMM_READ		1
 
-u32 DVDLowReadDiscID( void *data );
-u32 DVDLowGetStatus( u32 slot );
-u32 DVDLowSeek( u64 offset );
-u32 DVDLowRequestError( void );
-s32 InitRegisters( void );
-void DVDInit( void );
-void DVDLowReset( void );
-u32 DVDLowRead( void *data, u64 offset, u32 length );
+u32 DVDLowReadDiscID(void *data);
+u32 DVDLowGetStatus(u32 slot);
+u32 DVDLowSeek(u64 offset);
+u32 DVDLowRequestError(void);
+s32 InitRegisters(void);
+void DVDInit(void);
+void DVDLowReset(void);
+u32 DVDLowRead(void *data, u64 offset, u32 length);
 
-s32 DVDOpen( char *FileName );
-s32 DVDWrite( s32 fd, void *ptr, u32 len );
-s32 DVDClose( s32 fd );
+s32 DVDOpen(char *FileName);
+s32 DVDWrite(s32 fd, void *ptr, u32 len);
+s32 DVDClose(s32 fd);
 
-s32 DVDLowEnableVideo( u32 Mode );
-s32 DVDGetGameCount( u32 *Mode );
-s32 DVDSetRegion( u32 *Region );
-s32 DVDGetRegion( u32 *Region );
-s32 DVDEjectDisc( void );
-s32 DVDInsertDisc( void );
-s32 DVDUpdateGameCache( void );
-s32 DVDReadGameInfo( u32 Offset, u32 Length, void *Data );
-s32 DVDWriteDIConfig( void *DIConfig );
-s32 DVDSelectGame( u32 SlotID );
-s32 DVDConnected( void );
+s32 DVDLowEnableVideo(u32 Mode);
+s32 DVDGetGameCount(u32 *Mode);
+s32 DVDSetRegion(u32 *Region);
+s32 DVDGetRegion(u32 *Region);
+s32 DVDEjectDisc(void);
+s32 DVDInsertDisc(void);
+s32 DVDUpdateGameCache(void);
+s32 DVDReadGameInfo(u32 Offset, u32 Length, void *Data);
+s32 DVDWriteDIConfig(void *DIConfig);
+s32 DVDSelectGame( u32 SlotID, u32 Extract );
+s32 DVDLoadGame(u32 ID, u32 Magic);
+s32 DVDMountDisc(void);
+s32 DVDConnected(void);
 
 #endif

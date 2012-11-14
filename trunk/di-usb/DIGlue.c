@@ -84,12 +84,12 @@ s32 DVDOpenDir(char *Path)
 	}
 
 	if(Entries != NULL)
-		hfree(Entries);
+		free(Entries);
 		
 	FirstEntry = 0;
 	if (*EntryCount != 0)
 	{
-		Entries = (char *)halloca(*EntryCount * 64, 32);
+		Entries = (char *)malloca(*EntryCount * 64, 32);
 
 		ret = ISFS_ReadDir( name, Entries, EntryCount );
 		CEntry = Entries;

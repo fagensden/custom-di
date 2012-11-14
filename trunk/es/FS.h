@@ -3,6 +3,7 @@
 SNEEK - SD-NAND/ES emulation kit for Nintendo Wii
 
 Copyright (C) 2009-2011  crediar
+			  2011-2012  OverjoY
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -142,6 +143,7 @@ typedef struct
 #define ISFS_IOCTL_SHUTDOWN			13
 
 #define ISFS_IS_USB					30
+#define ISFS_DONT_FAKE				33
 #define ISFS_GET_DI_PATH			34
 
 s32 ISFS_Init( void );
@@ -155,5 +157,6 @@ s32 ISFS_Rename( const char *FileSrc, const char *FileDst );
 s32 ISFS_GetStats( void *stats );
 s32 ISFS_IsUSB( void );
 s32 ISFS_Get_Di_Path( char* diroot );
+s32 ISFS_Dont_Fake( void );
 
 #endif
