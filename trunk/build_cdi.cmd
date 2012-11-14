@@ -1,7 +1,7 @@
 @echo off
 echo Building..
-make -C di clean all
+make -C di-usb clean all
 
 echo eFIX: Creating di.bin
-eFIX\eFIX di\dimodule.elf>NUL
+eFIX\eFIX di-usb\dimodule.elf>NUL
 
