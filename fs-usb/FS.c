@@ -28,7 +28,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define ISFS_OPEN_READ		1
 
 static FIL fd_stack[MAX_FILE] ALIGNED(32);
-static u32 obcd_trig[MAX_FILE] ALIGNED(32);
 
 char nandpath[0x60] ALIGNED(32);
 char nandroot[0x40] ALIGNED(32);
@@ -48,9 +47,6 @@ typedef struct
 } vector;
 
 u32 HAXHandle;
-
-u32 read_sec;
-u32 write_sec;
 
 bool DontFake = false;
 
@@ -451,7 +447,7 @@ void FFS_Ioctl(struct IPCMessage *msg)
 
 #endif
 			}
-#ifdef DEBUG
+#ifdef EDEBUG
 			dbgprintf("FFS:GetAttr(\"%s\", %02X, %02X, %02X, %02X ):%d in:%X out:%X\n", s, *(u8*)(bufout+0x46), *(u8*)(bufout+0x47), *(u8*)(bufout+0x48), *(u8*)(bufout+0x49), ret, lenin, lenout );
 #endif
 		} break;
@@ -527,7 +523,7 @@ void FFS_Ioctl(struct IPCMessage *msg)
 		
 			ret = FS_GetStats( msg->fd, (FDStat*)bufout );
 
-#ifdef DEBUG
+#ifdef EDEBUG
 			dbgprintf("FFS:GetStats( %d, %d, %d ):%d\n", msg->fd, ((FDStat*)bufout)->file_length, ((FDStat*)bufout)->file_pos, ret );
 #endif
 		} break;
@@ -551,10 +547,6 @@ void FFS_Ioctl(struct IPCMessage *msg)
 			ret = FS_EFATAL;
 		break;
 	}
-	
-#ifdef EDEBUG
-	dbgprintf("FFS:IOS_Ioctl():%d\n", ret);
-#endif
 
 	mqueue_ack( (void *)msg, ret);
 }
@@ -597,9 +589,6 @@ void FS_AdjustNpath( char *path )
 	{
 		strcpy(nandpath, nandroot);
 		strcat(nandpath, path);
-#ifdef EDEBUG
-		//dbgprintf("FFS:Adjusted path to: \"%s\"\n", nandpath);
-#endif
 		
 	}
 	
@@ -716,7 +705,9 @@ s32 FS_GetUsage(char *path, u32 *FileCount, u32 *TotalSize)
 				heap_free( 0, file );
 				return res;
 			}
-		} else {
+		} 
+		else 
+		{
 			*FileCount = *FileCount + 1;
 			*TotalSize = *TotalSize + FInfo.fsize;
 		}
@@ -927,48 +918,41 @@ s32 FS_Delete( char *Path )
 
 	return FS_SUCCESS;
 }
-s32 FS_Close( s32 FileHandle )
+s32 FS_Close(s32 FileHandle)
 {
-	if( FileHandle == FS_FD || FileHandle == SD_FD )
+	if(FileHandle == FS_FD || FileHandle == SD_FD)
 		return FS_SUCCESS;
 	
-	if( FS_CheckHandle(FileHandle) == 0 )
+	if(FS_CheckHandle(FileHandle) == 0)
 		return FS_EINVAL;
 	
-	if (obcd_trig[FileHandle] == 1)
+	if(f_close(&fd_stack[FileHandle]) != FR_OK)
+	{
+		memset32( &fd_stack[FileHandle], 0, sizeof(FIL) );
+		return FS_EFATAL;
+	} 
+	else 
 	{
 		memset32( &fd_stack[FileHandle], 0, sizeof(FIL) );
 		return FS_SUCCESS;
 	}
-	else
-	{
-		if( f_close( &fd_stack[FileHandle] ) != FR_OK )
-		{
-			memset32( &fd_stack[FileHandle], 0, sizeof(FIL) );
-			return FS_EFATAL;
-
-		} else {
-
-			memset32( &fd_stack[FileHandle], 0, sizeof(FIL) );
-			return FS_SUCCESS;
-		}
-	}
 	return FS_EFATAL;
 }
+
 s32 FS_Open(char *Path, u8 Mode)
 {	
-	if( strncmp( Path, "/AX", 3 ) == 0 )
+	if(strncmp(Path, "/AX", 3) == 0)
 		return HAXHandle;
 
 	// Is it a device?
-	if( strncmp( Path, "/dev/", 5 ) == 0 )
+	if(strncmp( Path, "/dev/", 5) == 0)
 	{
-		if( strncmp( Path+5, "fs", 2) == 0)
+		if(strncmp(Path+5, "fs", 2) == 0)
 		{
 //			dbgprintf("/dev/fs trigger detected\n");
 			return FS_FD;
 		}
-		else if(strncmp( Path+5, "usb2", 4 ) == 0) 
+		else if(strncmp(Path+5, "usb2", 4) == 0) 
 		{
 			if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
 			{
@@ -981,6 +965,24 @@ s32 FS_Open(char *Path, u8 Mode)
 				return FS_ENOENT;
 			}
 		}
+		/*else if(strncmp(Path+5, "usb/ven", 7) == 0) 
+		{
+			if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
+			{
+				dbgprintf("/dev/usb/ven trigger detected\n");
+				return VEN_FD;
+			}
+			return FS_ENOENT;
+		}
+		else if(strncmp(Path+5, "usb/hid", 7) == 0) 
+		{
+			if(*(u8*)0x0 != 'R' && *(u8*)0x0 != 'S')
+			{
+				dbgprintf("/dev/usb/hid trigger detected\n");
+				return HID_FD;
+			}
+			return FS_ENOENT;
+		}*/
 		/* else if( strncmp( Path+5, "flash", 5 ) == 0 ) {
 			return FS_ENOENT;		
 		} else if( strncmp( Path+5, "boot2", 5 ) == 0) {
@@ -994,171 +996,93 @@ s32 FS_Open(char *Path, u8 Mode)
 	} 
 	else 
 	{ // Or is it a filepath ?
-
-		//if( (strstr( Path, "data/setting.txt") != NULL) && (Mode&2) )
-		//{
-		//	return FS_EACCESS;
-		//}
-
 		u32  i = 0;
-		while( i < MAX_FILE )
+		while(i < MAX_FILE)
 		{
-			if( fd_stack[i].fs == NULL )
+			if(fd_stack[i].fs == NULL)
 				break;
 			i++;
 		}
 
-		if( i == MAX_FILE )
+		if(i == MAX_FILE)
 			return FS_ENFILE;
 
-//		this location is better
-//		no delay of the /dev/xxx open calls
-//		and no debug messages of them either
-//		dbgprintf("Running FS_Open \n");
+		FS_AdjustNpath(Path);
 
-		FS_AdjustNpath( Path );
-
-		if((strncmp( nandpath, "/sneek/obcd.txt", 15 ) == 0 )&&(Mode == ISFS_OPEN_READ)){
-//			dbgprintf("opening /sneek/obcd.txt detected\n");
-			fd_stack[i].fs = (FATFS*)1;
-			fd_stack[i].fsize = 0xfffffff0;
-			fd_stack[i].fptr =  0xfffffff8;
-			obcd_trig[i] = 1;
-		}
-		else
+		if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
 		{
-			obcd_trig[i] = 0;
-
-			if( f_open( &fd_stack[i], nandpath, Mode ) != FR_OK )
-			{
-				switch( *(vu32*)0x0 >> 8 )
-				{							
-					/*** Add games that need this hack for game saves here ***/
-					case 0x524950:
-					case 0x525559:
+			switch(*(vu32*)0x0 >> 8)
+			{							
+				/*** Add games that need this hack for game saves here ***/
+				case 0x524950:
+				case 0x525559:
+				{
+					if((strstr(nandpath, "/data/") != NULL))
 					{
-						if( ( strstr( nandpath, "/data/" ) != NULL ) )
+						if(f_open( &fd_stack[i], nandpath, Mode | FA_CREATE_ALWAYS ) != FR_OK)
 						{
-							if( f_open( &fd_stack[i], nandpath, Mode | FA_CREATE_ALWAYS ) != FR_OK )
-							{
-								memset32( &fd_stack[i], 0, sizeof( FIL ) );
-								return FS_ENOENT2;
-							}
-						}
-						else
-						{
-							memset32( &fd_stack[i], 0, sizeof( FIL ) );
+							memset32(&fd_stack[i], 0, sizeof(FIL));
 							return FS_ENOENT2;
 						}
-					} break;
-					default:
+					}
+					else
 					{
-						/*** All other requests should return NO ENTRY ***/
-						memset32( &fd_stack[i], 0, sizeof( FIL ) );
+						memset32(&fd_stack[i], 0, sizeof(FIL));
 						return FS_ENOENT2;
-					} break;					
-				}
+					}
+				} break;
+				default:
+				{
+					/*** All other requests should return NO ENTRY ***/
+					memset32(&fd_stack[i], 0, sizeof(FIL));
+					return FS_ENOENT2;
+				} break;					
 			}
-//			return i;
 		}
 		return i;		
 	}
 	return FS_EFATAL;
 }
 
-s32 FS_Write( s32 FileHandle, u8 *Data, u32 Length )
+s32 FS_Write(s32 FileHandle, u8 *Data, u32 Length)
 {
-	s32 ret;
 	u32 wrote = 0;
-	u32 seclen;
 	
 	if( FS_CheckHandle(FileHandle) == 0)
 		return FS_EINVAL;
 
-	if (obcd_trig[FileHandle] == 1)
-	{
-//		dbgprintf("Special write /sneek/obcd.txt detected\n");
-		seclen = Length / s_size;
-//		dbgprintf("Size = %x Offset = %x\n",seclen,fd_stack[FileHandle].fptr);
-
-		if (seclen > 0)
-		{
-			if(USBStorage_Write_Sectors(fd_stack[FileHandle].fptr,seclen,Data) != 1)
-			{
-				ret = FR_DENIED;
-			}
-			else
-			{
-				ret = FR_OK;
-				fd_stack[FileHandle].fptr+=seclen;				
-				wrote = Length;
-			}
-		}
-		else
-			ret = FR_DENIED;
-	}
-	else
-	{	
-		ret = f_write( &fd_stack[FileHandle], Data, Length, &wrote );
-	}	
-	switch( ret )
+	s32 ret = f_write(&fd_stack[FileHandle], Data, Length, &wrote);	
+	
+	switch(ret)
 	{
 		case FR_OK:
 			return wrote;
 		case FR_DENIED:
 			return FS_EACCESS;
 		default:
-			dbgprintf("f_write( %p, %p, %d, %p):%d\n", &fd_stack[FileHandle], Data, Length, &wrote, ret );
-			break;
+			dbgprintf("f_write( %p, %p, %d, %p):%d\n", &fd_stack[FileHandle], Data, Length, &wrote, ret);
+		break;
 	}
 	return FS_EFATAL;
 }
 
-s32 FS_Read( s32 FileHandle, u8 *Data, u32 Length )
+s32 FS_Read(s32 FileHandle, u8 *Data, u32 Length)
 {
-	s32 r;
 	u32 read = 0;
-	u32 seclen;
 
-	if( FS_CheckHandle(FileHandle) == 0)
+	if(FS_CheckHandle(FileHandle) == 0)
 		return FS_EINVAL;
 
-	if (obcd_trig[FileHandle] == 1)
-	{
-		r = FR_OK;
-//		dbgprintf("Special read /sneek/obcd.txt detected\n");
-		seclen = Length / s_size;
-//		dbgprintf("Size = %x Offset = %x\n",seclen,fd_stack[FileHandle].fptr);
-
-		if (seclen > 0)
-		{
-			if(USBStorage_Read_Sectors(fd_stack[FileHandle].fptr,seclen,Data) != 1)
-			{
-				r = FR_DENIED;
-			}
-			else
-			{
-				r = FR_OK;
-				fd_stack[FileHandle].fptr+=seclen;				
-				read = Length;
-			}
-		}
-		else
-			r = FR_DENIED;
-	}
-	else
-	{
-		r = f_read( &fd_stack[FileHandle], Data, Length, &read );
-	}
+	s32 ret = f_read(&fd_stack[FileHandle], Data, Length, &read);
 	
-	switch( r )
+	switch(ret)
 	{
 		case FR_OK:
 			return read;
 		case FR_DENIED:
 			return FS_EACCESS;
 		default:
-			dbgprintf("f_read( %p, %p, %d, %p):%d\n", &fd_stack[FileHandle], Data, Length, &read, r );
+			//dbgprintf("f_read( %p, %p, %d, %p):%d\n", &fd_stack[FileHandle], Data, Length, &read, ret);
 			break;
 	}
 
@@ -1174,51 +1098,41 @@ s32 FS_Seek( s32 FileHandle, s32 Where, u32 Whence )
 	if( FS_CheckHandle(FileHandle) == 0)
 		return FS_EINVAL;
 
-	if (obcd_trig[FileHandle] == 1)
+	switch( Whence )
 	{
-		fd_stack[FileHandle].fptr = (u32)Where;
-		if (Whence & SEEK_CUR)
-			fd_stack[FileHandle].fptr |= 0x80000000;
-		
-		return Where;
-	}
-	else
-	{
-		switch( Whence )
+		case SEEK_SET:
 		{
-			case SEEK_SET:
-			{
-				if( Where > fd_stack[FileHandle].fsize )
-					break;
-
-				if( f_lseek( &fd_stack[FileHandle], Where ) == FR_OK )
-				{
-					if( Where == 0 )
-						return 0;
-
-					return fd_stack[FileHandle].fptr;
-				}
-			} break;
-
-			case SEEK_CUR:
-				if( f_lseek(&fd_stack[FileHandle], Where + fd_stack[FileHandle].fptr) == FR_OK )
-					return fd_stack[FileHandle].fptr;
-			break;
-
-			case SEEK_END:
-				if( f_lseek(&fd_stack[FileHandle], Where + fd_stack[FileHandle].fsize) == FR_OK )
-					return fd_stack[FileHandle].fptr;
-			break;
-
-			default:
+			if(Where > fd_stack[FileHandle].fsize)
 				break;
-		}
+
+			if(f_lseek( &fd_stack[FileHandle], Where) == FR_OK)
+			{
+				if(Where == 0)
+					return 0;
+
+				return fd_stack[FileHandle].fptr;
+			}
+		} break;
+		case SEEK_CUR:
+		{
+			if(f_lseek(&fd_stack[FileHandle], Where + fd_stack[FileHandle].fptr) == FR_OK)
+				return fd_stack[FileHandle].fptr;
+		} break;
+
+		case SEEK_END:
+		{
+			if(f_lseek(&fd_stack[FileHandle], Where + fd_stack[FileHandle].fsize) == FR_OK)
+					return fd_stack[FileHandle].fptr;
+		} break;
+
+		default:
+			break;
 	}
 	return FS_EFATAL;
 }
-s32 FS_GetStats( s32 FileHandle, FDStat *Stats )
+s32 FS_GetStats(s32 FileHandle, FDStat *Stats)
 {
-	if( FS_CheckHandle(FileHandle) == 0 )
+	if(FS_CheckHandle(FileHandle) == 0)
 		return FS_EINVAL;
 
 	Stats->file_length  = fd_stack[FileHandle].fsize;
@@ -1226,10 +1140,10 @@ s32 FS_GetStats( s32 FileHandle, FDStat *Stats )
 
 	return FS_SUCCESS;
 }
-s32 FS_CreateDir( char *Path )
+s32 FS_CreateDir(char *Path)
 {
 	FS_AdjustNpath(Path);
-	switch( f_mkdir( nandpath ) )
+	switch(f_mkdir(nandpath))
 	{
 		case FR_OK:
 			return FS_SUCCESS;
@@ -1249,41 +1163,41 @@ s32 FS_CreateDir( char *Path )
 
 	return FS_EFATAL;
 }
-s32 FS_SetAttr( char *Path )
+s32 FS_SetAttr(char *Path)
 {		
 	FIL fil;	
 	FS_AdjustNpath(Path);
 	
-	if( f_open( &fil, nandpath, FA_OPEN_EXISTING ) == FR_OK )
+	if( f_open(&fil, nandpath, FA_OPEN_EXISTING) == FR_OK)
 	{
-		f_close( &fil );
+		f_close(&fil);
 		return FS_SUCCESS;
-
-	} else {
-
+	} 
+	else 
+	{
 		DIR d;
-		if( f_opendir( &d, nandpath ) == FR_OK )
+		if(f_opendir(&d, nandpath) == FR_OK)
 			return FS_SUCCESS;
 	}
 
 	return FS_ENOENT2;
 }
-s32 FS_DeleteFile( char *Path )
+s32 FS_DeleteFile(char *Path)
 {
-	FS_AdjustNpath( Path );
+	FS_AdjustNpath(Path);
 
 #ifdef USEATTR
 	//delete attribute file
-	char *AttrFile = (char*)heap_alloc_aligned( 0, 0x80, 0x40 );
+	char *AttrFile = (char*)heap_alloc_aligned(0, 0x80, 0x40);
 
-	_sprintf( AttrFile, "%s.attr", nandpath );
-	f_unlink( AttrFile );
-	heap_free( 0, AttrFile );
+	_sprintf(AttrFile, "%s.attr", nandpath);
+	f_unlink(AttrFile);
+	heap_free(0, AttrFile);
 #endif
-	switch( f_unlink( nandpath ) )
+	switch(f_unlink(nandpath))
 	{
 		case FR_DENIED:	//Folder is not empty and can't be removed without deleting the content first	
-			return FS_Delete( Path );
+			return FS_Delete(Path);
 
 		case FR_OK:
 			return FS_SUCCESS;
@@ -1300,39 +1214,39 @@ s32 FS_DeleteFile( char *Path )
 
 	return FS_EFATAL;
 }
-s32 FS_Move( char *sPath, char *dPath )
+s32 FS_Move(char *sPath, char *dPath)
 {
-	char *LSPath = (char *)heap_alloc_aligned( 0, 0x80, 0x40 );
+	char *LSPath = (char *)heap_alloc_aligned(0, 0x80, 0x40);
 	
-	FS_AdjustNpath( sPath );
-	strcpy( LSPath, nandpath );
-	FS_AdjustNpath( dPath );
+	FS_AdjustNpath(sPath);
+	strcpy(LSPath, nandpath);
+	FS_AdjustNpath(dPath);
 	
-	switch( f_rename( LSPath, nandpath ) )
+	switch(f_rename(LSPath, nandpath))
 	{
 		case FR_OK:
 		{
-			heap_free( 0, LSPath );
+			heap_free(0, LSPath);
 			return FS_SUCCESS;
 		}
 		case FR_NO_PATH:
 		case FR_NO_FILE:
 		{	
-			heap_free( 0, LSPath );
+			heap_free(0, LSPath);
 			return FS_ENOENT2;
 		}
 		case FR_EXIST:	//On normal IOS Rename overwrites the target!
-			if( f_unlink( nandpath ) == FR_OK )
+			if(f_unlink(nandpath) == FR_OK)
 			{
-				if( f_rename( LSPath, nandpath ) == FR_OK )
+				if(f_rename(LSPath, nandpath) == FR_OK)
 				{
-					heap_free( 0, LSPath );
+					heap_free(0, LSPath);
 					return FS_SUCCESS;
 				}
 			}
 		default:
 			break;
 	}
-	heap_free( 0, LSPath );
+	heap_free(0, LSPath);
 	return FS_EFATAL;
 }

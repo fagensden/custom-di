@@ -39,7 +39,6 @@ s32 USB_GetDescriptors(struct ehci_device * fd, usb_devdesc *udd)
 	udd->idVendor = cpu_to_le16(udd->idVendor);
 	udd->idProduct = cpu_to_le16(udd->idProduct);
 	udd->bcdDevice = cpu_to_le16(udd->bcdDevice);
-
 	udd->configurations = USB_Alloc(udd->bNumConfigurations* sizeof(*udd->configurations));
 	if(udd->configurations == NULL)
 	{
@@ -94,7 +93,7 @@ s32 USB_GetDescriptors(struct ehci_device * fd, usb_devdesc *udd)
 			for(iEndpoint = 0; iEndpoint < uid->bNumEndpoints; iEndpoint++)
 			{
 				ued = &uid->endpoints[iEndpoint];
-				memcpy(ued, ptr, USB_DT_ENDPOINT_SIZE);
+				memcpy(ued, ptr, USB_DT_ENDPOINT_SIZE);	
 				ptr += ued->bLength;
 				ued->wMaxPacketSize = cpu_to_le16(ued->wMaxPacketSize);
 			}
@@ -191,3 +190,4 @@ s32 USB_ClearHalt(struct ehci_device *fd, u8 endpoint)
 	return __usb_control_message(fd, (USB_CTRLTYPE_DIR_HOST2DEVICE | USB_CTRLTYPE_TYPE_STANDARD | USB_CTRLTYPE_REC_ENDPOINT),
                                      USB_REQ_CLEARFEATURE, USB_FEATURE_ENDPOINT_HALT, endpoint, 0, NULL, NULL, NULL);
 }
+

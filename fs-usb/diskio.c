@@ -32,17 +32,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 u32 s_size;
 u32 s_cnt;
 
+int tiny_ehci_init(void);
+
 DSTATUS disk_initialize(BYTE drv, WORD *ss)
 {
 	s32 r;
 	int i;
 
 	while(1)
-	{	
-		udelay(50000);
-		
+	{			
 		dbgprintf("FFS:Initializing TinyEHCI...\n");
 		tiny_ehci_init();
+		
+		udelay(50000);
 
 		dbgprintf("FFS:Discovering EHCI devices...\n");
 		
@@ -95,7 +97,7 @@ DRESULT disk_read (BYTE drv, BYTE *buff, DWORD sector, BYTE count)
 DRESULT disk_write (BYTE drv, const BYTE *buff, DWORD sector, BYTE count)
 {
 	u32 *buffer = malloca(count * s_size, 0x40);
-	memcpy(buffer, buff, count * s_size);
+	memcpy(buffer, (void*)buff, count * s_size);
 
 	if(USBStorage_Write_Sectors(sector, count, buffer) != 1)
 	{

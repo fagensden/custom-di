@@ -173,7 +173,7 @@ s32 DVDDelete(char *Path)
 
 s32 DVDCreateDir(char *Path)
 {
-	return ISFS_CreateDir( Path, 0, 3, 3, 3);
+	return ISFS_CreateDir(Path, 0, 3, 3, 3);
 }
 
 void DVDClose(s32 handle)

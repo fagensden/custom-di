@@ -149,7 +149,6 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		case IOCTL_ES_WIIFLOW_IDENTIFY:
 		{
 			ret = 0x666c6f77;
-			dbgprintf("ES:Sending Wiiflow magic request\n");
 		} break;
 		case IOCTL_ES_VERIFYSIGN:
 		{
@@ -185,7 +184,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			}
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:GetDeviceCert():%d\n", ret );			
+			//dbgprintf("ES:GetDeviceCert():%d\n", ret );			
 		} break;
 		case IOCTL_ES_DIGETSTOREDTMD:
 		{
@@ -317,7 +316,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			}
 
 			ret = ES_SUCCESS;
-			dbgprintf("ES:ListTmdContentsOnCard():%d\n", ret );
+			//dbgprintf("ES:ListTmdContentsOnCard():%d\n", ret );
 		} break;
 		case IOCTL_ES_GETDEVICEID:
 		{
@@ -352,7 +351,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			*(u32*)(v[2].data) = 0;
 			ret = ES_SUCCESS;
 
-			dbgprintf("ES:ES_GetConsumption():%d\n", ret );
+			//dbgprintf("ES:ES_GetConsumption():%d\n", ret );
 		} break;
 		case IOCTL_ES_ADDTITLEFINISH:
 		{
@@ -382,7 +381,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 			iCleanUpTikTMD();
 
-			////dbgprintf("ES:AddTitleFinish():%d\n", ret );
+			dbgprintf("ES:AddTitleFinish():%d\n", ret );
 		} break;
 		case IOCTL_ES_ADDTITLECANCEL:
 		{
@@ -405,38 +404,40 @@ void ES_Ioctlv( struct ipcmessage *msg )
 		} break;
 		case IOCTL_ES_ADDCONTENTFINISH:
 		{
-			if( SkipContent )
+			if(SkipContent)
 			{
 				ret = ES_SUCCESS;
-				dbgprintf("ES:AddContentFinish():%d\n", ret );
-				break;
 			}
-
-			if( iTMD == NULL )
-				ret = ES_FATAL;
-			else {
-				//load Ticket to forge the decryption key
-				_sprintf( path, "/ticket/%08x/%08x.tik", (u32)(iTMD->TitleID>>32), (u32)(iTMD->TitleID) );
-
-				iTIK = NANDLoadFile( path, size );
-				if( iTIK == NULL )
+			else
+			{
+				if(iTMD == NULL)
 				{
-					iCleanUpTikTMD();
-					ret = ES_ETIKTMD;
+					ret = ES_FATAL;
+				}
+				else 
+				{
+					//load Ticket to forge the decryption key
+					_sprintf(path, "/ticket/%08x/%08x.tik", (u32)(iTMD->TitleID>>32), (u32)(iTMD->TitleID));
 
-				} else {
-
-					ret = ES_CreateKey( iTIK );
-					if( ret >= 0 )
+					iTIK = NANDLoadFile( path, size );
+					if(iTIK == NULL)
 					{
-						ret = ES_AddContentFinish( *(vu32*)(v[0].data), iTIK, iTMD );
-						DestroyKey( *KeyID );
-					}
+						iCleanUpTikTMD();
+						ret = ES_ETIKTMD;
+					} 
+					else 
+					{
+						ret = ES_CreateKey( iTIK );
+						if( ret >= 0 )
+						{
+							ret = ES_AddContentFinish(*(vu32*)(v[0].data), iTIK, iTMD);
+							DestroyKey( *KeyID );
+						}
 
-					free( iTIK );
+						free( iTIK );
+					}
 				}
 			}
-
 			dbgprintf("ES:AddContentFinish():%d\n", ret );
 		} break;
 		case IOCTL_ES_ADDCONTENTDATA:
@@ -763,7 +764,9 @@ void ES_Ioctlv( struct ipcmessage *msg )
 			if( TMD == NULL )
 			{
 				ret = *size;
-			} else {
+			} 
+			else 
+			{
 				*(u32*)(v[1].data) = TMD->ContentCount*16+0x5C;
 
 				free( TMD );
@@ -1118,7 +1121,7 @@ void ES_Ioctlv( struct ipcmessage *msg )
 
 	mqueue_ack( (void *)msg, ret);
 }
-int _main( int argc, char *argv[] )
+int _main(int argc, char *argv[])
 {
 	s32 ret = 0;
 	struct ipcmessage *message=NULL;
@@ -1127,9 +1130,9 @@ int _main( int argc, char *argv[] )
 
 	ignore_logfile = 1;
 	
-	thread_set_priority( 0, 0x79 );
-	thread_set_priority( 0, 0x50 );
-	thread_set_priority( 0, 0x10 );
+	thread_set_priority(0, 0x79);
+	thread_set_priority(0, 0x50);
+	thread_set_priority(0, 0x79);
 
 #ifdef DEBUG
 	dbgprintf("$IOSVersion: ES: %s %s 64M DEBUG$\n", __DATE__, __TIME__ );
@@ -1138,56 +1141,55 @@ int _main( int argc, char *argv[] )
 #endif
 
 	KernelVersion = *(vu32*)0x00003140;
-	dbgprintf("ES:KernelVersion:%d\n", KernelVersion );
+	dbgprintf("ES:KernelVersion:%d\n", KernelVersion);
 
 	dbgprintf("ES:Heap Init...");
-	MessageQueue = mqueue_create( MessageHeap, 1 );
+	MessageQueue = mqueue_create(MessageHeap, 1);
 	dbgprintf("ok\n");
 
-	device_register( "/dev/es", MessageQueue );
+	device_register("/dev/es", MessageQueue);
 
-	s32 Timer = TimerCreate( 0, 0, MessageQueue, 0xDEADDEAD );
-	dbgprintf("ES:Timer:%d\n", Timer );
+	s32 Timer = TimerCreate(0, 0, MessageQueue, 0xDEADDEAD);
+	dbgprintf("ES:Timer:%d\n", Timer);
 
 	u32 pid = GetPID();
-	dbgprintf("ES:GetPID():%d\n", pid );
-	ret = SetUID( pid, 0 );
-	dbgprintf("ES:SetUID():%d\n", ret );
-	ret = _cc_ahbMemFlush( pid, 0 );
-	dbgprintf("ES:_cc_ahbMemFlush():%d\n", ret );
+	dbgprintf("ES:GetPID():%d\n", pid);
+	ret = SetUID(pid, 0);
+	dbgprintf("ES:SetUID():%d\n", ret);
+	ret = _cc_ahbMemFlush(pid, 0);
+	dbgprintf("ES:_cc_ahbMemFlush():%d\n", ret);
 
 	u32 Flag1;
 	u16	Flag2;
-	GetFlags( &Flag1, &Flag2 );
-	dbgprintf("ES:Flag1:%d Flag2:%d\n", Flag1, Flag2 );
+	GetFlags(&Flag1, &Flag2);
+	dbgprintf("ES:Flag1:%d Flag2:%d\n", Flag1, Flag2);
 
 	u32 version = GetKernelVersion();
-	dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18 );
+	dbgprintf("ES:KernelVersion:%08X, %d\n", version, (version<<8)>>0x18);
 	
 	ret = ISFS_Init();
 
-	dbgprintf("ES:ISFS_Init():%d\n", ret );
+	dbgprintf("ES:ISFS_Init():%d\n", ret);
 
-	if( ISFS_IsUSB() == FS_ENOENT2 )
+	if(ISFS_IsUSB() == FS_ENOENT2)
 	{
 		dbgprintf("ES:Found FS-SD\n");
 		FSUSB = 0;
 
-		ret = device_register("/dev/sdio", MessageQueue );
+		ret = device_register("/dev/sdio", MessageQueue);
 #ifdef DEBUG
-		dbgprintf("ES:DeviceRegister(\"/dev/sdio\"):%d QueueID:%d\n", ret, queueid );
+		dbgprintf("ES:DeviceRegister(\"/dev/sdio\"):%d QueueID:%d\n", ret, queueid);
 #endif
-	} else {
+	} 
+	else 
+	{
 		dbgprintf("ES:Found FS-USB\n");
 		FSUSB = 1;
-		// if we start logging 2 fast
-		// we will delay the es startup
-		// and di won't be able to grab the harddisk
 		ignore_logfile = 0;
 	}
-	if(ISFS_Get_Di_Path( diroot ) == FS_SUCCESS)
+	if(ISFS_Get_Di_Path(diroot) == FS_SUCCESS)
 	{
-		dbgprintf("ES:ISFS_Get_Di_Path = %s\n",diroot);
+		dbgprintf("ES:ISFS_Get_Di_Path = %s\n", diroot);
 		diroot[0x1f] = 0;
 	}
 	else
@@ -1196,153 +1198,133 @@ int _main( int argc, char *argv[] )
 		strcpy(diroot,"sneek");
 	}
 
-	SDStatus = (u32*)malloca( sizeof(u32), 0x40 );
+	SDStatus = (u32*)malloca(sizeof(u32), 0x40);
 
 	*SDStatus = 0x00000001;
-	HCR = (u32*)malloca( sizeof(u32)*0x30, 0x40 );
-	memset32( HCR, 0, sizeof(u32)*0x30 );
+	HCR = (u32*)malloca(sizeof(u32)*0x30, 0x40);
+	memset32(HCR, 0, sizeof(u32)*0x30);
 	
 //Used in Ioctlvs
-	path		= (char*)malloca(		0x40,  32 );
-	size		= (u32*) malloca( sizeof(u32), 32 );
-	iTitleID	= (u64*) malloca( sizeof(u64), 32 );
+	path		= (char*)malloca(0x40, 32);
+	size		= (u32*) malloca(sizeof(u32), 32);
+	iTitleID	= (u64*) malloca(sizeof(u64), 32);
 	
-	ES_BootSystem( &TitleID, &KernelVersion );
+	ES_BootSystem(&TitleID, &KernelVersion);
 
-	dbgprintf("ES:TitleID:%08x-%08x version:%d\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion );
+	dbgprintf("ES:TitleID:%08x-%08x version:%d\n", (u32)((TitleID)>>32), (u32)(TitleID), TitleVersion);
 
 	ret = 0;
 	u32 MenuType = 0;
 	u32 StartTimer = 1;
-	u32 Prii_Setup = 0;
 
-	SMenuInit( TitleID, TitleVersion );
+	SMenuInit(TitleID, TitleVersion);
 	ignore_logfile = 0;
 
-	if( LoadFont( "/sneek/font.bin" ) )	// without a font no point in displaying the menu
-	{
-		TimerRestart( Timer, 0, 10000000 );
-	}
+	if(LoadFont("/sneek/font.bin"))	// without a font no point in displaying the menu
+		TimerRestart(Timer, 0, 10000000);
 	
-	if( TitleID == 0x0000000100000002LL )
+	if(TitleID == 0x0000000100000002LL)
+	{
+		LoadAndRebuildChannelCache();
+		Force_Internet_Test();
 		MenuType = 1;
-	else if ( (TitleID >> 32) ==  0x00010000LL ) 
-		MenuType = 2;
+	}
+	//else if((TitleID >> 32) ==  0x00010001LL) 
+	//	MenuType = 2;
+	//else if ( (TitleID >> 32) ==  0x00010000LL ) 
+	//	MenuType = 2;	
 
-	LoadAndRebuildChannelCache();
-	Force_Internet_Test();
-
+	thread_set_priority(0, 0x10);
+	
 	dbgprintf("ES:looping!\n");
 		
-	while (1)
+	while(1)
 	{
-		ret = mqueue_recv( MessageQueue, (void *)&message, 0);
-		if( ret != 0 )
+		ret = mqueue_recv(MessageQueue, (void *)&message, 0);
+		if(ret != 0)
 		{
 			dbgprintf("ES:mqueue_recv(%d) FAILED:%d\n", MessageQueue, ret);
 			return 0;
 		}
 	
-		if( (u32)message == 0xDEADDEAD )
+		if((u32)message == 0xDEADDEAD)
 		{
-			TimerStop( Timer );
-
-			//proper priiloader will set to obcd
-			//on adress 0x8132FFFB which is not 32 bit aligned
-			//u32 luc = 0x0;
-			if(((*(u32*)(0x0132FFF8) & 0xff) != 0x4f)||((*(u32*)(0x0132FFFC) & 0xffffff00) != 0x62636400))
-			//if (luc != 0x4f626364)
+			TimerStop(Timer);
+			
+			if(StartTimer)
 			{
-				//if we are coming from a prii_setup, the menu still needs to load
-				//so we will wait 10 seconds like normal to ensure it's there
-				if (Prii_Setup == 1)
+				//if(*(vu32*)0x1804 == 0x53545542 && *(vu32*)0x1808 == 0x48415858) 
+				//{
+				
+				//}
+				dbgprintf("ES:Normal StartTimer\n"); 
+				StartTimer = 0;
+				if(MenuType == 1)
 				{
-					Prii_Setup = 0;
-					TimerRestart( Timer, 0, 10000000);	
-				}
+					if(!SMenuFindOffsets((void*)0x01330000, 0x003D0000))
+					{
+						dbgprintf("ES:Failed to find all menu patches!\n");
+						continue;
+					}
+				} 
+				else if(MenuType == 2) 
+				{
+					if(!SMenuFindOffsets((void*)0x00000000, 0x01200000))
+					{
+						dbgprintf("ES:Failed to find all menu patches!\n");
+						continue;
+					}
+				} 
 				else
 				{
-					if( StartTimer )
-					{
-						dbgprintf("ES:Normal StartTimer\n"); 
-						StartTimer = 0;
-						if( MenuType == 1 )
-						{
-							if( !SMenuFindOffsets( (void*)0x01330000, 0x003D0000 ) )
-							{
-								dbgprintf("ES:Failed to find all menu patches!\n");
-								continue;
-							}
-						} else if( MenuType == 2 ) {
-							if( !SMenuFindOffsets( (void*)0x00000000, 0x01200000 ) )
-							{
-								dbgprintf("ES:Failed to find all menu patches!\n");
-								continue;
-							}
-						} else {
-							continue;
-						}
-					}
-			
-					SMenuAddFramebuffer();
-					if( MenuType == 1 )
-					{
-						SMenuDraw();
-						SMenuReadPad();
-					} 
-					else if( MenuType == 2 ) 
-					{
-						SCheatDraw();
-						SCheatReadPad();
-					}
-					TimerRestart( Timer, 0, 2500 );
+					continue;
 				}
+				
 			}
-			else
+			
+			SMenuAddFramebuffer();
+			if(MenuType == 1)
 			{
-				dbgprintf("ES:prii Obcd detected: %x\n",*(u32*)(0x0132FFFC));
-				TimerRestart( Timer, 0, 1000000);	
-				Prii_Setup = 1;
-			}
-			//TimerRestart( Timer, 0, 2500 );
+				SMenuDraw();
+				SMenuReadPad();
+			} 
+			//else if(MenuType == 2) 
+			//{
+				//SCheatDraw();
+			//	SCheatReadPad();
+			//}
+			TimerRestart(Timer, 0, 2500);			
 			continue;
 		}
 
 		//dbgprintf("ES:Command:%02X\n", message->command );
 		//dbgprintf("ES:mqueue_recv(%d):%d cmd:%d ioctlv:\"%X\"\n", queueid, ret, message->command, message->ioctlv.command );
 
-		switch( message->command )
+		switch(message->command)
 		{
 			case IOS_OPEN:
 			{
-				dbgprintf("ES:mqueue_recv(%d):%d cmd:%d device:\"%s\":%d\n", queueid, ret, message->command, message->open.device, message->open.mode );
+				dbgprintf("ES:mqueue_recv(%d):%d cmd:%d device:\"%s\":%d\n", queueid, ret, message->command, message->open.device, message->open.mode);
 				// Is it our device?
-				if( memcmp( message->open.device, "/dev/es", 8 ) == 0 )
-				{
+				if(memcmp(message->open.device, "/dev/es", 8) == 0)
 					ret = ES_FD;
-				} 
-				else if( memcmp( message->open.device, "/dev/sdio/slot", 15 ) == 0 ) 
-				{
+				else if(memcmp(message->open.device, "/dev/sdio/slot", 15) == 0) 
 					ret = SD_FD;
-				} 
 				else  
-				{
 					ret = FS_ENOENT;
-				}
 				
-				mqueue_ack( (void *)message, ret );
+				mqueue_ack((void *)message, ret);
 				
-			} break;
-			
+			} break;			
 			case IOS_CLOSE:
 			{
 #ifdef DEBUG
-				dbgprintf("ES:IOS_Close(%d)\n", message->fd );
+				dbgprintf("ES:IOS_Close(%d)\n", message->fd);
 #endif
-				if( message->fd == ES_FD || message->fd == SD_FD )
-					mqueue_ack( (void *)message, ES_SUCCESS ); 
+				if(message->fd == ES_FD || message->fd == SD_FD)
+					mqueue_ack((void *)message, ES_SUCCESS); 
 				else
-					mqueue_ack( (void *)message, FS_EINVAL );
+					mqueue_ack((void *)message, FS_EINVAL);
 					
 			} break;
 
@@ -1350,30 +1332,29 @@ int _main( int argc, char *argv[] )
 			case IOS_WRITE:
 			case IOS_SEEK:
 			{
-				dbgprintf("ES:Error Read|Write|Seek called!\n");
-				mqueue_ack( (void *)message, FS_EINVAL );
+				//dbgprintf("ES:Error Read|Write|Seek called!\n");
+				mqueue_ack((void *)message, FS_EINVAL);
 			} break;
 			case IOS_IOCTL:
 			{
-				if( message->fd == SD_FD ) 
-					SD_Ioctl( message );
+				if(message->fd == SD_FD) 
+					SD_Ioctl(message);
 				else
-					mqueue_ack( (void *)message, FS_EINVAL );
+					mqueue_ack((void *)message, FS_EINVAL);
 
 			} break;
-
 			case IOS_IOCTLV:
-				if( message->fd == ES_FD )
-					ES_Ioctlv( message );
-				else if( message->fd == SD_FD ) 
-					SD_Ioctlv( message );
+				if(message->fd == ES_FD)
+					ES_Ioctlv(message);
+				else if(message->fd == SD_FD) 
+					SD_Ioctlv(message);
 				else
-					mqueue_ack( (void *)message, FS_EINVAL );
+					mqueue_ack((void *)message, FS_EINVAL);
 			break;
 			
 			default:
 				dbgprintf("ES:unimplemented/invalid msg: %08x argv[0]:%08x\n", message->command, message->args[0] );
-				mqueue_ack( (void *)message, FS_EINVAL );
+				mqueue_ack((void *)message, FS_EINVAL);
 			break;
 		}
 	}

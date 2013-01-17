@@ -98,7 +98,7 @@ static s32 __send_cbw(usbstorage_handle *dev, u8 lun, u32 len, u8 flags, const u
 	dev->buffer[13] = lun;
 	dev->buffer[14] = (cbLen > 6 ? 0x10 : 6);
 
-	memcpy(dev->buffer + 15, cb, cbLen);
+	memcpy(dev->buffer + 15, (void *)cb, cbLen);
 
 	retval = __USB_BlkMsgTimeout(dev, dev->ep_out, CBW_SIZE, (void *)dev->buffer);
 
@@ -743,4 +743,3 @@ s32 USBStorage_Write_Sectors(u32 sector, u32 numSectors, const void *buffer)
 		
 	return true;
 }
-

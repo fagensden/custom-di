@@ -47,6 +47,9 @@ typedef u32 u_int32_t;
 #define MIN( a, b ) ( ((a) < (b)) ? (a) : (b) )
 #define MAX( a, b ) ( ((a) > (b)) ? (a) : (b) )
 
+#define LONG_MAX	2147483647L
+#define LONG_MIN	(-LONG_MAX - 1L)
+
 #define NULL ((void *)0)
 
 #define ALIGNED(x) __attribute__((aligned(x)))

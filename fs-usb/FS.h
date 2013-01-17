@@ -35,8 +35,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define FS_FD			0x99		// 153
 #define B2_FD			0x98		// 152	
 #define FL_FD			0x97		// 151
-#define SD_FD			0x96		// 153
+#define SD_FD			0x96		// 150
 #define USB_FD			0x95
+#define VEN_FD			0x94
+#define HID_FD			0x93
+
+#define USBV5_IOCTL_GETVERSION                   0
+#define USBV5_IOCTL_GETDEVICECHANGE              1
+#define USBV5_IOCTL_SHUTDOWN                     2
+#define USBV5_IOCTL_GETDEVPARAMS                 3
+#define USBV5_IOCTL_ATTACHFINISH                 6
+#define USBV5_IOCTL_SETALTERNATE                 7
+#define USBV5_IOCTL_SUSPEND_RESUME              16
+#define USBV5_IOCTL_CANCELENDPOINT              17
+#define USBV5_IOCTL_CTRLMSG                     18
+#define USBV5_IOCTL_INTRMSG                     19
+#define USBV5_IOCTL_ISOMSG                      20
+#define USBV5_IOCTL_BULKMSG                     21
 
 #define UMS_BASE					(('U'<<24)|('M'<<16)|('S'<<8))
 #define USB_IOCTL_UMS_INIT			(UMS_BASE+0x1)
@@ -109,6 +124,7 @@ typedef struct {
 	u32 file_pos;
 } FDStat;
 
+void USB2_Ioctlv(struct IPCMessage *msg);
 void USB_Ioctlv(struct IPCMessage *msg);
 void FFS_Ioctl(struct IPCMessage *msg);
 void FFS_Ioctlv(struct IPCMessage *msg);

@@ -23,13 +23,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "svn.h"
 #include "patch.h"
 
-
 u32 FrameBuffer	= 0;
 u32 FBOffset	= 0;
 u32 FBEnable	= 0;
 u32	FBSize		= 0;
 u32 *WPad		= NULL;
-u32 *GameCount;
 u32 *NandCount;
 
 u32 ShowMenu=0;
@@ -58,10 +56,7 @@ u32 *Offsets;
 
 GCPadStatus GCPad;
 
-u32 DIConfType; 
-
 DIConfig *DICfg;
-DIConfigO *DICfgO;
 NandConfig *NandCfg;
 ChannelCache *channelCache;
 HacksConfig *PL;
@@ -77,9 +72,11 @@ u32 DVDSpeed = 0;
 u32 DVDTimeLeft = 0;
 s32 DVDHandle = 0;
 u32 DMLVideoMode = 0;
-u32 DVDReinsertDisc=false;
+u32 DVDReinsertDisc = false;
 s32 EntryCount = 20;
+u32 GameSelected = 0;
 u32 CacheSel = 0;
+
 char *DiscName	= (char*)NULL;
 char *DVDTitle	= (char*)NULL;
 char *DVDBuffer	= (char*)NULL;
@@ -91,6 +88,8 @@ extern u32 LoadDI;
 
 u32 startaddress = 0;
 u32 endaddress = 0;
+u32 TShift = 0;
+u32 TTimer = 0;
 
 char *RegionStr[] = 
 {
@@ -298,28 +297,30 @@ u32 SMenuFindOffsets(void *ptr, u32 SearchSize)
 	FBOffset = 0;
 	FBEnable = 0;
 	WPad	 = (u32*)NULL;
-		
+
 	//dbgprintf("ES:Start:%p Len:%08X\n", ptr, SearchSize );
 
 	while(1)
 	{
-		for( i = 0; i < SearchSize; i+=4 )
+		for(i = 0; i < SearchSize; i+=4)
 		{
-			if( *(u32*)(ptr+i) >> 16 == 0x3DA0 && r13 == 0 )
+			if(*(u32*)(ptr+i) >> 16 == 0x3DA0 && r13 == 0)
 			{
 				r13 = ((*(u32*)(ptr+i)) & 0xFFFF) << 16;
 				r13|= (*(u32*)(ptr+i+4)) & 0xFFFF;
 			}
 
-			if( memcmp( ptr+i, VISetFB, sizeof(VISetFB) ) == 0 && FBEnable == 0 )
+			if(memcmp(ptr+i, VISetFB, sizeof(VISetFB)) == 0 && FBEnable == 0)
 			{
-				FBEnable = ( *(u32*)(ptr+i+sizeof(VISetFB)) );
+				FBEnable = (*(u32*)(ptr+i+sizeof(VISetFB)));
 
-				if( FBEnable & 0x8000 )
+				if(FBEnable & 0x8000)
 				{
 					FBEnable = ((~FBEnable) & 0xFFFF) + 1;
 					FBEnable = (r13 - FBEnable) & 0x7FFFFFF;
-				} else {
+				} 
+				else 
+				{
 					FBEnable = FBEnable & 0xFFFF;
 					FBEnable = (r13 + FBEnable) & 0x7FFFFFF;
 				}
@@ -328,18 +329,17 @@ u32 SMenuFindOffsets(void *ptr, u32 SearchSize)
 
 
 			//Wpad pattern new
-			if( (*(u32*)(ptr+i+0x00)) >> 16 == 0x1C03		&&		//  mulli   %r0, %r3, 0x688
+			if((*(u32*)(ptr+i+0x00)) >> 16 == 0x1C03		&&		//  mulli   %r0, %r3, 0x688
 				(*(u32*)(ptr+i+0x04)) >> 16 == 0x3C60		&&		//  lis     %r3, inside_kpads@h
 				(*(u32*)(ptr+i+0x08)) >> 16 == 0x3863		&&		//  addi    %r3, %r3, inside_kpads@l
 				(*(u32*)(ptr+i+0x0C))	    == 0x7C630214	&&		//  add     %r3, %r3, %r0
 				(*(u32*)(ptr+i+0x10)) >> 16 == 0xD023		&&		//  stfs    %fp1, 0xF0(%r3)
-				(*(u32*)(ptr+i+0x18))	    == 0x4E800020			//  blr
-				)
+				(*(u32*)(ptr+i+0x18))	    == 0x4E800020)			//  blr
 			{
-				if( *(u32*)(ptr+i+0x08) & 0x8000 )
-					WPad = (u32*)( ((((*(u32*)(ptr+i+0x04)) & 0xFFFF) << 16) - (((~(*(u32*)(ptr+i+0x08))) & 0xFFFF)+1) ) & 0x7FFFFFF );
+				if(*(u32*)(ptr+i+0x08) & 0x8000)
+					WPad = (u32*)(((((*(u32*)(ptr+i+0x04)) & 0xFFFF) << 16) - (((~(*(u32*)(ptr+i+0x08))) & 0xFFFF)+1)) & 0x7FFFFFF);
 				else
-					WPad = (u32*)( ((((*(u32*)(ptr+i+0x04)) & 0xFFFF) << 16) + ((*(u32*)(ptr+i+0x08)) & 0xFFFF)) & 0x7FFFFFF );
+					WPad = (u32*)(((((*(u32*)(ptr+i+0x04)) & 0xFFFF) << 16) + ((*(u32*)(ptr+i+0x08)) & 0xFFFF)) & 0x7FFFFFF);
 			}
 
 			//WPad pattern old
@@ -348,33 +348,31 @@ u32 SMenuFindOffsets(void *ptr, u32 SearchSize)
 				(*(u32*)(ptr+i+0x08)) >> 16 == 0x3884		&&		//  addi    %r3, %r3, inside_kpads@l
 				(*(u32*)(ptr+i+0x0C))	    == 0x7C640214	&&		//  add     %r3, %r4, %r0
 				(*(u32*)(ptr+i+0x10)) >> 16 == 0xD023		&&		//  stfs    %fp1, 0xF0(%r3)
-				(*(u32*)(ptr+i+0x18))	    == 0x4E800020			//  blr
-				)
+				(*(u32*)(ptr+i+0x18))	    == 0x4E800020)			//  blr
 			{
-				if( *(u32*)(ptr+i+0x08) & 0x8000 )
-					WPad = (u32*)( ((((*(u32*)(ptr+i+0x00)) & 0xFFFF) << 16) - (((~(*(u32*)(ptr+i+0x08))) & 0xFFFF)+1) ) & 0x7FFFFFF );
+				if(*(u32*)(ptr+i+0x08) & 0x8000)
+					WPad = (u32*)(((((*(u32*)(ptr+i+0x00)) & 0xFFFF) << 16) - (((~(*(u32*)(ptr+i+0x08))) & 0xFFFF)+1) ) & 0x7FFFFFF);
 				else
 					WPad = (u32*)( ((((*(u32*)(ptr+i+0x00)) & 0xFFFF) << 16) + ((*(u32*)(ptr+i+0x08)) & 0xFFFF)) & 0x7FFFFFF );
 			}
 			
-			if( r13 && FBEnable && FBOffset && WPad != NULL )
+			if(r13 && FBEnable && FBOffset && WPad != NULL)
 			{
-				switch( *(vu32*)(FBEnable+0x20) )
+				switch(*(vu32*)(FBEnable+0x20) )
 				{
 					case VI_NTSC:
 						FBSize = 304*480*4;
 						break;
 					case VI_PAL:
-						FBSize = 288*432*4;
+						FBSize = 320*480*4;
 						break;
 					case VI_EUR60:
 						FBSize = 320*480*4;
 						break;
 					default:
-						dbgprintf("ES:SMenuFindOffsets():Invalid Video mode:%d\n", *(vu32*)(FBEnable+0x20) );
+						dbgprintf("ES:SMenuFindOffsets():Invalid Video mode:%d\n", *(vu32*)(FBEnable+0x20));
 						break;
 				}
-
 				return 1;
 			}
 		}
@@ -413,12 +411,11 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 	edit	= 0;
 	DVDStatus = 0;
 	DVDError=0;
-	DVDReinsertDisc=false;
+	DVDReinsertDisc = false;
 	DICfg	= NULL;
 	NandCfg = NULL;
 
 	Offsets		= (u32*)malloca( sizeof(u32) * MAX_HITS, 32 );
-	GameCount	= (u32*)malloca( sizeof(u32), 32 );
 	FB			= (u32*)malloca( sizeof(u32) * MAX_FB, 32 );	
 	
 	__configloadcfg();
@@ -437,9 +434,16 @@ void SMenuInit( u64 TitleID, u16 TitleVersion )
 			TitleMetaData *TMD = (TitleMetaData *)NANDLoadFile( path, &size );			
 			dolhdr *menuhdr = (dolhdr *)heap_alloc_aligned(0, ALIGN32(sizeof(dolhdr)), 32);
 			memset32(menuhdr, 0, ALIGN32(sizeof(dolhdr)));			
-			_sprintf(path, "/title/%08x/%08x/content/%08X.app", (u32)(TitleID>>32), (u32)(TitleID), TMD->Contents[TMD->BootIndex].ID);
-			free(TMD);
-			menuhdr = (dolhdr *)NANDReadFromFile(path, 0, ALIGN32(sizeof(dolhdr)), &res);			
+			
+			_sprintf(path, "/title/%08x/%08x/content/1%07x.app", (u32)(TitleID>>32), (u32)(TitleID), TMD->Contents[TMD->BootIndex].ID);
+			menuhdr = (dolhdr *)NANDReadFromFile(path, 0, ALIGN32(sizeof(dolhdr)), &res);
+			if(menuhdr == NULL)
+			{		
+				_sprintf(path, "/title/%08x/%08x/content/%08X.app", (u32)(TitleID>>32), (u32)(TitleID), TMD->Contents[TMD->BootIndex].ID);
+				menuhdr = (dolhdr *)NANDReadFromFile(path, 0, ALIGN32(sizeof(dolhdr)), &res);
+			}
+			
+			free(TMD);	
 			startaddress =  (u32)(*menuhdr->addressData - *menuhdr->offsetData);
 			endaddress = (u32)(*menuhdr->addressData + *menuhdr->sizeData);			
 			startaddress -= 0x80000000;
@@ -572,7 +576,7 @@ void SMenuAddFramebuffer( void )
 }
 void SMenuDraw(void)
 {
-	u32 i, j;	
+	u32 i, j;
 
 	if(*(vu32*)FBEnable != 1 || !ShowMenu || DICfg == NULL)
 		return;
@@ -586,7 +590,7 @@ void SMenuDraw(void)
 			DICfg->Region = ALL;
 
 		if(MenuType != 3)
-			PrintFormat(FB[i], MENU_POS_X, 20, "%sNEEK2O%s r%s %s %s %s: %d",  FSUSB ? "U" : "S", LoadDI ? "+DI" : "", SVN_REV, SVN_BETA, __DATE__, MenuType == 4 ? "Channels" : "Games", MenuType == 4 ? channelCache->numChannels : *GameCount);
+			PrintFormat(FB[i], MENU_POS_X, 20, "%sNEEK2O%s r%s %s %s %s: %d",  FSUSB ? "U" : "S", LoadDI ? "+DI" : "", SVN_REV, SVN_BETA, __DATE__, MenuType == 4 ? "Channels" : "Games", MenuType == 4 ? channelCache->numChannels : DICfg->Gamecount);
 
 		switch(MenuType)
 		{
@@ -625,19 +629,36 @@ void SMenuDraw(void)
 
 				for(j = 0; j < EntryCount; ++j)
 				{
-					if(j+ScrollX >= *GameCount)
+					if(j+ScrollX >= DICfg->Gamecount)
 						break;
 
 					if(__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18)) == INV)
-						PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.38s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
+					{
+						if(j == PosX && strlen((char *)DICfg->GameInfo[ScrollX+j] + 0x20) > 38)
+						{
+							PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.38s (%s)", DICfg->GameInfo[ScrollX+j] + (0x20 + TShift), gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);									
+							if(TShift >= strlen((char *)DICfg->GameInfo[ScrollX+j] + 0x20) - 38)
+								TShift = 0;				
+						}
+						else
+							PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.38s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);	
+					}
 					else
-						PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
-					
+					{
+						if(j == PosX && strlen((char *)DICfg->GameInfo[ScrollX+j] + 0x20) > 40)
+						{
+							PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (%s)", DICfg->GameInfo[ScrollX+j] + (0x20 + TShift), gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
+							if(TShift >= strlen((char *)DICfg->GameInfo[ScrollX+j] + 0x20) - 40)
+								TShift = 0;
+						}
+						else
+							PrintFormat(FB[i], MENU_POS_X, MENU_POS_Y+32+16*j, "%.40s (%s)", DICfg->GameInfo[ScrollX+j] + 0x20, gTypeStr[__GetGameFormat(*(vu32*)(DICfg->GameInfo[ScrollX+j]+0x1C), *(vu32*)(DICfg->GameInfo[ScrollX+j]+0x18))]);
+					}
 					if(j == PosX)
 						PrintFormat( FB[i], 0, MENU_POS_Y+32+16*j, "-->");
 				}
 
-				PrintFormat( FB[i], MENU_POS_X+575, MENU_POS_Y+16*22, "%d/%d", ScrollX/EntryCount + 1, *GameCount/EntryCount + (*GameCount % EntryCount > 0));
+				PrintFormat( FB[i], MENU_POS_X+575, MENU_POS_Y+16*22, "%d/%d", ScrollX/EntryCount + 1, DICfg->Gamecount/EntryCount + (DICfg->Gamecount % EntryCount > 0));
 
 				sync_after_write( (u32*)(FB[i]), FBSize );
 			} break;
@@ -649,8 +670,8 @@ void SMenuDraw(void)
 				PrintFormat(FB[i], MENU_POS_X+15, 84+16*1, "MotionPlus Video                          :%s", (DICfg->Config&CONFIG_PATCH_MPVIDEO) ? "On" : "Off");
 				PrintFormat(FB[i], MENU_POS_X+15, 84+16*2, "Video Mode Patch                          :%s", (DICfg->Config&CONFIG_PATCH_VIDEO) ? "On" : "Off");				
 				PrintFormat(FB[i], MENU_POS_X+15, 84+16*4, "Debugging:");				
-				PrintFormat(FB[i], MENU_POS_X+15, 84+16*5, "Autocreate log for DIP module             :%s", (DICfg->Config&DEBUG_CREATE_DIP_LOG) ? "On" : "Off");
-				PrintFormat(FB[i], MENU_POS_X+15, 84+16*6, "Autocreate log for ES module              :%s", (DICfg->Config&DEBUG_CREATE_ES_LOG) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*5, "Log DIP module                            :%s", (DICfg->Config&DEBUG_CREATE_DIP_LOG) ? "On" : "Off");
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*6, "Log ES module                             :%s", (DICfg->Config&DEBUG_CREATE_ES_LOG) ? "On" : "Off");
 				PrintFormat(FB[i], MENU_POS_X+15, 84+16*7, "Game Debugging                            :%s", (DICfg->Config&CONFIG_DEBUG_GAME) ? "On" : "Off");
 				PrintFormat(FB[i], MENU_POS_X+15, 84+16*8, "Debugger Wait                             :%s", (DICfg->Config&CONFIG_DEBUG_GAME_WAIT) ? "On" : "Off");
 				switch((DICfg->Config&HOOK_TYPE_MASK))
@@ -982,63 +1003,66 @@ void SMenuDraw(void)
 			} break;
 			case 6:
 			{
-				PrintFormat( FB[i], MENU_POS_X+80, 56, "DML/QuadForce Setup:" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*0, "NMM             :%s", (DICfg->Config&DML_NMM) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*1, "NMM Debug       :%s", (DICfg->Config&DML_NMM_DEBUG) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*2, "Padhook         :%s", (DICfg->Config&DML_PADHOOK) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*3, "Activity LED    :%s", (DICfg->Config&DML_ACTIVITY_LED) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*4, "Debugger        :%s", (DICfg->Config&DML_DEBUGGER) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*5, "Debugger Wait   :%s", (DICfg->Config&DML_DEBUGWAIT) ? "On" : "Off" );
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*6, "Use Cheats      :%s", (DICfg->Config&DML_CHEATS) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 68, "DM(L)/QuadForce Setup:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*0, "NMM                                       :%s", (DICfg->Config2&DML_NMM) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*1, "NMM Debug                                 :%s", (DICfg->Config2&DML_NMM_DEBUG) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*2, "Padhook                                   :%s", (DICfg->Config2&DML_PADHOOK) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*3, "Activity LED                              :%s", (DICfg->Config2&DML_ACTIVITY_LED) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*4, "Debugger                                  :%s", (DICfg->Config2&DML_DEBUGGER) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*5, "Debugger Wait                             :%s", (DICfg->Config2&DML_DEBUGWAIT) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*6, "Use Cheats                                :%s", (DICfg->Config2&DML_CHEATS) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*7, "Force Widescreen                          :%s", (DICfg->Config2&DML_FORCE_WIDESCREEN) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*8, "Progressive Patch                         :%s", (DICfg->Config2&DML_PROG_PATCH) ? "On" : "Off" );
 				
-				switch((DICfg->Config&DML_VIDEO_CONF))
+				switch((DICfg->Config2&DML_VIDEO_CONF))
 				{
 					case DML_VIDEO_GAME:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: Game");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Video Mode: Game");
 					break;
 					case DML_VIDEO_PAL50:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: PAL 576i");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Video Mode: PAL50");
 					break;
 					case DML_VIDEO_NTSC:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: NTSC 480i");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Video Mode: NTSC");
 					break;
 					case DML_VIDEO_PAL60:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: PAL 480i");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Video Mode: PAL60");
 					break;
-					case DML_VIDEO_PROG:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: NTSC 480p");
-					break;
-					case DML_VIDEO_PROGP:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*7, "Video Mode: PAL 480p");
-					break;					
+					case DML_VIDEO_NONE:
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*9, "Video Mode: None");
+					break;				
 				}
 
-				switch((DICfg->Config&DML_LANG_CONF))
+				switch((DICfg->Config2&DML_LANG_CONF))
 				{
 					case DML_LANG_ENGLISH:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : English");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : English");
 					break;
 					case DML_LANG_GERMAN:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : German");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : German");
 					break;
 					case DML_LANG_FRENCH:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : French");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : French");
 					break;
 					case DML_LANG_SPANISH:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : Spanish");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : Spanish");
 					break;
 					case DML_LANG_ITALIAN:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : Italian");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : Italian");
 					break;
 					case DML_LANG_DUTCH:
-						PrintFormat( FB[i], MENU_POS_X+80, 104+16*8, "Language  : Dutch");
+						PrintFormat( FB[i], MENU_POS_X+15, 84+16*10, "Language  : Dutch");
 					break;					
-				}				
-				
-				PrintFormat( FB[i], MENU_POS_X+80, 104+16*10, "Save Config" );			
+				}	
 
-				PrintFormat( FB[i], MENU_POS_X+60, 40+64+16*PosX, "-->");
-				sync_after_write( (u32*)(FB[i]), FBSize );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*12, "Misc Configuration:" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*13, "DI Activity LED                           :%s", (DICfg->Config&CONFIG_DI_ACT_LED) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*14, "Reverse Slot Light for DI Activity LED    :%s", (DICfg->Config&CONFIG_REV_ACT_LED) ? "On" : "Off" );
+				PrintFormat( FB[i], MENU_POS_X+15, 84+16*15, "Scroll Long Game Titles in Menu           :%s", (DICfg->Config&CONFIG_SCROLL_TITLES) ? "On" : "Off" );
+				
+				PrintFormat(FB[i], MENU_POS_X+15, 84+16*17, "Save Config");			
+				PrintFormat(FB[i], MENU_POS_X-5, 84+16*PosX, "-->");
+				sync_after_write((u32*)(FB[i]), FBSize);
 			} break;
 			default:
 			{
@@ -1048,49 +1072,21 @@ void SMenuDraw(void)
 	}
 }
 
-void LoadDIConfig(void)
-{
-	if(!LoadDI)
-	{
-		DICfg = (DIConfig *)malloca( 0x110, 32 );
-		DICfg->Gamecount = 0;
-		DICfg->SlotID = 0;
-		DICfg->Region = 0;
-		DICfg->Config = 0;
-	}
-	else
-	{
-		DVDGetGameCount(GameCount);
-		if((*GameCount & 0xF0000) == 0x10000)
-		{
-			DIConfType = 1;
-			*GameCount &= ~0x10000;
-			DICfg = (DIConfig *)malloca( *GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 32);
-			DVDReadGameInfo(0, *GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, DICfg);
-		}
-		else
-		{
-			DIConfType = 0;
-			DICfgO = (DIConfigO *)malloca(*GameCount * OLD_GAMEINFO_SIZE + OLD_CONFIG_SIZE, 32);
-			DVDReadGameInfo(0, *GameCount * OLD_GAMEINFO_SIZE + OLD_CONFIG_SIZE, DICfgO);
-			DICfg = (DIConfig *)malloca(*GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 32);
-			DICfg->SlotID = DICfgO->SlotID;
-			DICfg->Region = DICfgO->Region;
-			DICfg->Gamecount = DICfgO->Gamecount;
-			DICfg->Config = DICfgO->Config;
-			u32 i;
-			for(i = 0; i < (*GameCount); i++)
-			{
-				memcpy(DICfg->GameInfo[i], DICfgO->GameInfo[i], OLD_GAMEINFO_SIZE);
-			}	
-			free(DICfgO);
-		}
-	}
-}
-
 void SMenuReadPad(void)
 {	
 	memcpy(&GCPad, (u32*)0xD806404, sizeof(u32) * 2);
+	
+	if(DICfg->Config & CONFIG_SCROLL_TITLES)
+	{
+		TTimer++;
+		if(TTimer > SCROLLTIMER)
+		{
+			TTimer = 0;
+			TShift++;
+			if(TShift > MAXSHIFT)
+				TShift = 0;
+		}
+	}	
 	
 	if((GCPad.Buttons & 0x1F3F0000) == 0 && (*WPad & 0x0000FFFF) == 0)
 	{
@@ -1100,16 +1096,31 @@ void SMenuReadPad(void)
 
 	if(SLock)
 		return;	
+		
+	if(!ShowMenu && DVDReinsertDisc)
+	{
+		DVDSelectGame(DICfg->SlotID, 0);
+		DVDReinsertDisc = false;
+	}		
 
 	if((GCPad.Start || (*WPad&WPAD_BUTTON_1)) && !SLock)
 	{
-		ShowMenu = !ShowMenu;
+		if(ShowMenu && (MenuType == 0 || MenuType == 4 || MenuType == 7))
+		{
+			ShowMenu = 0;
+		}
+		else
+		{			
+			ShowMenu = 1;
+			MenuType = LoadDI ? 0 : 4;
+			PosX	= 0;
+			ScrollX	= 0;
+		}
 			
 		if(DICfg == NULL)
-			LoadDIConfig();
+			DICfg = (void*)DVDReadGameInfo();
 
-		MenuType = LoadDI ? 0 : 4;
-		PosX	= 0;
+		
 		ScrollX	= 0;
 		SLock = 1;
 		
@@ -1126,10 +1137,10 @@ void SMenuReadPad(void)
 		}
 		else
 		{				
-			ShowMenu = !ShowMenu;
+			ShowMenu = ShowMenu ? 0 : 1;
 			
 			if(DICfg == NULL)
-				LoadDIConfig();
+				DICfg = (void*)DVDReadGameInfo();
 
 			if(ShowMenu)
 			{
@@ -1138,13 +1149,13 @@ void SMenuReadPad(void)
 					char *path = malloca(0x40, 0x40);
 					strcpy(path, "/sneek/NandCfg.bin");
 					u32* fsize = malloca(sizeof(u32), 0x20);
-					*fsize = 0x10;
+					*fsize = NANDCFG_SIZE;
 					NandCfg = (NandConfig*)NANDLoadFile(path, fsize);
 					if(NandCfg != NULL)
 					{
 						*NandCount = NandCfg->NandCnt;
 						heap_free( 0, NandCfg );
-						*fsize = *NandCount * 0x80 + 0x10;
+						*fsize = *NandCount * NANDDESC_OFF + NANDCFG_SIZE;
 						NandCfg = (NandConfig*)NANDLoadFile(path, fsize);
 						if (NandCfg != NULL)
 							fnnd = 1;	
@@ -1246,15 +1257,15 @@ void SMenuReadPad(void)
 	{		
 		case 0:			// Game list
 		{
-			if(GCPad.Z || (*WPad&WPAD_BUTTON_2))
-			{
-				//DVDSelectGame( PosX+ScrollX, 1 );
+			//if(GCPad.Z || (*WPad&WPAD_BUTTON_2))
+			//{
+			//	DVDSelectGame(PosX+ScrollX, 0);
 				//ShowMenu = 0;
-				//GameSelected = PosX+ScrollX;
-				//MenuType = 7;
-				//PosX = 7;
-				//SLock = 1;
-			}
+			//	GameSelected = PosX+ScrollX;
+			//	MenuType = 7;
+			//	PosX = 7;
+			//	SLock = 1;
+			//}
 			if(GCPad.A || (*WPad&WPAD_BUTTON_A))
 			{
 				DVDSelectGame(PosX+ScrollX, 0);
@@ -1263,6 +1274,9 @@ void SMenuReadPad(void)
 			}
 			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{
+				TTimer = 0;
+				TShift = 0;
+			
 				if(PosX)
 					PosX--;
 				else if(ScrollX)
@@ -1272,12 +1286,15 @@ void SMenuReadPad(void)
 			} 
 			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
 			{
+				TTimer = 0;
+				TShift = 0;
+			
 				if(PosX >= EntryCount-1)
 				{
-					if(PosX+ScrollX+1 < *GameCount)
+					if(PosX+ScrollX+1 < DICfg->Gamecount)
 						ScrollX++;
 				} 
-				else if(PosX+ScrollX+1 < *GameCount)
+				else if(PosX+ScrollX+1 < DICfg->Gamecount)
 					PosX++;
 
 				SLock = 1;
@@ -1313,7 +1330,7 @@ void SMenuReadPad(void)
 			}
 			else if(GCPad.X || (*WPad&WPAD_BUTTON_PLUS))
 			{
-				if(IgnoreCase((u8)DICfg->GameInfo[PosX+ScrollX][0x20]) >= IgnoreCase((u8)DICfg->GameInfo[*GameCount-1][0x20]))
+				if(IgnoreCase((u8)DICfg->GameInfo[PosX+ScrollX][0x20]) >= IgnoreCase((u8)DICfg->GameInfo[DICfg->Gamecount-1][0x20]))
 				{
 					PosX	= 0;
 					ScrollX	= 0;
@@ -1323,7 +1340,7 @@ void SMenuReadPad(void)
 					u32 snum;
 					u32 lnum = PosX + ScrollX;
 				
-					for(snum = PosX+ScrollX; snum <= *GameCount; snum++)
+					for(snum = PosX+ScrollX; snum <= DICfg->Gamecount; snum++)
 					{				
 						if(IgnoreCase((u8)DICfg->GameInfo[snum][0x20]) > IgnoreCase((u8)DICfg->GameInfo[lnum][0x20]))
 						{
@@ -1334,10 +1351,10 @@ void SMenuReadPad(void)
 						
 						if(PosX >= EntryCount-1)
 						{
-							if(PosX+ScrollX <= *GameCount)							
+							if(PosX+ScrollX <= DICfg->Gamecount)							
 								ScrollX++;
 						}
-						else if(PosX+ScrollX <= *GameCount)
+						else if(PosX+ScrollX <= DICfg->Gamecount)
 						{
 							PosX++;	
 						}
@@ -1352,7 +1369,7 @@ void SMenuReadPad(void)
 				if(IgnoreCase((u8)DICfg->GameInfo[PosX+ScrollX][0x20]) <= IgnoreCase((u8)DICfg->GameInfo[0][0x20]))
 				{
 					PosX = 0;
-					ScrollX	= *GameCount-1;
+					ScrollX	= DICfg->Gamecount-1;
 					tnum = ScrollX;
 					for(snum = tnum; snum >= 0; snum--)
 					{
@@ -1450,6 +1467,7 @@ void SMenuReadPad(void)
 					case 12:
 					{
 						DVDLowReset();
+						udelay(1000000);
 						DVDLowReadDiscID((void*)0);
 						DVDMountDisc();							
 						ShowMenu = 0;
@@ -1636,7 +1654,8 @@ void SMenuReadPad(void)
 					} break;
 				}
 				SLock = 1;
-			} else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
+			} 
+			else if( GCPad.Left || (*WPad&WPAD_BUTTON_LEFT) )
 			{
 				switch( PosX )
 				{
@@ -1726,6 +1745,8 @@ void SMenuReadPad(void)
 					} break;					
 				}
 				SLock = 1;
+				if(DVDReinsertDisc)
+					DVDSelectGame(DICfg->SlotID, 0);
 			} 
 		} break;
 		case 2:
@@ -2225,71 +2246,88 @@ void SMenuReadPad(void)
 				{					
 					case 0:
 					{
-						DICfg->Config ^= DML_NMM;
+						DICfg->Config2 ^= DML_NMM;
 						DVDReinsertDisc = true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= DML_NMM_DEBUG;
+						DICfg->Config2 ^= DML_NMM_DEBUG;
 						DVDReinsertDisc = true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= DML_PADHOOK;
+						DICfg->Config2 ^= DML_PADHOOK;
 						DVDReinsertDisc = true;
 					} break;
 					case 3:
 					{
-						DICfg->Config ^= DML_ACTIVITY_LED;
+						DICfg->Config2 ^= DML_ACTIVITY_LED;
 						DVDReinsertDisc = true;
 					} break;
 					case 4:
 					{
-						DICfg->Config ^= DML_DEBUGGER;
+						DICfg->Config2 ^= DML_DEBUGGER;
 						DVDReinsertDisc = true;	
 					} break;
 					case 5:
 					{
-						DICfg->Config ^= DML_DEBUGWAIT;
+						DICfg->Config2 ^= DML_DEBUGWAIT;
 						DVDReinsertDisc = true;
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= DML_CHEATS;
+						DICfg->Config2 ^= DML_CHEATS;
 						DVDReinsertDisc = true;
-					} break;					
+					} break;
 					case 7:
 					{
-						if((DICfg->Config & DML_VIDEO_CONF) == DML_VIDEO_PROGP)
-						{
-							DICfg->Config &= ~DML_VIDEO_CONF;
-							DICfg->Config |= DML_VIDEO_GAME;
-						} else {
-							DICfg->Config += DML_VIDEO_GAME;								
-						}
-
+						DICfg->Config2 ^= DML_FORCE_WIDESCREEN;
 						DVDReinsertDisc = true;
 					} break;
 					case 8:
 					{
-						if((DICfg->Config & DML_LANG_CONF) == DML_LANG_DUTCH)
+						DICfg->Config2 ^= DML_PROG_PATCH;
+						DVDReinsertDisc = true;
+					} break;
+					case 9:
+					{
+						if((DICfg->Config2 & DML_VIDEO_CONF) == DML_VIDEO_NONE)
 						{
-							DICfg->Config &= ~DML_LANG_CONF;
-							DICfg->Config |= DML_LANG_ENGLISH;
+							DICfg->Config2 &= ~DML_VIDEO_CONF;
+							DICfg->Config2 |= DML_VIDEO_GAME;
 						} else {
-							DICfg->Config += DML_LANG_ENGLISH;								
+							DICfg->Config2 += DML_VIDEO_GAME;								
 						}
 
 						DVDReinsertDisc = true;
 					} break;
 					case 10:
 					{
-						DVDWriteDIConfig(DICfg);
-						
-						if(DVDReinsertDisc)
-							DVDSelectGame(DICfg->SlotID, 0);
+						if((DICfg->Config2 & DML_LANG_CONF) == DML_LANG_DUTCH)
+						{
+							DICfg->Config2 &= ~DML_LANG_CONF;
+							DICfg->Config2 |= DML_LANG_ENGLISH;
+						} else {
+							DICfg->Config2 += DML_LANG_ENGLISH;								
+						}
 
-						DVDReinsertDisc = false;
+						DVDReinsertDisc = true;
+					} break;					
+					case 13:
+					{
+						DICfg->Config ^= CONFIG_DI_ACT_LED;
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_REV_ACT_LED;
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_SCROLL_TITLES;
+					} break;						
+					case 17:
+					{
+						DVDWriteDIConfig(DICfg);
 					} break;
 				}
 				SLock = 1;
@@ -2297,19 +2335,23 @@ void SMenuReadPad(void)
 			if(GCPad.Up || (*WPad&WPAD_BUTTON_UP))
 			{				
 				if(PosX == 0)		
+					PosX = 17;
+				else if(PosX == 17)
+					PosX = 15;
+				else if(PosX == 13)
 					PosX = 10;
-				else if(PosX == 10)
-					PosX = 8;
 				else					
 					PosX--;
 					
 				SLock = 1;
 			} 
-			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN))
+			else if(GCPad.Down || (*WPad&WPAD_BUTTON_DOWN)) //eikel
 			{
-				if(PosX == 8)
-					PosX = 10;
-				else if(PosX == 10)
+				if(PosX == 10)
+					PosX = 13;
+				else if(PosX == 15)
+					PosX = 17;
+				else if(PosX == 17)
 					PosX = 0;
 				else 	
 					PosX++;
@@ -2323,66 +2365,88 @@ void SMenuReadPad(void)
 				{
 					case 0:
 					{
-						DICfg->Config ^= DML_NMM;
+						DICfg->Config2 ^= DML_NMM;
 						DVDReinsertDisc = true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= DML_NMM_DEBUG;
+						DICfg->Config2 ^= DML_NMM_DEBUG;
 						DVDReinsertDisc = true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= DML_PADHOOK;
+						DICfg->Config2 ^= DML_PADHOOK;
 						DVDReinsertDisc = true;
 					} break;
 					case 3:
 					{
-						DICfg->Config ^= DML_ACTIVITY_LED;
+						DICfg->Config2 ^= DML_ACTIVITY_LED;
 						DVDReinsertDisc = true;
 					} break;
 					case 4:
 					{
-						DICfg->Config ^= DML_DEBUGGER;
+						DICfg->Config2 ^= DML_DEBUGGER;
 						DVDReinsertDisc = true;
 					} break;
 					case 5:
 					{
-						DICfg->Config ^= DML_DEBUGWAIT;
+						DICfg->Config2 ^= DML_DEBUGWAIT;
 						DVDReinsertDisc = true;
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= DML_CHEATS;
+						DICfg->Config2 ^= DML_CHEATS;
 						DVDReinsertDisc = true;
 					} break;
 					case 7:
 					{
-						if((DICfg->Config & DML_VIDEO_CONF) == DML_VIDEO_PROGP)
-						{
-							DICfg->Config &= ~DML_VIDEO_CONF;
-							DICfg->Config |= DML_VIDEO_GAME;
-						} 
-						else 
-						{
-							DICfg->Config += DML_VIDEO_GAME;								
-						}
-
+						DICfg->Config2 ^= DML_FORCE_WIDESCREEN;
 						DVDReinsertDisc = true;
 					} break;
 					case 8:
 					{
-						if((DICfg->Config & DML_LANG_CONF) == DML_LANG_DUTCH)
+						DICfg->Config2 ^= DML_PROG_PATCH;
+						DVDReinsertDisc = true;
+					} break;
+					case 9:
+					{
+						if((DICfg->Config2 & DML_VIDEO_CONF) == DML_VIDEO_NONE)
 						{
-							DICfg->Config &= ~DML_LANG_CONF;
-							DICfg->Config |= DML_LANG_ENGLISH;
+							DICfg->Config2 &= ~DML_VIDEO_NONE;
+							DICfg->Config2 |= DML_VIDEO_GAME;
 						} 
 						else 
 						{
-							DICfg->Config += DML_LANG_ENGLISH;								
+							DICfg->Config2 += DML_VIDEO_GAME;								
 						}
 
 						DVDReinsertDisc = true;
+					} break;
+					case 10:
+					{
+						if((DICfg->Config2 & DML_LANG_CONF) == DML_LANG_DUTCH)
+						{
+							DICfg->Config2 &= ~DML_LANG_CONF;
+							DICfg->Config2 |= DML_LANG_ENGLISH;
+						} 
+						else 
+						{
+							DICfg->Config2 += DML_LANG_ENGLISH;								
+						}
+
+						DVDReinsertDisc = true;
+					} break;
+					case 13:
+					{
+						DICfg->Config ^= CONFIG_DI_ACT_LED;
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_REV_ACT_LED;
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_SCROLL_TITLES;
 					} break;
 				}
 				SLock = 1;
@@ -2393,66 +2457,88 @@ void SMenuReadPad(void)
 				{
 					case 0:
 					{
-						DICfg->Config ^= DML_NMM;
+						DICfg->Config2 ^= DML_NMM;
 						DVDReinsertDisc = true;
 					} break;
 					case 1:
 					{
-						DICfg->Config ^= DML_NMM_DEBUG;
+						DICfg->Config2 ^= DML_NMM_DEBUG;
 						DVDReinsertDisc = true;
 					} break;
 					case 2:
 					{
-						DICfg->Config ^= DML_PADHOOK;
+						DICfg->Config2 ^= DML_PADHOOK;
 						DVDReinsertDisc = true;
 					} break;
 					case 3:
 					{
-						DICfg->Config ^= DML_ACTIVITY_LED;
+						DICfg->Config2 ^= DML_ACTIVITY_LED;
 						DVDReinsertDisc = true;
 					} break;
 					case 4:
 					{
-						DICfg->Config ^= DML_DEBUGGER;	
+						DICfg->Config2 ^= DML_DEBUGGER;	
 						DVDReinsertDisc = true;
 					} break;
 					case 5:
 					{
-						DICfg->Config ^= DML_DEBUGWAIT;
+						DICfg->Config2 ^= DML_DEBUGWAIT;
 						DVDReinsertDisc = true;
 					} break;
 					case 6:
 					{
-						DICfg->Config ^= DML_CHEATS;
+						DICfg->Config2 ^= DML_CHEATS;
 						DVDReinsertDisc = true;
 					} break;
 					case 7:
 					{
-						if((DICfg->Config & DML_VIDEO_CONF) == DML_VIDEO_GAME)
-						{
-							DICfg->Config &= ~DML_VIDEO_CONF;
-							DICfg->Config |= DML_VIDEO_PROGP;
-						} 
-						else 
-						{
-							DICfg->Config -= DML_VIDEO_GAME;								
-						}
-
+						DICfg->Config2 ^= DML_FORCE_WIDESCREEN;
 						DVDReinsertDisc = true;
 					} break;
 					case 8:
 					{
-						if((DICfg->Config & DML_LANG_CONF) == DML_LANG_ENGLISH)
+						DICfg->Config2 ^= DML_PROG_PATCH;
+						DVDReinsertDisc = true;
+					} break;
+					case 9:
+					{
+						if((DICfg->Config2 & DML_VIDEO_CONF) == DML_VIDEO_GAME)
 						{
-							DICfg->Config &= ~DML_LANG_CONF;
-							DICfg->Config |= DML_LANG_DUTCH;
+							DICfg->Config2 &= ~DML_VIDEO_CONF;
+							DICfg->Config2 |= DML_VIDEO_NONE;
 						} 
 						else 
 						{
-							DICfg->Config -= DML_LANG_ENGLISH;								
+							DICfg->Config2 -= DML_VIDEO_GAME;								
 						}
 
 						DVDReinsertDisc = true;
+					} break;
+					case 10:
+					{
+						if((DICfg->Config2 & DML_LANG_CONF) == DML_LANG_ENGLISH)
+						{
+							DICfg->Config2 &= ~DML_LANG_CONF;
+							DICfg->Config2 |= DML_LANG_DUTCH;
+						} 
+						else 
+						{
+							DICfg->Config2 -= DML_LANG_ENGLISH;								
+						}
+
+						DVDReinsertDisc = true;
+					} break;
+					case 13:
+					{
+						DICfg->Config ^= CONFIG_DI_ACT_LED;
+					} break;
+					case 14:
+					{
+						DICfg->Config ^= CONFIG_REV_ACT_LED;
+					} break;
+					case 15:
+					{
+						DICfg->Config ^= CONFIG_SCROLL_TITLES;
 					} break;
 				}
 				SLock = 1;
@@ -2460,7 +2546,7 @@ void SMenuReadPad(void)
 		} break;
 	}
 }
-void SCheatDraw( void )
+/*void SCheatDraw( void )
 {
 	u32 i,j;
 	offset = (u32*)0x007D0500;
@@ -2532,37 +2618,35 @@ void SCheatDraw( void )
 
 		sync_after_write( (u32*)(FB[i]), FBSize );
 	}
-}
+}*/
 void SCheatReadPad ( void )
 {
 	int i;
 
-	memcpy( &GCPad, (u32*)0xD806404, sizeof(u32) * 2 );
+	memcpy(&GCPad, (u32*)0xD806404, sizeof(u32) * 2);
 
-	if( ( GCPad.Buttons & 0x1F3F0000 ) == 0 && ( *WPad & 0x0000FFFF ) == 0 )
+	if((GCPad.Buttons & 0x1F3F0000) == 0 && (*WPad & 0x0000FFFF) == 0)
 	{
 		SLock = 0;
 		return;
 	}
 
-	if( SLock == 0 )
+	if(SLock == 0)
 	{
-		if( (*WPad & ( WPAD_BUTTON_B | WPAD_BUTTON_1 )) == ( WPAD_BUTTON_B | WPAD_BUTTON_1 ) ||
-			GCPad.Start )
-		{
-			ShowMenu = !ShowMenu;
-			SLock = 1;
-		}
+		//if((*WPad & (WPAD_BUTTON_B | WPAD_BUTTON_1)) == (WPAD_BUTTON_B | WPAD_BUTTON_1) || GCPad.Start)
+		//{
+		//	ShowMenu = !ShowMenu;
+		//	SLock = 1;
+		//}
 
-		if( (*WPad & ( WPAD_BUTTON_1 | WPAD_BUTTON_2 )) == ( WPAD_BUTTON_1 | WPAD_BUTTON_2 ) ||
-			GCPad.X	)
+		if((*WPad & (WPAD_BUTTON_1 | WPAD_BUTTON_2)) == (WPAD_BUTTON_1 | WPAD_BUTTON_2) || GCPad.X)
 		{
-			u8 *buf = (u8*)malloc( 40 );
+			u8 *buf = (u8*)malloc(40);
 			//memcpy( buf, (void*)(FB[0]), FBSize );
 
 			//dbgprintf("ES:Taking RamDump...");
 
-			char *str = (char*)malloc( 32 );
+			char *str = (char*)malloc(32);
 
 			i=0;
 
@@ -2570,32 +2654,34 @@ void SCheatReadPad ( void )
 			{
 				_sprintf( str, "/scrn_%02X.raw", i++ );
 				s32 r = ISFS_CreateFile(str, 0, 3, 3, 3);
-				if( r < 0  )
+				if(r < 0)
 				{
-					if( r != -105 )
+					if(r != -105)
 					{
 						//dbgprintf("ES:ISFS_CreateFile():%d\n", r );
 						free( buf );
 						free( str );
 						return;
 					}
-				} else {
+				} 
+				else 
+				{
 					break;
 				}
 			} while(1);
 
-			s32 fd = IOS_Open( str, 3 );
+			s32 fd = IOS_Open(str, 3);
 			if( fd < 0 )
 			{
 				//dbgprintf("ES:IOS_Open():%d\n", fd );
-				free( buf );
-				free( str );
+				free(buf);
+				free(str);
 				return;
 			}
 
-			IOS_Write( fd, (void*)0, 24*1024*1024 );
+			IOS_Write(fd, (void*)0, 24*1024*1024);
 
-			IOS_Close( fd );
+			IOS_Close(fd);
 
 			free( buf );
 			free( str );
@@ -2604,10 +2690,10 @@ void SCheatReadPad ( void )
 			SLock = 1;
 		}
 	
-		//if( !ShowMenu )
-		//	return;
+		if( !ShowMenu )
+			return;
 
-		switch( ShowMenu )
+		/*switch( ShowMenu )
 		{
 			case 0:
 			{
@@ -2764,6 +2850,6 @@ void SCheatReadPad ( void )
 					}
 				}
 			} break;
-		}
+		}*/
 	}
 }

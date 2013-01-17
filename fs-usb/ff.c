@@ -629,7 +629,7 @@ FRESULT dir_next (	/* FR_OK:Succeeded, FR_NO_FILE:End of table, FR_DENIED:EOT an
 static
 const BYTE LfnOfs[] = {1,3,5,7,9,14,16,18,20,22,24,28,30};	/* Offset of LFN chars in the directory entry */
 
-inline char toupper(const char toUpper)
+inline char _toupper(const char toUpper)
 {
     if ((toUpper >= 'a') && (toUpper <= 'z'))
         return (toUpper - 0x20);
@@ -639,7 +639,7 @@ inline char toupper(const char toUpper)
 unsigned short ff_wtoupper(unsigned short a)
 {
     if(a>=256) return a;
-    return toupper(a);
+    return _toupper(a);
 }
 
 
@@ -748,7 +748,7 @@ void gen_numname (
 	int i, j;
 
 
-	MemCpy(dst, src, 11);
+	MemCpy(dst, (void*)src, 11);
 
 	if (num > 5) {	/* On many collisions, generate a hash number instead of sequencial number */
 		do num = (num >> 1) + (num << 15) + (WORD)*lfn++; while (*lfn);
@@ -1860,7 +1860,7 @@ FRESULT f_write (
 #if _FS_TINY
 		if (move_window(fp->fs, fp->dsect))			/* Move sector window */
 			ABORT(fp->fs, FR_DISK_ERR);
-		MemCpy(&fp->fs->win[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
+		MemCpy(&fp->fs->win[fp->fptr % SS(fp->fs)], (void*)wbuff, wcnt);	/* Fit partial sector */
 		fp->fs->wflag = 1;
 #else
 		MemCpy(&fp->buf[fp->fptr % SS(fp->fs)], wbuff, wcnt);	/* Fit partial sector */
