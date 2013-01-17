@@ -2,7 +2,7 @@
 ***																					***
 *** nswitch - Simple neek/realnand switcher to embed in a channel					***
 ***																					***
-*** Copyright (C) 2011	OverjoY														***
+*** Copyright (C) 2011-2013  OverjoY												***
 *** 																				***
 *** This program is free software; you can redistribute it and/or					***
 *** modify it under the terms of the GNU General Public License						***
@@ -28,30 +28,10 @@
 #include <string.h>
 #include <malloc.h>
 
-
 #include "armboot.h"
 
 #define le32(i) (((((u32) i) & 0xFF) << 24) | ((((u32) i) & 0xFF00) << 8) | \
                 ((((u32) i) & 0xFF0000) >> 8) | ((((u32) i) & 0xFF000000) >> 24))
-				
-enum
-{
-    SD = 0,
-    USB1,
-    USB2,
-    USB3,
-    USB4,
-    MAXDEV
-};
-
-static const char dev[MAXDEV][6] =
-{
-    "sd",
-    "usb1",
-    "usb2",
-    "usb3",
-    "usb4"
-};
 
 typedef struct _PR 
 {
@@ -70,127 +50,100 @@ typedef struct _MBR
     u16 sig;                       
 } __attribute__((__packed__)) _mbr;
 
-int main() {
-
-	u32 b2;
-	ES_GetBoot2Version( &b2 );
-	if( b2 < 5 )
-	{		
-		int tr = 10;
-		bool USBMounted = false, SDMounted = false;
-		while( tr ) 
-		{
-			if( __io_usbstorage.startup() && __io_usbstorage.isInserted() )
-			{
-				_mbr mbr;
-				char buffer[512];
-			
-				__io_usbstorage.readSectors( 0, 1, &mbr );
-				for( tr = 0; tr < 4; ++tr)
-				{
-					if(mbr.part[tr].type == 0)
-					continue;
-				
-					__io_usbstorage.readSectors( le32( mbr.part[tr].lba ), 1, buffer );
-				
-					if( *( (u16 *)( buffer + 0x1FE ) ) == 0x55AA )
-					{
-						if( memcmp( buffer + 0x36, "FAT", 3 ) == 0 || memcmp( buffer + 0x52, "FAT", 3 ) == 0 )
-						{
-							fatMount( dev[USB1+tr], &__io_usbstorage, le32( mbr.part[tr].lba ), 8, 64 );
-							USBMounted = true;
-						}
-						else
-						{
-							continue;
-						}
-					}		
-				}
-				break;
-			}
-			usleep( 150000 );
-		}
-
-		if( __io_wiisd.startup() || !__io_wiisd.isInserted() )
-			if( fatMount( dev[SD], &__io_wiisd, 0, 8, 64 ) )
-				SDMounted = true;
-		
-		
+int main() 
+{
+	s32 ESHandle = IOS_Open("/dev/es", 0);
+	bool neek = IOS_Ioctlv(ESHandle, 0xA2, 0, 0, NULL) == 0x666c6f77;
+	IOS_Close(ESHandle);
+	if(!neek)
+	{	
+		bool KernelFound = false;
 		FILE *f = NULL;
-		long fsize;
-		size_t fres;
-		char path[40];
-		if( USBMounted )
+		int retry = 0;
+		
+		while(retry < 10)
 		{
-			for( tr = USB1; tr < MAXDEV; ++tr )
-			{
-				sprintf( path, "%s:/sneek/kernel.bin", dev[tr] );
-				if( !f )
-					f = fopen( path, "rb" );
+			if(__io_usbstorage.startup() && __io_usbstorage.isInserted())
+				break;
+					
+			retry++;
+			usleep(150000);				
+		}
+		
+		if(retry < 10)
+		{	
+			_mbr mbr;
+			char buffer[4096];
+			
+			__io_usbstorage.readSectors(0, 1, &mbr);
+			
+			if(mbr.part[1].type != 0)
+			{				
+				__io_usbstorage.readSectors(le32(mbr.part[1].lba), 1, buffer);
+				
+				if(*((u16*)(buffer + 0x1FE)) == 0x55AA)
+				{
+					if(memcmp(buffer + 0x36, "FAT", 3) == 0 || memcmp(buffer + 0x52, "FAT", 3) == 0)
+					{
+						fatMount("usb", &__io_usbstorage, le32(mbr.part[1].lba), 8, 64);
+						f = fopen("usb:/sneek/kernel.bin", "rb");
+					}
+				}
 			}
-		}
+		}	
 		
-		if( !f && SDMounted )
-			f = fopen( "sd:/sneek/kernel.bin", "rb" );
-		
-		
-		if( f ) 
+		if(!f)
 		{
-			fseek( f , 0 , SEEK_END );
-			fsize = ftell( f );
-			rewind( f );
-			fres = fread ( (void *)0x91000000, 1, fsize, f );
-			DCFlushRange( (void *)0x91000000, fsize );
-		}
-		else
-		{
-			fclose( f );
-			
-			for( tr = SD; tr < MAXDEV; ++tr )
-			{
-				char d[40];
-				sprintf( d, "%s:", dev[tr] );		
-				fatUnmount( d );
-			}			
-			__io_usbstorage.shutdown();
-			__io_wiisd.shutdown();
-			SYS_ResetSystem( SYS_RETURNTOMENU, 0, 0 );
-		}
-		
-		fclose( f );
-			
-		for( tr = SD; tr < MAXDEV; ++tr )
-		{
-			char d[40];
-			sprintf( d, "%s:", dev[tr] );		
-			fatUnmount( d );
+			if(__io_wiisd.startup() || !__io_wiisd.isInserted())
+				if(fatMount("sd", &__io_wiisd, 0, 8, 64))
+					f = fopen("sd:/sneek/kernel.bin", "rb");
 		}			
+	
+		if(f) 
+		{
+			fseek(f , 0 , SEEK_END);
+			long fsize = ftell(f);
+			rewind(f);
+			fread((void *)0x91000000, 1, fsize, f);
+			DCFlushRange((void *)0x91000000, fsize);
+			KernelFound = true;
+		}
+
+		fclose(f);
+		fatUnmount("sd:");
+		fatUnmount("usb:");		
 		__io_usbstorage.shutdown();
 		__io_wiisd.shutdown();
+		
+		if(!KernelFound)
+		{
+			SYS_ResetSystem( SYS_RETURNTOMENU, 0, 0 );
+			return 0;
+		}
 	
 		/*** Boot mini from mem code by giantpune ***/
-		void *mini = memalign( 32, armboot_size );  
-		if( !mini ) 
+		void *mini = memalign(32, armboot_size);  
+		if(!mini) 
 			return 0;    
   
-		memcpy( mini, armboot, armboot_size );  
-		DCFlushRange( mini, armboot_size );		
+		memcpy(mini, armboot, armboot_size);  
+		DCFlushRange(mini, armboot_size);		
    
 		*(u32*)0xc150f000 = 0x424d454d;  
-		asm volatile( "eieio" );  
+		asm volatile("eieio");  
   
-		*(u32*)0xc150f004 = MEM_VIRTUAL_TO_PHYSICAL( mini );  
-		asm volatile( "eieio" );
+		*(u32*)0xc150f004 = MEM_VIRTUAL_TO_PHYSICAL(mini);  
+		asm volatile("eieio");
   
-		IOS_ReloadIOS( 0xfe );   
+		IOS_ReloadIOS(0xfe);   
   
-		free( mini );
+		free(mini);
 
 		return 0;
 	}
 	else
 	{
-		SYS_ResetSystem( SYS_RESTART,0,0 );		
+		SYS_ResetSystem(SYS_RESTART, 0, 0);		
 		return 0;
 	}
 }

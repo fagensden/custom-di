@@ -121,9 +121,7 @@ void _main(void)
 			{
 				DI_Reset();			
 				udelay(1000000);
-				if(*(vu32*)0 == 0)
-					DI_ReadDiskId();
-				
+				DI_ReadDiskId();				
 				DVDSelectGame(9999);
 			}	
 			CVR = DICVR;

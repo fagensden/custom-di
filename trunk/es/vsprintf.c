@@ -32,7 +32,6 @@ typedef enum {
 	FR_TIMEOUT			/* 15 */
 } FRESULT;
 
-static char Path[32];
 static u32 buflen ALIGNED(32);
 extern u32 ignore_logfile;
 extern DIConfig *DICfg;
@@ -315,139 +314,66 @@ int vsprintf(char *buf, const char *fmt, va_list args)
 	return str-buf;
 }
 
-/*
-static char buffer[1024] ALIGNED(32);
-
-int dbgprintf( const char *fmt, ...)
+int dbgprintf(const char *fmt, ...)
 {
-	if ( (*(vu32*)(0xd800070) & 1) == 0)
+
+	if((*(vu32*)(0xd800070) & 1) == 0)
 		return 0;
 
 	va_list args;
 	int i;
 
-	va_start(args, fmt);
-	i = vsprintf(buffer, fmt, args);
-	va_end(args);
-
-	//FIL f;
-	//if( f_open( &f, "log.txt", FA_WRITE|FA_OPEN_ALWAYS ) == FR_OK )
-	//{
-	//	f_lseek( &f, f.fsize );
-	//	u32 read=0;
-	//	f_write( &f, buffer, strlen(buffer), &read );  
-	//	f_close( &f);
-	//}
-	//GeckoSendBuffer( buffer );
-
-	svc_write(buffer);
-
-	return i;
-}
-*/
-int dbgprintf( const char *fmt, ...)
-{
-
-	if ( (*(vu32*)(0xd800070) & 1) == 0)
-		return 0;
-
-	va_list args;
-	int i;
-
-	char *buffer = (char*)malloca( 0x400, 0x40 );
+	char *buffer = (char*)malloca(0x400, 0x40);
 
 	va_start(args, fmt);
 	i = vsprintf(buffer, fmt, args);
 	va_end(args);	
 
-	if (ignore_logfile == 0)
+	if(ignore_logfile == 0 && DICfg->Config & DEBUG_CREATE_ES_LOG)
 	{
-		sprintf(Path,"/sneek/eslog.txt");
-		s32 fd = IOS_Open( Path, 2 );
+		s32 fd = IOS_Open("/sneek/eslog.txt", 2);
 		if( fd < 0 )
 		{
 			if(fd == FS_ENOENT2)
 			{
-				if(DICfg->Config & DEBUG_CREATE_ES_LOG)
+				ISFS_CreateFile("/sneek/eslog.txt", 0, 0, 0, 0);
+				fd = IOS_Open("/sneek/eslog.txt", 2);
+				if(fd < 0)
 				{
-					ISFS_CreateFile(Path,0,0,0,0);
-					fd = IOS_Open( Path, 2 );
-					if( fd < 0 )
-					{
-						free(buffer);
-						return i;
-					}
+					free(buffer);
+					return i;
 				}
-				else
-				{
-					ignore_logfile = 1;
-				}	
 			}
 			else
 			{
-				//sprintf(buffer,"CDI:dbgprintf->IOS_Open(\"%s\", 2 ):%d\n", Path, fd );
-				//OSReport(buffer);
 				free(buffer);
 				return i;
 			}
 		}
 
-		s32 r = IOS_Seek(fd,0,2);
+		s32 r = IOS_Seek(fd, 0, 2);
 	
 		if( r < 0 )
 		{
-			//sprintf(buffer,"CDI:dbgprintf->Seek(%d):%d\n", fd, r );
-			//OSReport(buffer);
+
 			IOS_Close(fd);
 			free(buffer);
 			return i;
 		}
 	
-//		sprintf(buffer,"CDI:Made it after seek\r\n");
-//		OSReport(buffer);
-//		IOS_Close(fd);
-	
-	
-	//dbgprintf("ES:NANDLoadFile->Size:%d\n", *Size );
 		buflen = strlen(buffer);
-		r = IOS_Write( fd, buffer,buflen);
+		r = IOS_Write( fd, buffer, buflen);
 		if( r < 0 )
 		{
-			//sprintf(buffer,"CDI:dbgprintf->Write(%d) len = %d :%d\n", fd, buflen, r );
-			//OSReport(buffer);
-//			hfree( status );
 			IOS_Close(fd);
-//			*Size = r;
 			free(buffer);
 			return i;
 		}
-	
-//		sprintf(buffer,"CDI:Made it after write len = %d \r\n",buflen);
 		IOS_Close(fd);
 	}
 	
-// to see if things work as expected	
 	svc_write(buffer);
 	
 	free(buffer);
 	return i;
 }
-
-
-/*
-
-void fatal(const char *fmt, ...)
-{
-	//va_list args;
-	//char buffer[1024];
-	//int i;
-
-	//va_start(args, fmt);
-	//i = vsprintf(buffer, fmt, args);
-	//va_end(args);
-	//svc_write(buffer);
-	for (;;);
-}
-
-*/
-

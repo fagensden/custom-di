@@ -22,107 +22,99 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "DI.h"
 
 
-s32 DVDLowEnableVideo( u32 Mode )
+s32 DVDLowEnableVideo(u32 Mode)
 {
-	if( Mode == 0 )
+	if(Mode == 0)
 		return DI_SUCCESS;
 
-	s32 fd = IOS_Open("/dev/di", 0 );
+	s32 fd = IOS_Open("/dev/di", 0);
 	if( fd < 0 )
 		return fd;
 
-	u8 *m = heap_alloc( 0, sizeof(u8) );
+	u8 *m = heap_alloc(0, sizeof(u8));
 	*m = 0;
 
-	s32 r = IOS_Ioctl( fd, DVD_ENABLE_VIDEO, m, 1, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_ENABLE_VIDEO, m, 1, NULL, 0);
 
-	IOS_Close( fd );
+	IOS_Close(fd);
 
-	heap_free( 0, m );
-
-	return r;
-}
-s32 DVDLowPrepareCoverRegister( u32 *Cover )
-{
-	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
-		return fd;
-
-	s32 r = IOS_Ioctl( fd, 0x7A, NULL, 0, Cover, sizeof(u32) );
-
-	IOS_Close( fd );
+	heap_free(0, m);
 
 	return r;
 }
-s32 DVDGetGameCount( u32 *Count )
+s32 DVDLowPrepareCoverRegister(u32 *Cover)
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
+	s32 fd = IOS_Open("/dev/di", 0);
+	if(fd < 0)
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, DVD_GET_GAMECOUNT, NULL, 0, Count, sizeof(u32) );
+	s32 r = IOS_Ioctl(fd, 0x7A, NULL, 0, Cover, sizeof(u32));
 
-	IOS_Close( fd );
+	IOS_Close(fd);
+
+	return r;
+}
+s32 DVDGetGameCount(void)
+{
+	s32 fd = IOS_Open("/dev/di", 0 );
+	if(fd < 0)
+		return fd;
+
+	s32 r = IOS_Ioctl(fd, DVD_GET_GAMECOUNT, NULL, 0, NULL, 0);
+
+	IOS_Close(fd);
 
 	return r;
 }
 s32 DVDEjectDisc( void )
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
+	s32 fd = IOS_Open("/dev/di", 0);
+	if(fd < 0)
+		return fd;
+
+	s32 r = IOS_Ioctl(fd, DVD_EJECT_DISC, NULL, 0, NULL, 0);
+
+	IOS_Close(fd);
+
+	return r;
+}
+s32 DVDInsertDisc(void)
+{
+	s32 fd = IOS_Open("/dev/di", 0);
 	if( fd < 0 )
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, DVD_EJECT_DISC, NULL, 0, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_INSERT_DISC, NULL, 0, NULL, 0);
 
 	IOS_Close( fd );
 
 	return r;
 }
-s32 DVDInsertDisc( void )
+u32 DVDReadGameInfo(void)
 {
 	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
+	if(fd < 0)
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, DVD_INSERT_DISC, NULL, 0, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_READ_GAMEINFO, NULL, 0, NULL, 0);
 
-	IOS_Close( fd );
-
+	IOS_Close(fd);
 	return r;
 }
-s32 DVDReadGameInfo( u32 Offset, u32 Length, void *Data )
+s32 DVDWriteDIConfig(void *DIConfig)
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
+	s32 fd = IOS_Open("/dev/di", 0);
 	if( fd < 0 )
 		return fd;
 
-	u32 *vec = (u32 *)malloca( sizeof(u32) * 3, 32 );
-	vec[0] = Offset;
-	vec[1] = Length;
-	vec[2] = (u32)Data;
-
-	s32 r = IOS_Ioctl( fd, DVD_READ_GAMEINFO, vec, sizeof(u32) * 3, NULL, 0 );
-
-	IOS_Close( fd );
-
-	free( vec );
-
-	return r;
-}
-s32 DVDWriteDIConfig( void *DIConfig )
-{
-	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
-		return fd;
-
-	u32 *vec = (u32 *)malloca( sizeof(u32) * 1, 32 );
+	u32 *vec = (u32 *)malloca(sizeof(u32) * 1, 32);
 	vec[0] = (u32)DIConfig;
 
-	s32 r = IOS_Ioctl( fd, DVD_WRITE_CONFIG, vec, sizeof(u32) * 1, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_WRITE_CONFIG, vec, sizeof(u32) * 1, NULL, 0);
 
-	IOS_Close( fd );
+	IOS_Close(fd);
 
-	free( vec );
+	free(vec);
 
 	return r;
 }
@@ -135,11 +127,11 @@ s32 DVDSelectGame(u32 SlotID, u32 Extract)
 	u32 *vec = (u32 *)malloca( sizeof(u32) * 1, 32 );
 	vec[0] = SlotID;
 
-	s32 r = IOS_Ioctl( fd, DVD_SELECT_GAME, vec, sizeof(u32) * 1, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_SELECT_GAME, vec, sizeof(u32) * 1, NULL, 0);
 
-	IOS_Close( fd );
+	IOS_Close(fd);
 
-	free( vec );
+	free(vec);
 
 	return r;
 }
@@ -162,88 +154,89 @@ s32 DVDLoadGame(u32 ID, u32 Magic)
 	return r;
 }
 
-s32 DVDMountDisc( void )
+s32 DVDMountDisc(void)
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
+	s32 fd = IOS_Open("/dev/di", 0);
 	if( fd < 0 )
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, DVD_MOUNT_DISC, NULL, 0, NULL, 0 );
+	s32 r = IOS_Ioctl(fd, DVD_MOUNT_DISC, NULL, 0, NULL, 0);
 
-	IOS_Close( fd );
+	IOS_Close(fd);
 
 	return r;
 }
 
-s32 DVDConnected( void )
+s32 DVDConnected(void)
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
+	s32 fd = IOS_Open("/dev/di", 0);
 	if( fd < 0 )
 		return fd;
 
-	s32 r = IOS_Ioctl( fd, DVD_CONNECTED, NULL, 0, NULL, 0);
+	s32 r = IOS_Ioctl(fd, DVD_CONNECTED, NULL, 0, NULL, 0);
 	
-	IOS_Close( fd );
+	IOS_Close(fd);
 
 	return r;
 }
 
-s32 DVDOpen( char *FileName )
+s32 DVDOpen(char *FileName)
 {
-	s32 fd = IOS_Open("/dev/di", 0 );
-	if( fd < 0 )
+	s32 fd = IOS_Open("/dev/di", 0);
+	if(fd < 0)
 		return fd;
 
-	vector *v = (vector*)malloca( sizeof(vector), 32 );
+	vector *v = (vector*)malloca(sizeof(vector), 32);
 
 	v[0].data = (u32)FileName;
 	v[0].len = strlen(FileName);
 
-	s32 r = IOS_Ioctlv( fd, DVD_OPEN, 1, 0, v );
+	s32 r = IOS_Ioctlv(fd, DVD_OPEN, 1, 0, v);
 
-	free( v );
+	free(v);
 
-	IOS_Close( fd );
+	IOS_Close(fd);
 
 	return r;
 }
-s32 DVDWrite( s32 fd, void *ptr, u32 len )
+s32 DVDWrite(s32 fd, void *ptr, u32 len)
 {
-	s32 DVDHandle = IOS_Open("/dev/di", 0 );
-	if( DVDHandle < 0 )
+	s32 DVDHandle = IOS_Open("/dev/di", 0);
+	if(DVDHandle < 0)
 		return DVDHandle;
 
-	vector *v = (vector*)malloca( sizeof(vector)*2, 32 );
+	vector *v = (vector*)malloca(sizeof(vector)*2, 32);
 	
 	v[0].data = fd;
 	v[0].len = sizeof(u32);
 	v[1].data = (u32)ptr;
 	v[1].len = len;
 
-	s32 r = IOS_Ioctlv( DVDHandle, DVD_WRITE, 2, 0, v );
+	s32 r = IOS_Ioctlv(DVDHandle, DVD_WRITE, 2, 0, v);
 
-	free( v );
+	free(v);
 
-	IOS_Close( DVDHandle );
+	IOS_Close(DVDHandle);
 
 	return r;
 }
-s32 DVDClose( s32 fd )
+
+s32 DVDClose(s32 fd)
 {
-	s32 DVDHandle = IOS_Open("/dev/di", 0 );
-	if( DVDHandle < 0 )
+	s32 DVDHandle = IOS_Open("/dev/di", 0);
+	if(DVDHandle < 0)
 		return DVDHandle;
 
-	vector *v = (vector*)malloca( sizeof(vector), 32 );
+	vector *v = (vector*)malloca(sizeof(vector), 32);
 
 	v[0].data = fd;
 	v[0].len = sizeof(u32);
 
-	s32 r = IOS_Ioctlv( DVDHandle, DVD_CLOSE, 1, 0, v );
+	s32 r = IOS_Ioctlv(DVDHandle, DVD_CLOSE, 1, 0, v);
 
-	free( v );
+	free(v);
 
-	IOS_Close( DVDHandle );
+	IOS_Close(DVDHandle);
 
 	return r;
 }

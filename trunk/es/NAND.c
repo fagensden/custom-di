@@ -22,9 +22,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "NAND.h"
 //#include "di.h"
 
-//extern u8  *CNTMap;
-//extern char diroot[0x20];
-
 u8 *NANDReadFromFile(char *path, u32 offset, u32 length, u32 *res)
 {
 	s32 fd = IOS_Open(path, 1);

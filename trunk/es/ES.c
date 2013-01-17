@@ -116,7 +116,7 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 				{
 					_sprintf( path, "/shared1/%08x.app", ret );
 					ret = IOS_Open( path, 1 );
-					dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
+					//dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
 				} 
 				else 
 				{
@@ -130,7 +130,7 @@ s32 ES_OpenContent( u64 TitleID, u32 ContentID )
 			{	
 				_sprintf( path, "/title/%08x/%08x/content/%08x.app", (u32)(TitleID>>32), (u32)TitleID, TMD->Contents[i].ID );
 				ret = IOS_Open( path, 1 );
-				//dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
+				dbgprintf("ES:iOpenContent->IOS_Open(\"%s\"):%d\n", path, ret );
 			}
 
 			break;
@@ -176,7 +176,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 			__configloadcfg();
 			if(PL->Autoboot == 0)
 				*TitleID = 0x100000002LL;			
-			else if	( PL->Autoboot == 1)	
+			else if	(PL->Autoboot == 1)	
 				*TitleID = PL->TitleID;
 			else if(PL ->Autoboot == 2)
 			{
@@ -189,7 +189,7 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	if(*TitleID == 0x100000002LL)
 		ES_CheckBootOption("/sneek/reload.sys", TitleID);
 	
-	dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
+	//dbgprintf("ES:Booting %08x-%08x...\n", (u32)(*TitleID>>32), (u32)*TitleID );
 
 	if( (u32)(*TitleID>>32) == 1 && (u32)(*TitleID) != 2 )	//	IOS loading requested
 	{
@@ -266,10 +266,10 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 			DoGameRegion( *(vu64*)data );
 
 			r = LoadPPC( data+0x29A );
-			dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
+			//dbgprintf("ES:Disc->LoadPPC(%p):%d\n", data+0x29A, r );
 
 			r = ISFS_Delete( path );
-			dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
+			//dbgprintf("ES:Disc->ISFS_Delete(%s):%d\n", path, r );
 
 			free( data );
 			free( path );
@@ -281,8 +281,11 @@ s32 ES_BootSystem( u64 *TitleID, u32 *KernelVersion )
 	
 	ISFS_Delete( path );
 	
-	DoSMRegion( *TitleID, TitleVersion );
-
+	if(*TitleID == 0x100000002LL)
+		DoSMRegion(*TitleID, TitleVersion);
+	else
+		DoGameRegion(*TitleID);
+		
 	r = ES_LaunchSYS( TitleID );
 
 	free( path );
@@ -586,7 +589,10 @@ s32 ES_GetTMDView( u64 *TitleID, u8 *oTMDView )
 		free( path );
 		free( size );
 		return ES_FATAL;
-	}
+	}	
+	
+	if(PL->Config&CONFIG_REGION_FREE)
+		*(u16*)(data+0x19c) = 3;
 
 	iES_GetTMDView( (TitleMetaData *)data, oTMDView );
 
@@ -1434,7 +1440,7 @@ s32 ES_AddContentFinish( u32 cid, u8 *Ticket, TitleMetaData *TMD )
 			r = IOS_Read( in, block, 0x4000 );
 			if( r < 0 || r != 0x4000 )
 			{
-				dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
+				//dbgprintf("IOS_Read( %d, %p, %d):%d\n", in, block, 0x4000, r );
 				r = ES_EHASH;
 				goto ACF_Fail;
 			}
@@ -1603,7 +1609,7 @@ s32 ES_LoadModules(u32 KernelVersion)
 	TitleMetaData *TMD = (TitleMetaData*)NANDLoadFile(path, size);
 	if(TMD == NULL)
 	{
-		dbgprintf("ES:Can't load TMD for IOS%d, falling back to IOS56\n",KernelVersion);
+		//dbgprintf("ES:Can't load TMD for IOS%d, falling back to IOS56\n",KernelVersion);
 		free(path);
 		free(KeyID);
 		free(size);
@@ -1612,17 +1618,17 @@ s32 ES_LoadModules(u32 KernelVersion)
 
 	if(TMD->ContentCount == 3)	// STUB detected!
 	{
-		dbgprintf("ES:STUB IOS detected, falling back to IOS56\n");
+		//dbgprintf("ES:STUB IOS detected, falling back to IOS56\n");
 		free(path);
 		free(KeyID);
 		free(size);
 		return ES_LoadModules(56);
 	}
 
-	dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount);
+	//dbgprintf("ES:ContentCount:%d\n", TMD->ContentCount);
    
 	strcpy(path, diroot);
-	strcat (path, "/di.bin");
+	strcat(path, "/di.bin");
 
 	s32 Dfd = IOS_Open(path, 1);
 	if(Dfd >= 0)
@@ -1677,12 +1683,12 @@ s32 ES_LoadModules(u32 KernelVersion)
 			}
 		}
 
-		dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
+		//dbgprintf("ES:Loaded Module(%d):\"%s\"\n", i, path );
 		r = LoadModule(path);
 		if(r < 0)
 		{
-			dbgprintf("ES:Fatal error: module failed to start!\n");
-			dbgprintf("ret:%d\n", r );
+			//dbgprintf("ES:Fatal error: module failed to start!\n");
+			//dbgprintf("ret:%d\n", r );
 			while(1);
 		}
 		
@@ -1751,26 +1757,25 @@ s32 ES_LaunchTitle(u64 *TitleID, u8 *TikView)
 			free(size);
 		}
 
-		//dbgprintf("ES:IOSBoot( %s, 0, %d )\n", path, 0, GetKernelVersion() );
-
-		//now load IOS kernel
-		s32 r = 0;
-		if(*(vu32*)0x0 >> 24 == 0x47)
+		if(*(vu32*)0x0 == 0x52454c53 || *(vu32*)0x0 == 0x47475045 || *(vu32*)0x0 == 0x474D4745 || *(vu32*)0x0 == 0x474D3245)
 		{
-			r = IOSBoot("/sneek/diosmios.bin", 0, GetKernelVersion());
-			if(r < 0)
-				dbgprintf("Booting diosmios.bin failed:%d\n", r);
-		}
-		if(*(vu32*)0x0 == 0x52454c53 || *(vu32*)0x0 == 0x47475045)
+			//DVDEjectDisc();
+			IOSBoot("/sneek/quadforce.bin", 0, GetKernelVersion());
+			//dbgprintf("ES:quadforce.bin not found\n");
+		}		
+		else if(*(vu32*)0x0 >> 24 == 0x47)
 		{
-			r = IOSBoot("/sneek/quadforce.bin", 0, GetKernelVersion());
-			if(r < 0)
-				dbgprintf("Booting quadforce.bin failed:%d\n", r );
+			//DVDEjectDisc();
+			
+			
+			
+			IOSBoot("/sneek/diosmios.bin", 0, GetKernelVersion());
+			//dbgprintf("ES:diosmios.bin not found\n");
 		}
 		
 		IOSBoot(path, 0, GetKernelVersion());			
 	
-		dbgprintf("ES:Booting file failed!\n ES:Loading kernel.bin.." );
+		//dbgprintf("ES:Booting file failed!\n ES:Loading kernel.bin..\n");
 
 		_sprintf(path, "/sneek/kernel.bin");
 		IOSBoot(path, 0, GetKernelVersion());
@@ -1958,7 +1963,6 @@ s32 ES_LaunchSYS(u64 *TitleID)
 		char *ipath	= (char *)malloca(0x70, 32);
 		_sprintf(ipath, "/title/%08x/%08x/content/1%07x.app", (u32)(*TitleID>>32), (u32)(*TitleID), i);
 		
-		dbgprintf("ES:Checking \"%s\"\n", ipath);
 		s32 fd = IOS_Open(ipath, 1);
 		if(fd >= 0)
 		{

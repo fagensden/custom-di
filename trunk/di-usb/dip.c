@@ -34,7 +34,7 @@ WBFSFileInfo *WBFSFInf;
 
 static char GamePath[256];
 static char WBFSFile[8];
-static char WBFSPath[256];  
+static char WBFSPath[256]; 
 
 static u32 *KeyID ALIGNED(32);
 static u32 KeyIDT ALIGNED(32) = 0;
@@ -82,6 +82,8 @@ u32 DataSize=0;
 u32 CertOffset=0;
 u32 CertSize=0;
 u32 DiscType=0;
+u32 BannerOffset=0;
+u32 BannerSize=0;
 
 static u32 bufcache_init=0;
 u8 *bufrb ALIGNED(32);
@@ -103,6 +105,16 @@ char *PartTypeStr[] =
 	"Game",
 	"Update",
 	"Channel",
+};
+
+char *RegionStr[] =
+{
+	"JAP",
+	"USA",
+	"EUR",
+	"KOR",
+	"ASN",
+	"LTN",
 };
 
 /*** Debug loging: ***/
@@ -197,7 +209,7 @@ void InitCache(u32 ren)
 	{
 		for(count=0; count < FILESPLITS_MAX; ++count)
 		{
-			FS[count].Offset = 0x00000001;
+			FS[count].Offset = 0xdeadbeef;
 		}
 	}
 }
@@ -256,8 +268,6 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 	s32 fres		= 0;
 	u32 entry_found;
 	
-	GameTitles *GT = (GameTitles *)NULL;
-	
 	char *Path = (char*)malloca(256, 32);	
 
 	/*** First check if file exists and create a new one if needed ***/
@@ -292,9 +302,10 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 		/*** Create default config ***/
 		DICfg->Gamecount= 0;
 		DICfg->SlotID	= 0;
-		/*** Disable auto update functions because they don't work probably! ***/
-		DICfg->Config = DML_VIDEO_GAME | DML_LANG_ENGLISH | HOOK_TYPE_OSLEEP;
+		DICfg->Config =  HOOK_TYPE_OSLEEP | CONFIG_SCROLL_TITLES;
+		DICfg->Config2 = DML_VIDEO_GAME | DML_LANG_ENGLISH;
 		DICfg->Region = GetSystemMenuRegion();
+		DICfg->Magic = CONFIGMAGIC;
 		
 		DVDWrite(fd, DICfg, DVD_CONFIG_SIZE);
 		UpdateCache = 1;
@@ -304,17 +315,24 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 
 	/*** Read current config and verify the diconfig.bin content ***/
 	fres = DVDRead(fd, DICfg, DVD_CONFIG_SIZE);
-	if(fres != DVD_CONFIG_SIZE)
+	if(fres != DVD_CONFIG_SIZE || DICfg->Magic != CONFIGMAGIC)
 	{
+		dbgprintf("DIP:Cache magic check failed... Recreate cache\n");
+		DVDDelete(cdiconfig);
 		free(Path);
 		DVDClose(fd);
 		return DVDUpdateCache(1);
 	}
 	
 	if(DICfg->Gamecount == 0 || ForceUpdate)
+	{
+		dbgprintf("DIP:Recreate cache (forced)\n");
+		DICfg->Gamecount = 0;
 		UpdateCache = 1;
+	}
 	
 	DICfg->Region = GetSystemMenuRegion();
+	dbgprintf("DIP:Set menu region: %s\n", RegionStr[DICfg->Region]);
 		
 	DVDSeek(fd, 0, 0);
 	DVDWrite(fd, DICfg, DVD_CONFIG_SIZE);
@@ -323,9 +341,7 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 
 	GameCount = DICfg->Gamecount;
 	free(DICfg);
-
 	DICfg = (DIConfig*)malloca(GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE, 32);
-
 	DVDSeek(fd, 0, 0);
 	fres = DVDRead(fd, DICfg, GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE);
 	if(fres != GameCount * DVD_GAMEINFO_SIZE + DVD_CONFIG_SIZE)
@@ -334,55 +350,10 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 		DVDClose(fd);
 		return DVDUpdateCache(1);
 	}
-	
-	DVDClose(fd);
-		
-	strcpy(Path, "/sneek/titles.txt");	
-		
-	fd = DVDOpen(Path, FA_READ);
-	if( fd >= 0 )
-	{
-		u32 Contentsize = DVDGetSize(fd);
-		char *Content = (char *)malloca(Contentsize+1, 32);
-        Content[Contentsize]=0;
-        DVDRead(fd, Content, Contentsize);
-        DVDClose(fd);
-		DVDDelete(Path);
-		
-		char *lbrk = strchr(Content, '\n');
-		char *TitleInfo = (char*)malloca(0x60, 32);
-		u32 lastoff=0;
-		u32 length=0;
-		strcpy(Path, "/sneek/titlecfg.bin");			
-		
-		DVDDelete(Path);
-		fd = DVDOpen(Path, FA_CREATE_ALWAYS | FA_READ | FA_WRITE);
-		GT->EntryCount = 0;
-		DVDWrite(fd, GT, 0x10);
-		
-		while(lbrk != NULL)
-		{
-			length = (lbrk-Content) - lastoff;
-			if( length > 73 )
-				length = 73;
-
-			memset(TitleInfo, 0 , 0x50);				
-			strncpy(TitleInfo, Content + lastoff + 1, length - 1);					
-			lastoff = lbrk-Content;
-			DVDWrite(fd, TitleInfo, 0x50);
-			lbrk = strchr(lbrk+1, '\n');
-		}
-		DVDClose(fd);
-		free(Content);
-		free(TitleInfo);
-		free(Path);
-		free(DICfg);
-
-		return DVDUpdateCache(1);
-	}	
+	DVDClose(fd);	
 
 	if(UpdateCache)
-	{		
+	{	
 		DVDDelete(cdiconfig);
 		fd = DVDOpen(cdiconfig, FA_CREATE_ALWAYS | FA_READ | FA_WRITE);
 		DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
@@ -392,28 +363,24 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 		u8 *buf1 = (u8 *)halloca(0x04, 32);
 		InitCache(1);
 		splitcount = 0;	
+		
+		char *Content = (char *)NULL;
+		
+		s32 fdt = DVDOpen("/sneek/titles.txt", FA_READ);
+		if(fdt >= 0)
+		{		
+			u32 Contentsize = DVDGetSize(fdt);
+			Content = (char *)malloca(Contentsize+1, 32);
+			Content[Contentsize]=0;
+			DVDRead(fdt, Content, Contentsize);
+			DVDClose(fdt);
+			dbgprintf("DIP:Using GameTDB custom titles (Database file size: %d)\n", Contentsize);
+		}	
 
-		u32 cTitles = 0;
-
-		strcpy(Path, "/sneek/titlecfg.bin");
-
-		s32 fdct = DVDOpen(Path, DREAD);
-		if(fdct >= 0)
-		{
-			cTitles = DVDGetSize(fdct);
-			GT = (GameTitles *)malloca(cTitles, 32);
-			DVDRead(fdct, GT, cTitles);
-
-			DVDClose(fdct);				
-			cTitles-=0x10;
-			cTitles/=0x50;
-		}
-
-		strcpy( Path, "/games" );
-		if(DVDOpenDir( Path ) == FR_OK)
+		if(DVDOpenDir("/games") == FR_OK)
 		{
 			while(DVDReadDir() == FR_OK)
-			{					
+			{
 				if(strlen(DVDDirGetEntryName()) > 127)
 					continue;
 
@@ -430,9 +397,9 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 				{
 					if(DVDRead(gi, GameInfo, DVD_GAMEINFO_SIZE) == DVD_GAMEINFO_SIZE)
 					{						
-						if(*(vu32*)(GameInfo+DI_MAGIC_OFF) != 0xc2339f3d)
+						if(*(vu32*)(GameInfo+DI_MAGIC_OFF) != GCMAGIC)	
 							strncpy(GameInfo+DI_MAGIC_OFF, "DSCX", 4);
-									
+
 						if(!strncmp(GameInfo, "RELSAB", 6))
 						{
 							DVDClose(gi);
@@ -448,24 +415,27 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 									else if(*(vu32*)buf1 == 0x0051fc00)
 										strncpy(GameInfo+DVD_REAL_NAME_OFF, "Mario Kart Arcade GP 2", 63);
 								}									
-									strncpy(GameInfo+WII_MAGIC_OFF, "MAME", 4);
+								strncpy(GameInfo+WII_MAGIC_OFF, "MAME", 4);
 							}
 						}
 
-						if(cTitles)
-						{
-							char cmp[8];
-							int ct;
-							for(ct=0; ct<cTitles; ++ct)
-							{
-								strncpy(cmp, GT->GameTitle[ct], 6);
-								cmp[6] = 0;
-								if(strncmp(GameInfo, cmp, 6) == 0)
-								{
-									strncpy(GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63);
+						if(Content != NULL)
+						{	
+							char *lbrk = strchr(Content, '\n');
+							u32 lastoff=0;		
+		
+							while(lbrk != NULL)
+							{				
+								lastoff = lbrk-Content;
+								if(!strncmp(Content + lastoff + 1, GameInfo, 6))
+								{	
+									lbrk = strchr(lbrk+1, '\n');
+									memset(GameInfo+DVD_REAL_NAME_OFF, 0 , 127);
+									strncpy(GameInfo+DVD_REAL_NAME_OFF, Content + lastoff + 10, (lbrk-Content) - (lastoff + 10));
 									Asciify2(GameInfo+DVD_REAL_NAME_OFF);
 									break;
 								}
+								lbrk = strchr(lbrk+1, '\n');
 							}
 						}
 						
@@ -477,9 +447,8 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 				}
 			}
 		}
-			
-		strcpy(Path, "/wbfs"); 
-		if(DVDOpenDir(Path) == FR_OK)
+
+		if(DVDOpenDir("/wbfs") == FR_OK)
 		{
 			while(DVDReadDir() == FR_OK)
 			{					
@@ -537,42 +506,42 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 				if (!entry_found)
 					continue;
 						
-				Read(0x218, 4, buf1);
-				if(*(vu32*)buf1 == 0x5d1c9ea3)
-				{
-					Read(0x200, DVD_GAMEINFO_SIZE, GameInfo);
-					strncpy(GameInfo+DI_MAGIC_OFF, "WBFS", 4);
-						
-					if(strncmp(GameInfo, WBFSFile, 6) != 0)
-						strncpy(WBFSFile, GameInfo, 6);
+				Read(0x200, DVD_GAMEINFO_SIZE, GameInfo);
+				
+				strncpy(GameInfo+DI_MAGIC_OFF, "WBFS", 4);
 
-					if(cTitles)
-					{
-						char cmp[8];
-						int ct;
-						for(ct=0; ct<cTitles; ++ct)
+				if(strncmp(GameInfo, WBFSFile, 6) != 0)
+					strncpy(WBFSFile, GameInfo, 6);
+
+				if(Content != NULL)
+				{	
+					char *lbrk = strchr(Content, '\n');
+					u32 lastoff=0;		
+		
+					while(lbrk != NULL)
+					{						
+						lastoff = lbrk-Content;
+						if(!strncmp(Content + lastoff + 1, GameInfo, 6))
 						{
-							strncpy(cmp, GT->GameTitle[ct], 6);
-							cmp[6] = 0;
-							if(strcmp(WBFSFile, cmp ) == 0)
-							{
-								strncpy(GameInfo+DVD_REAL_NAME_OFF, GT->GameTitle[ct] + 9, 63);
-								Asciify2(GameInfo+DVD_REAL_NAME_OFF);
-								break;
-							}
+							lbrk = strchr(lbrk+1, '\n');
+							memset(GameInfo+DVD_REAL_NAME_OFF, 0 , 127);							
+							strncpy(GameInfo+DVD_REAL_NAME_OFF, Content + lastoff + 10, (lbrk-Content) - (lastoff + 10));
+							Asciify2(GameInfo+DVD_REAL_NAME_OFF);
+							break;
 						}
+						lbrk = strchr(lbrk+1, '\n');
 					}
-					
-					memcpy(GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen(DVDDirGetEntryName())+1);
-					DVDWrite(fd, GameInfo, DVD_GAMEINFO_SIZE);
-					CurrentGame++;
 				}
+					
+				memcpy(GameInfo+DVD_GAME_NAME_OFF, DVDDirGetEntryName(), strlen(DVDDirGetEntryName())+1);
+				DVDWrite(fd, GameInfo, DVD_GAMEINFO_SIZE);
+				CurrentGame++;				
 			}
 		}
 	
 		free(GameInfo);
+		free(Content);
 		hfree(buf1);
-		free(GT);
 		DVDClose(fd);
 	
 		free(DICfg);	
@@ -581,8 +550,8 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 		DVDRead(fd, DICfg, DVDGetSize(fd));
 		DVDClose(fd);		
 
-		char check1[64];
-		char check2[64];
+		char check1[128];
+		char check2[128];
 	
 		u8 TitleC[DVD_GAMEINFO_SIZE];
 	
@@ -593,8 +562,8 @@ s32 DVDUpdateCache(u32 ForceUpdate)
 			{
 				for(k=j+1; k<CurrentGame; ++k)
 				{			
-					sprintf(check1, "%.63s", &DICfg->GameInfo[j][0x20]);
-					sprintf(check2, "%.63s", &DICfg->GameInfo[k][0x20]);
+					sprintf(check1, "%.127s", &DICfg->GameInfo[j][0x20]);
+					sprintf(check2, "%.127s", &DICfg->GameInfo[k][0x20]);
 					upperCase(check1);
 					upperCase(check2);
 					if(strcmp(check1, check2)  > 0)
@@ -660,78 +629,99 @@ s32 DVDSelectGame(int SlotID)
 				dbgprintf("DIP:Set mode to DM(L)\n");
 				FMode = IS_FST;				
 				fd = 1;
-				sprintf(GamePath, "/games/%.127s/", &DICfg->GameInfo[SlotID][0x60]);
+				sprintf(GamePath, "/games/%.127s/", &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF]);
 				sprintf(str, "%sgame.iso", GamePath);
 				
 				DML_CFG *DMLCfg = (DML_CFG *)0x01200000;
 				memset32(DMLCfg, 0, sizeof(DML_CFG));				
 			
-				if(*(vu32*)DICfg->GameInfo[SlotID] == 0x52454c53 || *(vu32*)DICfg->GameInfo[SlotID] == 0x47475045)
-					DMLCfg->CfgVersion = 0x00000001;
-				else
-					DMLCfg->CfgVersion = 0x00000002;
-					
-				DMLCfg->Magicbytes = 0xD1050CF6;
-				
-				//DMLCfg->VideoMode |= DML_VID_DML_AUTO;
-				
-				//u32 vid = 0;
-				
-//				SRAM_Init();
-				
-//				SysSRAM *Sram;				
-//				Sram = SYS_LockSram();
-				
-				//Sram->Flags &= 0x7F;
-				//Sram->Flags &= 0xFE;
-				//Sram->NTD &= 0xBF;
-				DMLCfg->VideoMode |= DML_VID_DML_AUTO;
-				
-				switch(DICfg->Config&DML_VIDEO_CONF)
+				switch(*(vu32*)DICfg->GameInfo[SlotID])
 				{
-					case DML_VIDEO_PAL50:							
-						//Sram->Flags |= 0x01;
-						DMLCfg->VideoMode = DML_VID_FORCE;
-						DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
-						//DMLCfg->VideoMode |= DML_VID_FORCE;
-						//vid = 1;
+					case 0x52454c53:
+					case 0x47475045:
+					case 0x474D4745:
+					case 0x474D3245:
+						DMLCfg->CfgVersion = 0x00000001;
 					break;
-					case DML_VIDEO_NTSC:
-						DMLCfg->VideoMode = DML_VID_FORCE;
-						DMLCfg->VideoMode |= DML_VID_FORCE_NTSC;
-						//DMLCfg->VideoMode |= DML_VID_FORCE;
-					break;
-					case DML_VIDEO_PAL60:		
-						//Sram->Flags |= 0x80;
-						//Sram->Flags |= 0x01;
-						//Sram->NTD |= 0x40;
-						DMLCfg->VideoMode = DML_VID_FORCE;
-						DMLCfg->VideoMode |= DML_VID_FORCE_PAL60;
-						//DMLCfg->VideoMode |= DML_VID_FORCE;
-						//vid = 5;
-					break;
-					case DML_VIDEO_PROG:		
-						//Sram->Flags |= 0x80;
-						DMLCfg->VideoMode = DML_VID_FORCE;
-						DMLCfg->VideoMode |= DML_VID_FORCE_PROG;						
-						DMLCfg->VideoMode |= DML_VID_PROG_PATCH;
-						//DMLCfg->VideoMode |= DML_VID_FORCE;
-					break;
-					case DML_VIDEO_PROGP:
-						//Sram->Flags |= 0x80;
-						//Sram->NTD |= 0x40;
-						DMLCfg->VideoMode = DML_VID_FORCE;
-						DMLCfg->VideoMode |= DML_VID_FORCE_PROG;
-						DMLCfg->VideoMode |= DML_VID_PROG_PATCH;
-						//DMLCfg->VideoMode |= DML_VID_FORCE;
-						//vid = 5;
-					break;
-					case DML_VIDEO_GAME:
-						DMLCfg->VideoMode = DML_VID_DML_AUTO;					
+					default:
+						DMLCfg->CfgVersion = 0x00000002;
 					break;
 				}
 
-/*				switch(DICfg->Config&DML_LANG_CONF)
+				DMLCfg->Magicbytes = 0xD1050CF6;
+				
+				DMLCfg->VideoMode = DML_VID_FORCE;
+				
+				SRAM_Init();
+				
+				SysSRAM *Sram;				
+				Sram = SYS_LockSram();			
+				
+				switch(DICfg->Config2 & DML_VIDEO_CONF)
+				{
+					case DML_VIDEO_PAL50:
+						dbgprintf("DIP:Set video mode to force PAL50\n");
+						Sram->Flags |= 0x01;
+						Sram->NTD &= 0xBF;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PAL50;
+					break;
+					case DML_VIDEO_NTSC:
+						dbgprintf("DIP:Set video mode to force NTSC\n");
+						Sram->Flags &= 0xFE;
+						Sram->NTD &= 0xBF;
+						DMLCfg->VideoMode |= DML_VID_FORCE_NTSC;
+					break;
+					case DML_VIDEO_PAL60:
+						dbgprintf("DIP:Set vodeo mode to force PAL60\n");
+						Sram->Flags |= 0x01;
+						Sram->NTD |= 0x40;
+						DMLCfg->VideoMode |= DML_VID_FORCE_PAL60;
+					break;
+					case DML_VIDEO_NONE:
+						dbgprintf("DIP:Set video mode to none\n");
+						DMLCfg->VideoMode = DML_VID_NONE;
+					break;
+					case DML_VIDEO_GAME:
+						dbgprintf("DIP:Set video mode to auto\n");
+						DMLCfg->VideoMode = DML_VID_AUTO;					
+					break;
+				}
+			
+				memcpy(DMLCfg->GamePath, str, strlen(str));			
+				DMLCfg->Config |= DML_CFG_GAME_PATH;
+			
+				if(DICfg->Config2 & DML_CHEATS)
+				{
+					sprintf(str, "%s%s.gct", GamePath, DICfg->GameInfo[SlotID]);
+					memcpy(DMLCfg->CheatPath, str, strlen(str));
+					DMLCfg->Config |= DML_CFG_CHEAT_PATH;
+				}				
+			
+				if(DICfg->Config2 & DML_DEBUGGER)
+					DMLCfg->Config |= DML_CFG_DEBUGGER;
+				if(DICfg->Config2 & DML_DEBUGWAIT)
+					DMLCfg->Config |= DML_CFG_DEBUGWAIT;
+				if(DICfg->Config2 & DML_NMM)
+					DMLCfg->Config |= DML_CFG_NMM;
+				if(DICfg->Config2 & DML_NMM_DEBUG)
+					DMLCfg->Config |= DML_CFG_NMM_DEBUG;
+				if(DICfg->Config2 & DML_ACTIVITY_LED)
+					DMLCfg->Config |= DML_CFG_ACTIVITY_LED;
+				if(DICfg->Config2 & DML_PADHOOK)
+					DMLCfg->Config |= DML_CFG_PADHOOK;
+				if(DICfg->Config2 & DML_PROG_PATCH)
+				{
+					Sram->Flags |= 0x80;
+					DMLCfg->VideoMode |= DML_VID_PROG_PATCH;
+				}
+				else
+				{
+					Sram->Flags &= 0x7F;
+				}
+				if(DICfg->Config2 & DML_FORCE_WIDESCREEN)
+					DMLCfg->Config |= DML_CFG_FORCE_WIDE;
+					
+				switch(DICfg->Config&DML_LANG_CONF)
 				{
 					case DML_LANG_ENGLISH:		
 						Sram->Lang = 0;
@@ -752,39 +742,18 @@ s32 DVDSelectGame(int SlotID)
 						Sram->Lang = 5;
 					break;
 				}
-*/
-//				SYS_UnlockSram(1);
-//				SYS_SyncSram();
-			
-				memcpy(DMLCfg->GamePath, str, strlen(str));			
-				DMLCfg->Config |= DML_CFG_GAME_PATH;
-			
-				if(DICfg->Config & DML_CHEATS)
-				{
-					sprintf(str, "%s%s.gct", GamePath, DICfg->GameInfo[SlotID]);
-					memcpy(DMLCfg->CheatPath, str, strlen(str));
-					DMLCfg->Config |= DML_CFG_CHEAT_PATH;
-				}				
-			
-				if(DICfg->Config & DML_DEBUGGER)
-					DMLCfg->Config |= DML_CFG_DEBUGGER;
-				if(DICfg->Config & DML_DEBUGWAIT)
-					DMLCfg->Config |= DML_CFG_DEBUGWAIT;
-				if(DICfg->Config & DML_NMM)
-					DMLCfg->Config |= DML_CFG_NMM;
-				if(DICfg->Config & DML_NMM_DEBUG)
-					DMLCfg->Config |= DML_CFG_NMM_DEBUG;
-				if(DICfg->Config & DML_ACTIVITY_LED)
-					DMLCfg->Config |= DML_CFG_ACTIVITY_LED;
-				if(DICfg->Config & DML_PADHOOK)
-					DMLCfg->Config |= DML_CFG_PADHOOK;	
+
+				SYS_UnlockSram(1);
+				SYS_SyncSram();
+					
+				sync_after_write(DMLCfg, sizeof(DML_CFG));
 			
 				free(str);			
 			break;
 			case 0x44534358: /*** FST Extracted ***/
 				dbgprintf("DIP:Set mode to FST\n");
 				FMode = IS_FST;	
-				sprintf(GamePath, "/games/%.127s/", &DICfg->GameInfo[SlotID][0x60]);
+				sprintf(GamePath, "/games/%.127s/", &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF]);
 			
 				sprintf(str, "%ssys/apploader.img", GamePath);
 				fd = DVDOpen( str, DREAD );
@@ -803,17 +772,17 @@ s32 DVDSelectGame(int SlotID)
 				if(DVDOpenDir(WBFSPath) == FR_OK)
 					isparsed = 1;
 			
-				if(strncmp((char *)&DICfg->GameInfo[SlotID][0x60]+strlen( (char *)( &DICfg->GameInfo[SlotID][0x60])) - 5, ".wbfs", 5) == 0)
+				if(strncmp((char *)&DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF]+strlen( (char *)( &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF])) - 5, ".wbfs", 5) == 0)
 				{
 					strcpy(GamePath, "/wbfs/");
-					sprintf(WBFSPath, "/wbfs/%.127s", &DICfg->GameInfo[SlotID][0x60]);
-					strncpy(WBFSsFile, (char *)&DICfg->GameInfo[SlotID][0x60], strlen((char *)( &DICfg->GameInfo[SlotID][0x60])) - 5);
-					WBFSsFile[strlen( (char *)( &DICfg->GameInfo[SlotID][0x60])) - 5] = '\0';
+					sprintf(WBFSPath, "/wbfs/%.127s", &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF]);
+					strncpy(WBFSsFile, (char *)&DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF], strlen((char *)( &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF])) - 5);
+					WBFSsFile[strlen( (char *)( &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF])) - 5] = '\0';
 				}
 				else
 				{
-					sprintf(GamePath, "/wbfs/%.127s/", &DICfg->GameInfo[SlotID][0x60]);
-					sprintf(WBFSPath, "/wbfs/%.127s/%s.wbfs", &DICfg->GameInfo[SlotID][0x60], WBFSFile);
+					sprintf(GamePath, "/wbfs/%.127s/", &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF]);
+					sprintf(WBFSPath, "/wbfs/%.127s/%s.wbfs", &DICfg->GameInfo[SlotID][DVD_GAME_NAME_OFF], WBFSFile);
 					strcpy(WBFSsFile, WBFSFile);
 				}
 			
@@ -1117,7 +1086,6 @@ s32 DVDLowReadUnencrypted(u32 Offset, u32 Length, void *ptr)
 			if(FMode == IS_DISC)
 			{
 				DiscRead(ptr, Offset << 2, Length);
-				hexdump(ptr, 0x20);
 				part_cnt = *(vu32*)(ptr);
 				dbgprintf("DIP:Found %d partition(s)\n", part_cnt);
 				return DI_SUCCESS;
@@ -1150,7 +1118,6 @@ s32 DVDLowReadUnencrypted(u32 Offset, u32 Length, void *ptr)
 			if(FMode == IS_DISC)
 			{
 				DiscRead(ptr, Offset << 2, Length);
-				hexdump(ptr, 0x20);
 				u32 i;
 				for(i = 0; i < part_cnt; ++i)
 				{
@@ -1251,14 +1218,6 @@ int DIP_Ioctl( struct ipcmessage *msg )
 		
 	switch(msg->ioctl.command)
 	{
-		/*** Added for slow harddrives ***/
-		case DVD_CONNECTED:
-		{
-			if( HardDriveConnected )
-				ret = 1;
-			else
-				ret = 0;
-		} break;
 		case DVD_WRITE_CONFIG:
 		{
 			u32 *vec = (u32*)msg->ioctl.buffer_in;
@@ -1266,10 +1225,10 @@ int DIP_Ioctl( struct ipcmessage *msg )
 			
 			memcpy(DICfg, (u8*)(vec[0]), DVD_CONFIG_SIZE);
 
-			fd = DVDOpen( cdiconfig, FA_WRITE|FA_OPEN_EXISTING );
+			fd = DVDOpen(cdiconfig, FA_WRITE|FA_OPEN_EXISTING);
 			if( fd < 0 )
 			{
-				DVDDelete( cdiconfig );
+				DVDDelete(cdiconfig);
 				fd = DVDOpen( cdiconfig, FA_WRITE|FA_CREATE_ALWAYS );
 				if( fd < 0 )
 				{
@@ -1279,8 +1238,8 @@ int DIP_Ioctl( struct ipcmessage *msg )
 				}
 			}
 
-			DVDWrite( fd, DICfg, DVD_CONFIG_SIZE );
-			DVDClose( fd );					
+			DVDWrite(fd, DICfg, DVD_CONFIG_SIZE);
+			DVDClose(fd);					
 
 			ret = DI_SUCCESS;
 			hfree(name);
@@ -1288,21 +1247,8 @@ int DIP_Ioctl( struct ipcmessage *msg )
 
 		case DVD_READ_INFO:
 		{
-			u32 *vec = (u32*)msg->ioctl.buffer_in;
-
-			fd = DVDOpen( cdiconfig, FA_READ );
-		
-			if( fd < 0 )
-			{
-				ret = DI_FATAL;
-			} 
-			else 
-			{
-				DVDSeek( fd, vec[0], 0 );
-				DVDRead( fd, (u8*)(vec[2]), vec[1] );
-				DVDClose( fd );
-				ret = DI_SUCCESS;
-			}
+			
+			ret = (u32)DICfg;
 		} break;
 		
 		case DVD_INSERT_DISC:
@@ -1323,8 +1269,7 @@ int DIP_Ioctl( struct ipcmessage *msg )
 		}
 		case DVD_GET_GAMECOUNT:	/*** Get Game count ***/
 		{
-			*(u32*)bufout = DICfg->Gamecount | 0x10000;
-			ret = DI_SUCCESS;
+			ret = DICfg->Gamecount;
 		} break;
 		case DVD_SELECT_GAME:
 		{
@@ -1759,7 +1704,6 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 			}
 			else
 			{
-				
 				TMD = (u8*)halloca(TMDSize, 32);
 				if(FMode == IS_DISC)
 					ret = DiscRead(TMD, game_part_offset + (TMDOffset << 2), TMDSize);
@@ -1784,8 +1728,6 @@ int DIP_Ioctlv(struct ipcmessage *msg)
 					sync_after_write(v[3].data, TMDSize);
 				}
 			}
-
-					
 
 			if(FMode == IS_FST) 
 			{	
@@ -2038,6 +1980,17 @@ s32 Encrypted_Read(u32 offset, u32 length, void *ptr)
 
 	while(length) 
 	{
+		if(DICfg->Config & CONFIG_DI_ACT_LED)
+		{
+			if(read32(HW_GPIO1OWNER) & 0x20)
+				clear32(HW_GPIO1OWNER, 1<<5);		
+			
+			if(DICfg->Config & CONFIG_REV_ACT_LED)
+				clear32(HW_GPIO1OUT, 1<<5);
+			else
+				set32(HW_GPIO1OUT, 1<<5);
+		}
+		
 		bl_offset = offset % (0x7c00 >> 2);
 		bl_length = 0x7c00 - (bl_offset << 2);
 		BCRead = 0;
@@ -2078,6 +2031,13 @@ s32 Encrypted_Read(u32 offset, u32 length, void *ptr)
 		ptr += bl_length;
 		offset += bl_length >> 2;
 		length -= bl_length;
+		if(DICfg->Config & CONFIG_DI_ACT_LED)
+		{			
+			if(DICfg->Config & CONFIG_REV_ACT_LED)
+				set32(HW_GPIO1OUT, 1<<5);
+			else				
+				clear32(HW_GPIO1OUT, 1<<5);
+		}
 	}
 	
 	return DI_SUCCESS;
@@ -2297,34 +2257,34 @@ s32 Search_FST(u32 Offset, u32 Length, void *ptr, u32 mode)
 	return DI_FATAL;
 }
 
-s32 Do_Dol_Patches( u32 Length, void *ptr )
+s32 Do_Dol_Patches(u32 Length, void *ptr)
 {
 	s32 fd;
 	u32 DebuggerHook=0;
 	char Path[256];
 	int i;
 	
-	for( i=0; i < Length; i+=4 )
+	for(i=0; i < Length; i+=4)
 	{
 		/*** Remote debugging and USBgecko debug printf doesn't work well at the same time! ***/
-		if( DICfg->Config & CONFIG_DEBUG_GAME )
+		if(DICfg->Config & CONFIG_DEBUG_GAME)
 		{
-			switch( DICfg->Config&HOOK_TYPE_MASK )
+			switch(DICfg->Config & HOOK_TYPE_MASK)
 			{
 				case HOOK_TYPE_VSYNC:	
 				{	
 					//VIWaitForRetrace(Pattern 1)
-					if( *(vu32*)(ptr+i) == 0x4182FFF0 && *(vu32*)(ptr+i+4) == 0x7FE3FB78 )
+					if(*(vu32*)(ptr+i) == 0x4182FFF0 && *(vu32*)(ptr+i+4) == 0x7FE3FB78)
 						DebuggerHook = (u32)ptr + i + 8 * sizeof(u32);
 
 				} break;
 				case HOOK_TYPE_OSLEEP:	
 				{	
 					//OSSleepThread(Pattern 1)
-					if( *(vu32*)(ptr+i+0) == 0x3C808000 && *(vu32*)(ptr+i+4) == 0x38000004 && *(vu32*)(ptr+i+8) == 0x808400E4 )
+					if(*(vu32*)(ptr+i+0) == 0x3C808000 && *(vu32*)(ptr+i+4) == 0x38000004 && *(vu32*)(ptr+i+8) == 0x808400E4)
 					{
 						int j = 0;
-						while( *(vu32*)(ptr+i+j) != 0x4E800020 )
+						while(*(vu32*)(ptr+i+j) != 0x4E800020)
 							j+=4;
 
 						DebuggerHook = (u32)ptr + i + j;
@@ -2332,84 +2292,96 @@ s32 Do_Dol_Patches( u32 Length, void *ptr )
 				} break;
 			}					
 		} 
-		else if( (DICfg->Config & CONFIG_PATCH_FWRITE) )
+		else if((DICfg->Config & CONFIG_PATCH_FWRITE))
 		{
-			if( memcmp( (void*)(ptr+i), sig_fwrite, sizeof(sig_fwrite) ) == 0 )					
-				memcpy( (void*)(ptr+i), patch_fwrite, sizeof(patch_fwrite) );						
+			if(memcmp((void*)(ptr+i), sig_fwrite, sizeof(sig_fwrite)) == 0)					
+				memcpy((void*)(ptr+i), patch_fwrite, sizeof(patch_fwrite));						
 		}
-		if( DICfg->Config & CONFIG_PATCH_MPVIDEO )
+		if(DICfg->Config & CONFIG_PATCH_MPVIDEO)
 		{
-			if( memcmp( (void*)(ptr+i), sig_iplmovie, sizeof(sig_iplmovie) ) == 0 )
-				memcpy( (void*)(ptr+i), patch_iplmovie, sizeof(patch_iplmovie) );
+			if( memcmp((void*)(ptr+i), sig_iplmovie, sizeof(sig_iplmovie)) == 0)
+				memcpy((void*)(ptr+i), patch_iplmovie, sizeof(patch_iplmovie));
 		}
-		if( DICfg->Config & CONFIG_PATCH_VIDEO )
+		if(DICfg->Config & CONFIG_PATCH_VIDEO)
 		{
-			if( *(vu32*)(ptr+i) == 0x3C608000 )
+			if(*(vu32*)(ptr+i) == 0x3C608000)
 			{
-				if( ((*(vu32*)(ptr+i+4) & 0xFC1FFFFF ) == 0x800300CC) && ((*(vu32*)(ptr+i+8) >> 24) == 0x54 ) )
-					*(vu32*)(ptr+i+4) = 0x5400F0BE | ((*(vu32*)(ptr+i+4) & 0x3E00000) >> 5	);
-		
+				if(((*(vu32*)(ptr+i+4) & 0xFC1FFFFF) == 0x800300CC) && ((*(vu32*)(ptr+i+8) >> 24) == 0x54))
+					*(vu32*)(ptr+i+4) = 0x5400F0BE | ((*(vu32*)(ptr+i+4) & 0x3E00000) >> 5);
 			}
 		}
 	}
 
-	if( GameHook != 0xdeadbeef )
+	if(GameHook != 0xdeadbeef)
 	{
-		if( DebuggerHook && (DICfg->Config & CONFIG_DEBUG_GAME) )
+		if(DebuggerHook && (DICfg->Config & CONFIG_DEBUG_GAME))
 		{
+			dbgprintf("DIP:Read codehandler into memory...");
 			GameHook = 0xdeadbeef;
 
-			strcpy(	Path, "/sneek/kenobiwii.bin" );
+			strcpy(Path, "/sneek/kenobiwii.bin");
 				
-			fd = IOS_Open( Path, 1 );
-			if( fd < 0 )					
-				return DI_SUCCESS;
-
-			u32 Size = IOS_Seek( fd, 0, 2 );
-			IOS_Seek( fd, 0, 0 );
-
-			/*** Read file to memory ***/
-			s32 ret = IOS_Read( fd, (void*)0x1800, Size );
-			if( ret != Size )
+			fd = IOS_Open(Path, 1);
+			if(fd < 0)
 			{
-				IOS_Close( fd );
+				dbgprintf(" Not found\n");
 				return DI_SUCCESS;
 			}
-			IOS_Close( fd );
+
+			u32 Size = IOS_Seek(fd, 0, 2);
+			IOS_Seek(fd, 0, 0);
+
+			/*** Read file to memory ***/
+			s32 ret = IOS_Read(fd, (void*)0x1800, Size);
+			if(ret != Size)
+			{
+				IOS_Close( fd );
+				dbgprintf(" Failed!\n");
+				return DI_SUCCESS;
+			}
+			IOS_Close(fd);
+			dbgprintf(" Done!\n");
 
 			*(vu32*)((*(vu32*)0x1808)&0x7FFFFFFF) = !!(DICfg->Config & CONFIG_DEBUG_GAME_WAIT);
 
-			memcpy( (void *)0x1800, (void*)0, 6 );
+			memcpy((void *)0x1800, (void*)0, 6);
 
 			u32 newval = 0x00018A8 - DebuggerHook;
 				newval&= 0x03FFFFFC;
 				newval|= 0x48000000;
 
 			*(vu32*)(DebuggerHook) = newval;
+			
+			dbgprintf("DIP:Read cheats into memory...");
 				
-			if( FMode == IS_WBFS )
+			if(FMode == IS_WBFS)
 				sprintf( Path, "/sneek/cheat/%s.gct", WBFSFile );
 			else
-				sprintf( Path, "%scodes.gct", GamePath );
+				sprintf(Path, "%scodes.gct", GamePath);
 				
 				
-			fd = IOS_Open( Path, 1 );
-			if ( fd < 0)
-				return DI_SUCCESS;
-				
-			Size = IOS_Seek( fd, 0, 2 );
-			IOS_Seek( fd, 0, 0 );
-					
-			ret = IOS_Read( fd, (void*)0x27D0, Size );
-			if( ret != Size )
+			fd = IOS_Open(Path, 1);
+			if (fd < 0)
 			{
-				IOS_Close( fd );
+				dbgprintf(" Not found\n");
 				return DI_SUCCESS;
 			}
-			IOS_Close( fd );
+				
+			Size = IOS_Seek(fd, 0, 2);
+			IOS_Seek(fd, 0, 0);
+					
+			ret = IOS_Read(fd, (void*)0x27D0, Size);
+			if(ret != Size)
+			{
+				IOS_Close(fd);
+				dbgprintf(" Failed!\n");
+				return DI_SUCCESS;
+			}
+			IOS_Close(fd);
 			*(vu8*)0x1807 = 0x01;
+			dbgprintf(" Done!\n");
 		}
 		return DI_SUCCESS;	
 	}
-	return DI_FATAL;
+	return DI_SUCCESS;
 }

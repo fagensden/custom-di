@@ -30,12 +30,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "common.h"
 #include "alloc.h"
 
-#define OLD_CONFIG_SIZE		0x10
 #define DVD_CONFIG_SIZE		0x20
 #define DVD_REAL_NAME_OFF	0x20
-#define OLD_GAMEINFO_SIZE	0x80
-#define DVD_GAMEINFO_SIZE	0x100
-#define DVD_GAME_NAME_OFF	0x60
+#define DVD_GAMEINFO_SIZE	0x140
 #define WII_MAGIC_OFF		0x18
 #define DI_MAGIC_OFF		0x1c
 
@@ -51,6 +48,21 @@ enum GameRegion
 	ALL,
 };
 
+enum SNEEKConfig2
+{
+	DML_CHEATS				= (1<<0),
+	DML_DEBUGGER			= (1<<1),
+	DML_DEBUGWAIT			= (1<<2),
+	DML_NMM					= (1<<3),
+	DML_NMM_DEBUG			= (1<<4),
+	DML_ACTIVITY_LED		= (1<<5),
+	DML_PADHOOK				= (1<<6),
+	DML_BOOT_DISC			= (1<<7),
+	DML_BOOT_DOL			= (1<<8),
+	DML_PROG_PATCH			= (1<<9),
+	DML_FORCE_WIDESCREEN	= (1<<10),
+};
+
 enum SNEEKConfig
 {
 	CONFIG_PATCH_FWRITE		= (1<<0),
@@ -60,19 +72,13 @@ enum SNEEKConfig
 	CONFIG_DEBUG_GAME		= (1<<4),
 	CONFIG_DEBUG_GAME_WAIT	= (1<<5),	
 	CONFIG_READ_ERROR_RETRY	= (1<<6),
-	CONFIG_GAME_ERROR_SKIP	= (1<<7),
-	DML_CHEATS				= (1<<8),
-	DML_DEBUGGER			= (1<<9),
-	DML_DEBUGWAIT			= (1<<10),
-	DML_NMM					= (1<<11),
-	DML_NMM_DEBUG			= (1<<12),
-	DML_ACTIVITY_LED		= (1<<13),
-	DML_PADHOOK				= (1<<14),
-	CONFIG_MOUNT_DISC		= (1<<15),
-	DML_BOOT_DISC			= (1<<16),
-	DML_BOOT_DOL			= (1<<17),
-	DEBUG_CREATE_DIP_LOG	= (1<<18),
-	DEBUG_CREATE_ES_LOG		= (1<<19),
+	CONFIG_GAME_ERROR_SKIP	= (1<<7),	
+	CONFIG_MOUNT_DISC		= (1<<8),
+	CONFIG_DI_ACT_LED		= (1<<9),
+	CONFIG_REV_ACT_LED		= (1<<10),	
+	DEBUG_CREATE_DIP_LOG	= (1<<11),
+	DEBUG_CREATE_ES_LOG		= (1<<12),
+	CONFIG_SCROLL_TITLES	= (1<<13),
 };
 
 enum DMLLang
@@ -89,14 +95,13 @@ enum DMLLang
 
 enum DMLVideo
 {
-	DML_VIDEO_CONF		= (0xF<<24),
+	DML_VIDEO_CONF			= (0xF<<24),
 	
-	DML_VIDEO_GAME		= (1<<24),
-	DML_VIDEO_PAL50		= (2<<24),
-	DML_VIDEO_NTSC		= (3<<24),
-	DML_VIDEO_PAL60		= (4<<24),
-	DML_VIDEO_PROG		= (5<<24),
-	DML_VIDEO_PROGP		= (6<<24),
+	DML_VIDEO_GAME			= (1<<24),
+	DML_VIDEO_PAL50			= (2<<24),
+	DML_VIDEO_PAL60			= (3<<24),
+	DML_VIDEO_NTSC			= (4<<24),	
+	DML_VIDEO_NONE			= (5<<24),
 };
 
 enum HookTypes
@@ -115,22 +120,11 @@ typedef struct
 	u32		Region;
 	u32		Gamecount;
 	u32		Config;
-	u8		GameInfo[][0x80];
-} DIConfigO;
-
-
-
-typedef struct
-{
-	u32		SlotID;
-	u32		Region;
-	u32		Gamecount;
-	u32		Config;
 	u32		Config2;
+	u32		Magic;
 	u32		Padding1;
-	u32		Padding2;
-	u32 	Padding3;
-	u8		GameInfo[][0x100];
+	u32 	Padding2;
+	u8		GameInfo[][DVD_GAMEINFO_SIZE];
 } DIConfig;
 
 typedef struct
@@ -221,13 +215,13 @@ s32 DVDWrite(s32 fd, void *ptr, u32 len);
 s32 DVDClose(s32 fd);
 
 s32 DVDLowEnableVideo(u32 Mode);
-s32 DVDGetGameCount(u32 *Mode);
+s32 DVDGetGameCount(void);
 s32 DVDSetRegion(u32 *Region);
 s32 DVDGetRegion(u32 *Region);
 s32 DVDEjectDisc(void);
 s32 DVDInsertDisc(void);
 s32 DVDUpdateGameCache(void);
-s32 DVDReadGameInfo(u32 Offset, u32 Length, void *Data);
+u32 DVDReadGameInfo(void);
 s32 DVDWriteDIConfig(void *DIConfig);
 s32 DVDSelectGame( u32 SlotID, u32 Extract );
 s32 DVDLoadGame(u32 ID, u32 Magic);

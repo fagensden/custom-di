@@ -159,6 +159,9 @@ void dump_qh(struct ehci_qh	*qh)
  * before driver shutdown. But it also seems to be caused by bugs in cardbus
  * bridge shutdown:  shutting down the bridge before the devices using it.
  */
+ 
+ #include "common.h"
+ 
 static int handshake (void __iomem *ptr, u32 mask, u32 done, int usec)
 {
 	u32	result;
@@ -200,7 +203,8 @@ static int ehci_init(void)
 	ehci->async->hw_info1 = cpu_to_hc32( QH_HEAD);
 	ehci->async->hw_token = cpu_to_hc32( QTD_STS_HALT);
 	ehci->async->hw_qtd_next = EHCI_LIST_END();
-	ehci->async->hw_alt_next = EHCI_LIST_END();//QTD_NEXT( ehci->async->dummy->qtd_dma);
+	ehci->async->hw_alt_next = EHCI_LIST_END();
+	//QTD_NEXT(ehci->async->dummy->qtd_dma);
 	ehci->ctrl_buffer =  USB_Alloc(sizeof(usbctrlrequest));
 	ehci->command = 0;
 	ehci_writel( 0x00800002, &ehci->regs->command); 
@@ -214,8 +218,7 @@ static int ehci_init(void)
 }
 
 /* fill a qtd, returning how much of the buffer we were able to queue up */
-static int
-qtd_fill(struct ehci_qtd *qtd, dma_addr_t buf, size_t len, int token, int maxpacket)
+static int qtd_fill(struct ehci_qtd *qtd, dma_addr_t buf, size_t len, int token, int maxpacket)
 {
 	int	i, count;
 	u64	addr = buf;
@@ -266,7 +269,7 @@ qtd_fill(struct ehci_qtd *qtd, dma_addr_t buf, size_t len, int token, int maxpac
  * also count the actual transfer length.
  * 
  */
-static void qh_end_transfer (void)
+static void qh_end_transfer(void)
 {
 	struct ehci_qtd	*qtd;
 	struct ehci_qh	*qh = ehci->asyncqh;
@@ -274,26 +277,31 @@ static void qh_end_transfer (void)
 	int error = 0;
 	for(qtd = qh->qtd_head; qtd; qtd = qtd->next)
 	{
-		token = hc32_to_cpu( qtd->hw_token);
-		if (likely (QTD_PID (token) != 2))
-			qtd->urb->actual_length += qtd->length - QTD_LENGTH (token);
+		token = hc32_to_cpu(qtd->hw_token);
+		if(likely(QTD_PID (token) != 2))
+			qtd->urb->actual_length += qtd->length - QTD_LENGTH(token);			
 				
-		if (!(qtd->length ==0 && ((token & 0xff)==QTD_STS_HALT)) && (token & QTD_STS_HALT)) 
+		if(!(qtd->length == 0 && ((token & 0xff) == QTD_STS_HALT)) && (token & QTD_STS_HALT)) 
 		{
-			ehci_dbg("\nEHCI:");
-			ehci_dbg("QTD error!:");
+			ehci_dbg("EHCI:");
+			ehci_dbg("qTD error!:");
 			if (token & QTD_STS_BABBLE) 	/* FIXME "must" disable babbling device's port too */				
 				ehci_dbg(" BABBLE"); 
 			if (token & QTD_STS_MMF) 		/* fs/ls interrupt xfer missed the complete-split */
 				ehci_dbg(" Missed micro frame");
-			if (token & QTD_STS_DBE) 
-				ehci_dbg(" Databuffer error");
-			if (token & QTD_STS_XACT)
+			if (token & QTD_STS_DBE)
+			{
+				if(QTD_PID(token) == 1)
+					ehci_dbg(" hc couldn't read data");
+				else
+					ehci_dbg(" hc couldn't write data");
+			}
+			if (token & QTD_STS_XACT)		/* timeout, bad CRC, wrong PID, etc */
 				ehci_dbg(" Wrong ack");
-			if (QTD_CERR (token)==0)
+			if (QTD_CERR(token) == 0)
 				ehci_dbg(" Toomany errors");
 						
-			ehci_dbg("\n");
+			ehci_dbg(" token: %08x\n", token);
 			error = -1;
 		}
 	}
@@ -701,14 +709,13 @@ int ehci_reset_device(struct ehci_device *dev)
 int ehci_discover(void)
 {
 	int i;
-	int ret = 0 ;
+	int ret = 0;
 	// precondition: the ehci should be halted
 	for(i = 0; i < ehci->num_port; i++)
 	{
 		struct ehci_device *dev = &ehci->devices[i];
 		dev->port = i;
 		ret = ehci_reset_port(i);
-
 		if( ret != -ENODEV )
 			break;
 	}        
@@ -783,10 +790,10 @@ int ehci_close_device(struct ehci_device *dev)
 }
 
 #define g_ehci #error
-int ehci_get_device_list(u8 maxdev,u8 b0,u8*num,u16*buf)
+int ehci_get_device_list(u8 maxdev, u8 b0, u8 *num, u16 *buf)
 {
 	int i, j = 0;
-	for(i = 0; i < ehci->num_port && j<maxdev ; i++)
+	for(i = 0; i < ehci->num_port && j < maxdev; i++)
 	{
 		struct ehci_device *dev = &ehci->devices[i];
 		if(dev->id != 0)
@@ -803,5 +810,6 @@ int ehci_get_device_list(u8 maxdev,u8 b0,u8*num,u16*buf)
 	*num = j;
 	return 0;
 }
+
 #include "usb.c"
 #include "usbstorage.c"

@@ -16,7 +16,6 @@
 #include "hollywood.h"	
 #include "fs.h"
 
-static char Path[32];
 extern u32 ignore_logfile;
 extern DIConfig *DICfg;
 
@@ -336,7 +335,6 @@ void hexdump(void *d, int len)
 
 int dbgprintf(const char *fmt, ...)
 {
-
 	if((*(vu32*)(HW_EXICTRL) & 1) == 0)
 		return 0;
 
@@ -349,28 +347,20 @@ int dbgprintf(const char *fmt, ...)
 	i = vsprintf(buffer, fmt, args);
 	va_end(args);
 
-	if (ignore_logfile == 0)
+	if(ignore_logfile == 0 && DICfg->Config & DEBUG_CREATE_DIP_LOG)
 	{
-		sprintf(Path,"/sneek/cdilog.txt");
-		s32 fd = IOS_Open(Path, 2);
+		s32 fd = IOS_Open("/sneek/cdilog.txt", 2);
 		if(fd < 0)
 		{
 			if(fd == FS_ENOENT2)
 			{
-				if(DICfg->Config & DEBUG_CREATE_DIP_LOG)
+				ISFS_CreateFile("/sneek/cdilog.txt", 0, 0, 0, 0);
+				fd = IOS_Open("/sneek/cdilog.txt", 2);
+				if(fd < 0)
 				{
-					ISFS_CreateFile(Path, 0, 0, 0, 0);
-					fd = IOS_Open(Path, 2);
-					if(fd < 0)
-					{
-						free(buffer);
-						return i;
-					}
+					free(buffer);
+					return i;
 				}
-				else
-				{
-					ignore_logfile = 1;
-				}			
 			}
 			else
 			{

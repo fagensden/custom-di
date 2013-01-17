@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "vsprintf.h"
 #include "DIGlue.h"
 #include "utils.h"
+#include "hollywood.h"
 
 #define DISC_SUCCES		0
 #define DI_SUCCESS		1
@@ -42,17 +43,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #define IS_DISC			2
 
 #define FILECACHE_MAX	5
-#define BLOCKCACHE_MAX	3
+#define BLOCKCACHE_MAX	5
 #define FILESPLITS_MAX	10
 #define FRAG_MAX 		20000
 #define DISCRETRY_MAX	5
 
 #define DVD_CONFIG_SIZE		0x20
 #define DVD_REAL_NAME_OFF	0x20
-#define DVD_GAMEINFO_SIZE	0x100
-#define DVD_GAME_NAME_OFF	0x60
+#define DVD_GAMEINFO_SIZE	0x140
+#define DVD_GAME_NAME_OFF	0xA0
 #define WII_MAGIC_OFF		0x18
 #define DI_MAGIC_OFF		0x1c
+#define CUS_CONFIG_SIZE		0x10
+#define CUS_TITLE_SIZE		0x50
+
+#define GCMAGIC				0xc2339f3d
+#define WIIMAGIC			0x5d1c9ea3
+#define CONFIGMAGIC			0x504c4159
+
+
 
 enum fstmodes
 {
@@ -112,8 +121,6 @@ enum opcodes
 	DVD_UPDATE_GAME_CACHE	= 0x2F,
 	DVD_READ_INFO			= 0x30,
 	DVD_WRITE_CONFIG		= 0x31,
-	DVD_CONNECTED			= 0x32, //Check if the harddrive is connected yet
-	DVD_WRITE_NANDCONFIG	= 0x33,
 
 	DVD_OPEN				= 0x40,
 	DVD_READ				= 0x41,
@@ -125,6 +132,21 @@ enum opcodes
 	DVD_FRAG_SET			= 0xF9,
 };
 
+enum SNEEKConfig2
+{
+	DML_CHEATS				= (1<<0),
+	DML_DEBUGGER			= (1<<1),
+	DML_DEBUGWAIT			= (1<<2),
+	DML_NMM					= (1<<3),
+	DML_NMM_DEBUG			= (1<<4),
+	DML_ACTIVITY_LED		= (1<<5),
+	DML_PADHOOK				= (1<<6),
+	DML_BOOT_DISC			= (1<<7),
+	DML_BOOT_DOL			= (1<<8),
+	DML_PROG_PATCH			= (1<<9),
+	DML_FORCE_WIDESCREEN	= (1<<10),
+};
+
 enum SNEEKConfig
 {
 	CONFIG_PATCH_FWRITE		= (1<<0),
@@ -134,19 +156,13 @@ enum SNEEKConfig
 	CONFIG_DEBUG_GAME		= (1<<4),
 	CONFIG_DEBUG_GAME_WAIT	= (1<<5),	
 	CONFIG_READ_ERROR_RETRY	= (1<<6),
-	CONFIG_GAME_ERROR_SKIP	= (1<<7),
-	DML_CHEATS				= (1<<8),
-	DML_DEBUGGER			= (1<<9),
-	DML_DEBUGWAIT			= (1<<10),
-	DML_NMM					= (1<<11),
-	DML_NMM_DEBUG			= (1<<12),
-	DML_ACTIVITY_LED		= (1<<13),
-	DML_PADHOOK				= (1<<14),
-	CONFIG_MOUNT_DISC		= (1<<15),
-	DML_BOOT_DISC			= (1<<16),
-	DML_BOOT_DOL			= (1<<17),
-	DEBUG_CREATE_DIP_LOG	= (1<<18),
-	DEBUG_CREATE_ES_LOG		= (1<<19),
+	CONFIG_GAME_ERROR_SKIP	= (1<<7),	
+	CONFIG_MOUNT_DISC		= (1<<8),
+	CONFIG_DI_ACT_LED		= (1<<9),
+	CONFIG_REV_ACT_LED		= (1<<10),	
+	DEBUG_CREATE_DIP_LOG	= (1<<11),
+	DEBUG_CREATE_ES_LOG		= (1<<12),	
+	CONFIG_SCROLL_TITLES	= (1<<13),
 };
 
 enum DMLLang
@@ -167,10 +183,9 @@ enum DMLVideo
 	
 	DML_VIDEO_GAME			= (1<<24),
 	DML_VIDEO_PAL50			= (2<<24),
-	DML_VIDEO_NTSC			= (3<<24),
-	DML_VIDEO_PAL60			= (4<<24),
-	DML_VIDEO_PROG			= (5<<24),
-	DML_VIDEO_PROGP			= (6<<24),
+	DML_VIDEO_PAL60			= (3<<24),
+	DML_VIDEO_NTSC			= (4<<24),	
+	DML_VIDEO_NONE			= (5<<24),
 };
 
 enum HookTypes
@@ -196,19 +211,19 @@ enum dmlconfig
 	DML_CFG_FORCE_WIDE		= (1<<9),
 	DML_CFG_BOOT_DISC		= (1<<10),
 	DML_CFG_BOOT_DISC2		= (1<<11),
-	DML_CFG_NODISC			= (1<<12),
+	DML_CFG_NODISC			= (1<<12),	
 };
 
 enum dmlvideomode
 {
-	DML_VID_DML_AUTO		= (0<<16),
+	DML_VID_AUTO			= (0<<16),
 	DML_VID_FORCE			= (1<<16),
 	DML_VID_NONE			= (2<<16),
 
 	DML_VID_FORCE_PAL50		= (1<<0),
 	DML_VID_FORCE_PAL60		= (1<<1),
 	DML_VID_FORCE_NTSC		= (1<<2),
-	DML_VID_FORCE_PROG		= (1<<3),
+	DML_VID_FORCE_PROG		= (1<<3),	
 	DML_VID_PROG_PATCH		= (1<<4),
 };
 
@@ -229,9 +244,10 @@ typedef struct
 	u32		Gamecount;
 	u32		Config;
 	u32		Config2;
-	u32		Padding1;
+	u32		Magic;
+	u16		FBGame;
+	u16		GCGame;
 	u32		Padding2;
-	u32		Padding3;
 	u8		GameInfo[][DVD_GAMEINFO_SIZE];
 } DIConfig;
 

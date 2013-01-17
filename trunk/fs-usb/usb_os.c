@@ -17,9 +17,9 @@ int usb_os_init(void)
 //static u8* aligned_mem = 0;
 //static u8* aligned_base = 0;
 /* @todo hum.. not that nice.. */
-void*ehci_maligned(int size,int alignement,int crossing)
+void *ehci_maligned(int size, int alignement, int crossing)
 {
-	u32 addr = malloca( size, alignement );
+	u32 addr = (u32)malloca(size, alignement);
         //if (!aligned_mem )
         //{
         //        aligned_mem=aligned_base =  (void*)0x13890000;
@@ -38,10 +38,12 @@ void*ehci_maligned(int size,int alignement,int crossing)
         //memset((void*)addr,0,size);
 	return (void*)addr;
 }
+
 dma_addr_t ehci_virt_to_dma(void *a)
 {
 	return (dma_addr_t)virt_to_phys(a);
 }
+
 dma_addr_t ehci_dma_map_to(void *buf,size_t len)
 {
 	sync_after_write(buf, len);
@@ -67,7 +69,7 @@ void ehci_dma_unmap_from(dma_addr_t buf,size_t len)
 {
 	sync_before_read((void*)buf, len);
 }
-void ehci_dma_unmap_bidir(dma_addr_t buf,size_t len)
+void ehci_dma_unmap_bidir(dma_addr_t buf, size_t len)
 {
 	sync_before_read((void*)buf, len);
 }

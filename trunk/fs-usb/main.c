@@ -160,6 +160,8 @@ void _main(void)
 	u8 *NInfo = (u8 *)heap_alloc_aligned( 0, NANDINFO_SIZE, 32 );
 	u8 *MInfo = NULL;
 	
+	u32 ncnt = 0;
+	
 	nandroot[0] = 0;
 	strcpy(diroot, "/sneek");
 
@@ -202,7 +204,7 @@ void _main(void)
 		__sprintf(tempnroot, "%.127s", NandCFG->NandInfo[NandCFG->NandSel]);
 		if(Extcnt != 0)
 		{
-			MInfo = (u8 *)heap_alloc_aligned( 0, NANDINFO_SIZE * Extcnt, 32 );
+			MInfo = (u8 *)heap_alloc_aligned(0, NANDINFO_SIZE * Extcnt, 32);
 			memset32(MInfo, 0, NANDINFO_SIZE * Extcnt);
 			f_lseek(&fil, NANDCFG_SIZE);
 			f_read(&fil, MInfo, NANDINFO_SIZE * Extcnt, &read);
@@ -210,7 +212,7 @@ void _main(void)
 			{
 				for(i = 0; i < Extcnt; ++i)
 				{
-					if(strncmp(nandroot, (char *)NandCFG->NandInfo[i], strlen(nandroot)) == 0)
+					if(!strncmp(nandroot, (char *)NandCFG->NandInfo[i], strlen(nandroot)))
 					{
 						extpath = 0;
 						break;
@@ -226,8 +228,7 @@ void _main(void)
 	if(f_opendir(&dir, npath) == FR_OK)
 	{
 		NandCFG = (NandConfig *)heap_alloc_aligned(0, NANDCFG_SIZE, 32);
-		memset32(NandCFG, 0, NANDCFG_SIZE);
-		u32 ncnt=0;
+		memset32(NandCFG, 0, NANDCFG_SIZE);		
 		f_open(&fil, path, FA_WRITE|FA_CREATE_ALWAYS);
 		NandCFG->NandCnt = 0;
 		NandCFG->NandSel = 0;
@@ -235,13 +236,11 @@ void _main(void)
 		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
 		f_lseek(&fil, NANDCFG_SIZE);
 		if(extpath != 0)
-		{
 			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
-		}
+			
 		if(Extcnt != 0)
-		{
 			f_write(&fil, MInfo, NANDINFO_SIZE * Extcnt, &write);
-		}
+	
 		heap_free(0, MInfo);
 		ncnt += Extcnt;
 		while(f_readdir(&dir, &FInfo) == FR_OK)
@@ -258,7 +257,7 @@ void _main(void)
 			strcat(fpath, (char *)(NInfo+NANDDESC_OFF));			
 			
 			memcpy(NInfo, fpath, strlen(fpath));
-			memcpy(NInfo+NANDDI_OFF, diroot, strlen(fpath));
+			memcpy(NInfo+NANDDI_OFF, diroot, strlen(diroot));
 
 			f_write(&fil, NInfo, NANDINFO_SIZE, &write);
 			
@@ -271,6 +270,30 @@ void _main(void)
 		f_lseek(&fil, 0);
 		f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
 		f_close(&fil);
+	}
+	else
+	{
+		if(extpath != 0 || Extcnt != 0)
+		{
+			f_open(&fil, path, FA_WRITE|FA_CREATE_ALWAYS);
+			ncnt=0;
+			NandCFG->NandCnt = 0;
+			NandCFG->NandSel = 0;
+			NandCFG->NandExt = Extcnt + extpath;
+			f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
+			f_lseek(&fil, NANDCFG_SIZE);
+			if(extpath != 0)
+				f_write(&fil, NInfo, NANDINFO_SIZE, &write);
+			
+			if(Extcnt != 0)
+				f_write(&fil, MInfo, NANDINFO_SIZE * Extcnt, &write);
+	
+			heap_free(0, MInfo);
+			NandCFG->NandCnt = Extcnt;
+			f_lseek(&fil, 0);
+			f_write(&fil, NandCFG, NANDCFG_SIZE, &write);
+			f_close(&fil);
+		}
 	}
 	
 	if(NandCFG)
@@ -290,7 +313,6 @@ void _main(void)
 	
 	if (f_opendir( &dir, path ) != FR_OK)
 		FS_CreateDir("/sneekcache");
-	
 	
 	heap_free(0, fpath);
 	heap_free(0, tempnroot);
@@ -379,6 +401,10 @@ void _main(void)
 				{
 					USB_Ioctlv(CMessage);
 				}
+				//else if(CMessage->fd == VEN_FD || CMessage->fd == HID_FD)
+				//{
+				//	USB2_Ioctlv(CMessage);
+				//}
 				else
 				{
 					FFS_Ioctl(CMessage);
